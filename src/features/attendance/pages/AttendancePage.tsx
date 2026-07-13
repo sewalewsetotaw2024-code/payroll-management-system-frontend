@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion } from '../../../lib/motionCompat';
 import { Fingerprint, FileText, FileBarChart2, CalendarRange } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { Skeleton, GlassCard, StatusBadge } from '../../../components/ui';
