@@ -13,8 +13,10 @@ import type {
  * Axios instance configured for the Attendance API base path.
  * Automatically attaches the Bearer token from tokenStorage on every request.
  */
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
+
 const attendanceAxios = axios.create({
-    baseURL: '/api/v1/attendance',
+    baseURL: `${API_BASE_URL}/attendance`,
 });
 
 attendanceAxios.interceptors.request.use((config) => {

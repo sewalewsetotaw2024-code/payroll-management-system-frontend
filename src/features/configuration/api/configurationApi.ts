@@ -19,9 +19,11 @@ import type {
   SystemCurrency,
 } from '../types/configuration.types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
+
 // Axios for integration/sync endpoints (base: /api/v1/integrations)
 const integrationAxios = axios.create({
-  baseURL: '/api/v1/integrations',
+  baseURL: `${API_BASE_URL}/integrations`,
   headers: { 'Content-Type': 'application/json' },
 });
 

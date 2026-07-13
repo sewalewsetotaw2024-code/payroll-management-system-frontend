@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { tokenStorage } from '../lib/token';
 
-const API_BASE_URL = '/api/v1/configurations';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/configurations';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,

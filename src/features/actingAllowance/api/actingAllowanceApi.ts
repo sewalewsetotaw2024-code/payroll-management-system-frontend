@@ -10,6 +10,8 @@
 
 import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
 import type {
     ActingAllowanceRule,
     ActingAssignment,
@@ -21,7 +23,7 @@ import type {
 
 /** Axios instance with auth interceptor. */
 const axiosInstance = axios.create({
-    baseURL: '/api/v1',
+    baseURL: API_BASE_URL,
 });
 
 axiosInstance.interceptors.request.use((config) => {

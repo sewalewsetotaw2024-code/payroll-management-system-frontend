@@ -2,9 +2,11 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 
 // Axios for employee API (from payroll backend - synced data)
-// Base: /api/v1/configurations (proxied to port 3000)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
+
+// Employee records are served from the payroll backend under /api/v1/employees
 const payrollAxios = axios.create({
-  baseURL: '/api/v1/configurations',
+  baseURL: `${API_BASE_URL}/employees`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -16,7 +18,7 @@ payrollAxios.interceptors.request.use((config) => {
 
 // Axios for integration/sync endpoints
 const integrationAxios = axios.create({
-  baseURL: '/api/v1/integrations',
+  baseURL: `${API_BASE_URL}/integrations`,
   headers: { 'Content-Type': 'application/json' },
 });
 
