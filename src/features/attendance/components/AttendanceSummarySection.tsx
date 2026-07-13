@@ -22,6 +22,7 @@ import { AttendanceImportFlow } from '../../dataManagement/components/Attendance
 import { ImportTable } from './ImportTable';
 import { folderApi } from '../../dataManagement/api/folderApi';
 import { formatHourValue } from '../../../lib/parseBiometricWorkbook';
+import { tokenStorage } from '../../../lib/token';
 import type { AttendanceImport, AttendanceMonthlySummary, ImportDetail } from '../types/attendance.types';
 import type { FolderTreeNode } from '../../dataManagement/types/folder.types';
 
@@ -162,7 +163,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
       const response = await fetch(`/api/v1/attendance/imports/${selectedImport.id}/submit-for-approval`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,
+          Authorization: `Bearer ${tokenStorage.getToken()}`,
           'Content-Type': 'application/json',
         },
       });

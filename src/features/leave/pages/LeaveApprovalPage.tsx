@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { CalendarDays, Clock } from 'lucide-react';
-import { LeaveApplicationsSection } from '../components/LeaveApplicationsSection';
+
+const LeaveApplicationsSection = React.lazy(() =>
+  import('../components/LeaveApplicationsSection').then((module) => ({
+    default: module.LeaveApplicationsSection,
+  }))
+);
 
 /**
  * LeaveApprovalPage — Dedicated page for Department Managers to
@@ -47,11 +52,13 @@ const LeaveApprovalPage: React.FC = () => {
         </div>
 
         <div className="p-6">
-          <LeaveApplicationsSection
-            periodId={null}
-            periodStart=""
-            periodEnd=""
-          />
+          <Suspense fallback={<div className="text-sm text-slate-500">Loading leave applications...</div>}>
+            <LeaveApplicationsSection
+              periodId={null}
+              periodStart=""
+              periodEnd=""
+            />
+          </Suspense>
         </div>
       </div>
     </div>
