@@ -70,11 +70,22 @@ export interface PayrollEmployee {
 /** Backward-compatible alias for PayrollEmployee. */
 export type Employee = PayrollEmployee;
 
+const employeeAxios = axios.create({
+  baseURL: `${API_BASE_URL}/employees`,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+employeeAxios.interceptors.request.use((config) => {
+  const token = tokenStorage.getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 /** API endpoints for fetching payroll employee data. */
 export const employeeApi = {
   getAll: (params?: { search?: string; status?: string; page?: number; limit?: number }) =>
-    axiosInstance.get('/employees', { params }),
-  getById: (id: string) => axiosInstance.get(`/employees/${id}`),
+    employeeAxios.get('/', { params }),
+  getById: (id: string) => employeeAxios.get(`/${id}`),
 };
 
 // ─── Sync & Integration ───────────────────────────────────────────────

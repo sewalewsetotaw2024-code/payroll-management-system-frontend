@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management
 
 // Employee records are served from the payroll backend under /api/v1/employees
 const payrollAxios = axios.create({
-  baseURL: `${API_BASE_URL}/employees`,
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
