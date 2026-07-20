@@ -103,28 +103,31 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto mx-4"
+            className="glass rounded-[3rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto mx-4 border-white"
             role="dialog"
             aria-modal="true"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-slate-200 rounded-t-2xl px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="text-lg font-bold text-slate-900">Employee Payroll Breakdown</h2>
+            <div className="sticky top-0 glass-dark border-b border-white/10 px-8 py-6 flex items-center justify-between z-10 backdrop-blur-3xl">
+              <div>
+                <h2 className="text-xl font-black text-white tracking-tight">Calculation Ledger</h2>
+                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mt-1">Real-time breakdown engine</p>
+              </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/50 hover:text-white"
                 aria-label="Close"
               >
-                <X className="w-5 h-5 text-slate-400" />
+                <X className="w-6 h-6" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="px-6 py-5 space-y-6">
+            <div className="px-8 py-8 space-y-10 bg-white/40 backdrop-blur-xl">
               {loading && (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
-                  <p className="text-sm text-slate-500 font-medium">Loading employee breakdown...</p>
+                <div className="flex flex-col items-center justify-center py-24 gap-6">
+                  <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Querying Matrix...</p>
                 </div>
               )}
 
@@ -147,7 +150,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                           setLoading(false);
                         });
                     }}
-                    className="px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                    className="px-4 py-2 text-xs font-bold text-emerald-700 bg-brand-50 rounded-lg hover:bg-brand-100 transition-colors"
                   >
                     Retry
                   </button>
@@ -157,33 +160,30 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
               {!loading && !error && item && (
                 <>
                   {/* Employee Info */}
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-slate-400" />
-                          <span className="font-bold text-slate-900">
-                            {item.employee?.firstName} {item.employee?.lastName}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <Briefcase className="w-3.5 h-3.5" />
-                          <span>{item.employee?.departmentName || 'No Department'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <Hash className="w-3.5 h-3.5" />
-                          <span>TIN: {item.employee?.tinNumber || '—'}</span>
+                  <div className="glass bg-white rounded-3xl p-6 border-white shadow-xl flex items-start justify-between group">
+                    <div className="flex items-center gap-6">
+                      <div className="w-14 h-14 rounded-2xl bg-brand-primary flex items-center justify-center text-white text-xl font-black shadow-lg shadow-brand-900/20 group-hover:scale-110 transition-transform">
+                        {(item.employee?.firstName?.[0] ?? "") + (item.employee?.lastName?.[0] ?? "")}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xl font-black text-slate-900 tracking-tight">
+                          {item.employee?.firstName} {item.employee?.lastName}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.employee?.departmentName || 'Core Operations'}</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-200" />
+                          <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest">TIN: {item.employee?.tinNumber || '—'}</span>
                         </div>
                       </div>
-                      {item.deductionCapBreached && (
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg">
-                          <AlertTriangle className="w-4 h-4 text-rose-500" />
-                          <span className="text-[10px] font-black text-rose-600 uppercase tracking-wider">
-                            Cap Breached
-                          </span>
-                        </div>
-                      )}
                     </div>
+                    {item.deductionCapBreached && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
+                        <AlertTriangle className="w-4 h-4 text-rose-500" />
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-[0.1em]">
+                          Cap Breached
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Proration — Attendance-Based (full-period employees) */}
@@ -399,7 +399,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                       PUBLIC_HOLIDAY: 'text-amber-700',
                     };
                     const categoryBg: Record<string, string> = {
-                      WEEKDAY_DAY: 'bg-emerald-50 border-emerald-100',
+                      WEEKDAY_DAY: 'bg-brand-50 border-emerald-100',
                       WEEKDAY_NIGHT: 'bg-purple-50 border-purple-100',
                       WEEKEND: 'bg-blue-50 border-blue-100',
                       PUBLIC_HOLIDAY: 'bg-amber-50 border-amber-100',
@@ -437,7 +437,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                               <span className="text-sm font-bold text-indigo-900">Total Overtime</span>
                               <span className="text-[10px] text-indigo-500">{totalHours.toFixed(1)}h</span>
                             </div>
-                            <span className="text-sm font-black text-indigo-900 font-mono">{fmt(totalAmount)}</span>
+                            <span className="text-sm font-black text-slate-900 font-mono">{fmt(totalAmount)}</span>
                           </div>
                         </div>
                       </div>
@@ -470,7 +470,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                                   </span>
                                 )}
                               </div>
-                              <span className="text-sm font-bold text-rose-600 font-mono">
+                              <span className="text-sm font-bold text-slate-900 font-mono">
                                 {fmt(deduction.amount)}
                               </span>
                             </div>
@@ -498,7 +498,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                           <span className="text-sm font-medium text-slate-700">
                             Pension (Employee)
                           </span>
-                          <span className="text-sm font-bold text-amber-700 font-mono">
+                          <span className="text-sm font-bold text-slate-900 font-mono">
                             {fmt(item.payrollPension.employeeContribution)}
                           </span>
                         </div>
@@ -506,7 +506,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                           <span className="text-sm font-medium text-slate-700">
                             Pension (Employer)
                           </span>
-                          <span className="text-sm font-bold text-blue-700 font-mono">
+                          <span className="text-sm font-bold text-slate-900 font-mono">
                             {fmt(item.payrollPension.employerContribution)}
                           </span>
                         </div>
@@ -514,20 +514,30 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                     )}
                   </div>
 
-                  {/* Net Pay */}
-                  <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
-                    <div className="flex justify-between items-center">
+                  {/* Net Pay Hero */}
+                  <div className="glass bg-brand-primary rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
+                    <div className="relative z-10 flex justify-between items-center">
                       <div>
-                        <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider">
-                          Net Pay
+                        <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2">Final Net Payable</p>
+                        <p className="text-5xl font-black font-mono tracking-tighter">
+                          {fmt(item.netSalary)}
                         </p>
-                        <p className="text-[10px] text-emerald-500 mt-0.5">
-                          Gross: {fmt(item.grossSalary)} · Total Deductions: {fmt(item.totalDeductions)}
-                        </p>
+                        <div className="flex items-center gap-4 mt-4">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-emerald-300 uppercase tracking-widest">Gross</span>
+                            <span className="text-xs font-bold font-mono">{fmt(item.grossSalary)}</span>
+                          </div>
+                          <div className="w-px h-6 bg-white/20" />
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-rose-300 uppercase tracking-widest">Total Deductions</span>
+                            <span className="text-xs font-bold font-mono">{fmt(item.totalDeductions)}</span>
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-2xl font-black text-emerald-900">
-                        {fmt(item.netSalary)}
-                      </span>
+                      <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
+                        <DollarSign className="w-8 h-8" />
+                      </div>
                     </div>
                   </div>
                 </>

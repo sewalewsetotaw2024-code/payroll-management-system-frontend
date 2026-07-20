@@ -23,4 +23,4 @@ export const DEPT_COST_DATA = [
   { name: 'HR', cost: 0.9 },
 ];
 
-export const CHART_COLORS = ['#047857', '#10b981', '#34d399', '#6ee7b7', '#94a3b8'];
+export const CHART_COLORS = ['#047857' /* brand-700 */, '#10b981', '#34d399', '#6ee7b7', '#94a3b8'];

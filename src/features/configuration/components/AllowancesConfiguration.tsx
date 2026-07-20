@@ -110,7 +110,7 @@ const EarningTypeCombobox = ({
           className={cn(
             'w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-medium text-slate-900',
             'transition-all duration-150',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500',
+            'focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500',
             error
               ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500'
               : 'border-slate-200 hover:border-slate-300',
@@ -132,7 +132,7 @@ const EarningTypeCombobox = ({
                   className={cn(
                     'w-full text-left px-4 py-2.5 text-sm transition-colors',
                     value === opt.value
-                      ? 'bg-emerald-50 text-emerald-700 font-bold'
+                      ? 'bg-brand-50 text-emerald-700 font-bold'
                       : 'text-slate-700 hover:bg-slate-50',
                   )}
                 >
@@ -146,7 +146,7 @@ const EarningTypeCombobox = ({
             <button
               type="button"
               onMouseDown={commitCustom}
-              className="w-full text-left px-4 py-2.5 text-sm text-emerald-700 font-bold hover:bg-emerald-50 border-t border-slate-100 transition-colors"
+              className="w-full text-left px-4 py-2.5 text-sm text-emerald-700 font-bold hover:bg-brand-50 border-t border-slate-100 transition-colors"
             >
               Use "{search.trim()}" as custom earning type
             </button>
@@ -284,7 +284,7 @@ export const AllowancesConfiguration: React.FC = () => {
       description="Configure all employee earnings: Base Salary, Allowances, Bonuses, Overtime, etc."
       showBadge={localAllowances.length > 0 && !loading}
       actionButton={
-        <Button onClick={openAdd} className="shadow shadow-emerald-200/50">
+        <Button onClick={openAdd} className="shadow shadow-brand-200/50">
           <Plus className="w-4 h-4" /> Add Earning Type
         </Button>
       }
@@ -348,7 +348,7 @@ export const AllowancesConfiguration: React.FC = () => {
                 <span className="text-sm font-bold">Taxable</span>
               </label>
               <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                !form.isTaxable ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+                !form.isTaxable ? 'border-brand-400 bg-brand-50' : 'border-slate-200 hover:border-slate-300'
               }`}>
                 <input type="radio" name="taxable" checked={!form.isTaxable} onChange={() => setForm({ ...form, isTaxable: false })} className="sr-only" />
                 <span className="text-sm font-bold">Non-Taxable</span>
@@ -364,7 +364,7 @@ export const AllowancesConfiguration: React.FC = () => {
                   type="checkbox"
                   checked={form.isExempt}
                   onChange={(e) => setForm({ ...form, isExempt: e.target.checked, exemptPercent: e.target.checked ? form.exemptPercent : null })}
-                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-brand-500/20"
                 />
                 <span className="text-sm font-bold text-slate-700">Tax Exempt</span>
                 <span className="text-[10px] text-slate-400">(Mark portion as exempt from tax)</span>
@@ -382,7 +382,7 @@ export const AllowancesConfiguration: React.FC = () => {
                       value={form.exemptPercent ?? ''}
                       onChange={(e) => setForm({ ...form, exemptPercent: e.target.value ? Number(e.target.value) : null })}
                       placeholder="0.00"
-                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">%</span>
                   </div>

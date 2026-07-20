@@ -3,10 +3,8 @@ import { tokenStorage } from '../../../lib/token';
 
 // Separate axios instance for payroll processing endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
-
 const payrollAxios = axios.create({
-  baseURL: `${API_BASE_URL}/payroll`,
+  baseURL: '/api/v1/payroll',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -221,6 +219,13 @@ export interface RunPayrollResponse {
   hasMore: boolean;
 }
 
+export interface GeneratePayslipsResponse {
+  runId: string;
+  total: number;
+  generated: number;
+  skipped: number;
+}
+
 export interface SingleResponse<T> {
   success: boolean;
   message: string;
@@ -254,6 +259,33 @@ export const payrollRunApi = {
   /** Get a single payroll run item with full detail records */
   getRunItem: (runId: string, itemId: string) =>
     payrollAxios.get<SingleResponse<PayrollRunItemDetail>>(`/runs/${runId}/items/${itemId}`),
+
+  /** Generate payslips for all employees in a payroll run */
+  generatePayslipsForRun: (runId: string) =>
+    payrollAxios.post<SingleResponse<GeneratePayslipsResponse>>(`/runs/${runId}/generate-payslips`),
+
+  /** Get per-employee payroll stats for a period */
+  getEmployeeStats: (params: { payrollPeriodId: string }) =>
+    payrollAxios.get<SingleResponse<EmployeePayrollStat[]>>('/runs/employees', { params }),
 };
+
+// ──────────────────────────────────────────────
+// Employee Payroll Stat (used by PayrollStatsPage)
+// ──────────────────────────────────────────────
+
+export interface EmployeePayrollStat {
+  employeeName: string;
+  externalId: string;
+  position: string;
+  department: string;
+  workDays: number;
+  basicSalary: number;
+  grossPay: number;
+  totalDeductions: number;
+  tax: number;
+  pension: number;
+  costToCompany: number;
+  netPay: number;
+}
 
 export default payrollAxios;

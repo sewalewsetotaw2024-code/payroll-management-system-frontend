@@ -1,23 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
-  Settings,
   Users,
   TrendingUp,
-  Calendar,
-  Loader2,
   Database,
-  ArrowRight,
-  Eye,
   Pencil,
   Check,
   X,
-  RefreshCw
+  RefreshCw,
+  Fingerprint
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import {
@@ -31,18 +27,16 @@ import {
   Cell
 } from 'recharts';
 import { attendanceApi } from '../../attendance/api/attendanceApi';
-import { overtimeRuleApi, workdaysApi } from '../../configuration/api/configurationApi';
-import { AttendanceHeatmap } from '../components/AttendanceHeatmap';
+import { overtimeRuleApi, workdaysApi, payrollPeriodApi, fiscalYearApi } from '../../configuration/api/configurationApi';
 import type { AttendanceImport, AttendanceMonthlySummary, ImportDetail, OtCalculationResult } from '../../attendance/types/attendance.types';
-import type { OvertimeRule, WorkdaysConfig } from '../../configuration/types/configuration.types';
-import { StatCardProps } from '../../../types/ui.types';
-import { Skeleton } from '../../../components/ui';
-import { ImportTable } from '../../attendance/components/ImportTable';
+import type { OvertimeRule, WorkdaysConfig, PayrollPeriod, FiscalYear } from '../../configuration/types/configuration.types';
+
+import { Skeleton, GlassCard, Button } from '../../../components/ui';
 
 const BASE_OT_RATE = 350; // ETB per hour base rate
 
 const otRates = [
-  { label: 'Weekday OT', multiplier: '1.5x', color: 'bg-emerald-50 text-emerald-700' },
+  { label: 'Weekday OT', multiplier: '1.5x', color: 'bg-brand-50 text-emerald-700' },
   { label: 'Night OT', multiplier: '1.75x', color: 'bg-purple-50 text-purple-700' },
   { label: 'Weekend OT', multiplier: '2x', color: 'bg-blue-50 text-blue-700' },
   { label: 'Holiday OT', multiplier: '2.5x', color: 'bg-amber-50 text-amber-700' },
@@ -216,9 +210,6 @@ export const OvertimePage: React.FC = () => {
   const [workdaysConfig, setWorkdaysConfig] = useState<WorkdaysConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
-  const [allImports, setAllImports] = useState<AttendanceImport[]>([]);
-  const [activeImportId, setActiveImportId] = useState<string | null>(null);
-  const [importsSectionOpen, setImportsSectionOpen] = useState(true);
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ rate: number; calculationBase: 'BASIC' | 'GROSS'; isTaxable: boolean }>({ rate: 1.5, calculationBase: 'BASIC', isTaxable: true });
@@ -226,63 +217,134 @@ export const OvertimePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const editInputRef = useRef<HTMLInputElement>(null);
-  const activeLoadRef = useRef(0);
 
-  /** Load the latest attendance import and its OT data on mount. */
+  // Filter states
+  const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
+  const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
+  const [selectedFiscalYearId, setSelectedFiscalYearId] = useState<string>('');
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const loadCounterRef = useRef(0); // prevents stale async updates
+
+  // ─── Derived filter data ────────────────────────────────────
+  /** Filter periods by selected fiscal year */
+  const filteredPeriods = useMemo(() => {
+    if (!selectedFiscalYearId) return periods;
+    return periods.filter(p => p.fiscalYearId === selectedFiscalYearId);
+  }, [periods, selectedFiscalYearId]);
+
+  /** Get imports for the selected period */
+  const selectedPeriodImports = useMemo(() => {
+    if (!selectedPeriodId) return [];
+    return imports.filter(i => i.payrollPeriodId === selectedPeriodId);
+  }, [imports, selectedPeriodId]);
+
+  /** Load detail + OT data for a specific import (used by filter handlers). */
+  const loadImportData = useCallback(async (importId: string) => {
+    const id = ++loadCounterRef.current;
+    try {
+      const [detail, ot] = await Promise.all([
+        attendanceApi.getImportById(importId),
+        attendanceApi.getOvertimeResults(importId).catch(() => null),
+      ]);
+      if (id !== loadCounterRef.current) return;
+      setImportDetail(detail);
+      setOtResult(ot);
+    } catch (err) {
+      console.error('Failed to load import data:', err);
+    }
+  }, []);
+
+  // ─── Filter handlers ────────────────────────────────────────
+  /** Switch to a different payroll period and load its active import data. */
+  const handlePeriodChange = (periodId: string) => {
+    setSelectedPeriodId(periodId);
+    const period = periods.find(p => p.id === periodId);
+    if (period?.fiscalYearId) setSelectedFiscalYearId(period.fiscalYearId);
+    const periodImps = imports.filter(i => i.payrollPeriodId === periodId);
+    const activeImp = periodImps.find(i => i.isActive) ?? periodImps[0];
+    if (activeImp) {
+      setSelectedImport(activeImp);
+      loadImportData(activeImp.id);
+    } else {
+      setSelectedImport(null);
+      setImportDetail(null);
+      setOtResult(null);
+    }
+  };
+
+  /** Switch fiscal year and auto-select its first period. */
+  const handleFiscalYearChange = (fyId: string) => {
+    setSelectedFiscalYearId(fyId);
+    const fyPeriods = periods.filter(p => p.fiscalYearId === fyId);
+    if (fyPeriods.length > 0) {
+      handlePeriodChange(fyPeriods[0].id!);
+    }
+  };
+
+  /** Load fiscal years, payroll periods, attendance imports, and OT data on mount. */
   useEffect(() => {
     let cancelled = false;
 
     const loadData = async () => {
       setLoading(true);
       try {
-        const [importsList, rulesRes, workdaysRes] = await Promise.all([
+        const [importsList, rulesRes, workdaysRes, periodsRes, fyRes] = await Promise.all([
           attendanceApi.listImports({ limit: 1000 }),
           overtimeRuleApi.getAll(),
           workdaysApi.get().catch(() => ({ data: null })),
+          payrollPeriodApi.getAll(),
+          fiscalYearApi.getAll(),
         ]);
 
         if (cancelled) return;
         const imps = importsList ?? [];
         setImports(imps);
-        setAllImports(imps);
-        
-        // Extract array from standard response format { success: true, data: [...] }
-        // or fallback to the response body if it's already an array
+
+        // Extract OT rules
         const rawRules = rulesRes.data?.data;
         let extractedRules: OvertimeRule[] = [];
-        if (Array.isArray(rawRules)) {
-          extractedRules = rawRules;
-        } else if (Array.isArray(rulesRes.data?.overtimeRules)) {
-          extractedRules = rulesRes.data.overtimeRules;
-        } else if (Array.isArray(rulesRes.data)) {
-          extractedRules = rulesRes.data;
-        } else {
-          console.warn('[OT Page] Could not extract OT rules from response:', {
-            'rulesRes.data?.data': typeof rawRules,
-            'rulesRes.data?.overtimeRules': typeof rulesRes.data?.overtimeRules,
-            'rulesRes.data': typeof rulesRes.data,
-          });
-        }
-        console.log('[OT Page] OT rules extracted:', extractedRules.length, 'rules');
+        if (Array.isArray(rawRules)) extractedRules = rawRules;
+        else if (Array.isArray(rulesRes.data?.overtimeRules)) extractedRules = rulesRes.data.overtimeRules;
+        else if (Array.isArray(rulesRes.data)) extractedRules = rulesRes.data;
         setOtRules(extractedRules);
 
-        // Extract workdays configuration (wrapped in standard response)
+        // Extract workdays config
         const workdaysData = workdaysRes?.data?.data ?? workdaysRes?.data ?? null;
-        // Ensure numeric fields are proper numbers
         if (workdaysData && typeof workdaysData === 'object') {
           workdaysData.defaultMonthlyWorkdays = safeNum(workdaysData.defaultMonthlyWorkdays) || 26;
           workdaysData.dailyWorkingHours = safeNum(workdaysData.dailyWorkingHours) || 8;
         }
-        console.log('[OT Page] Workdays config:', workdaysData);
         setWorkdaysConfig(workdaysData);
 
+        // Set fiscal years
+        const fyList = (fyRes.data?.data && Array.isArray(fyRes.data.data)) ? fyRes.data.data : [];
+        setFiscalYears(fyList);
+
+        // Set periods
+        const periodList = (periodsRes.data?.data && Array.isArray(periodsRes.data.data)) ? periodsRes.data.data : [];
+        setPeriods(periodList);
+
+        // Auto-select first period and fiscal year from the active import, or fallback to first period
         if (imps.length > 0) {
-          // Prefer the active import, otherwise fall back to the latest
           const activeImport = imps.find(i => i.isActive) ?? imps[0];
           setSelectedImport(activeImport);
-          setActiveImportId(activeImport.id);
 
-          // Load detail first, then OT separately (OT may 404 if not calculated yet)
+          // Find the period that matches this import's payrollPeriodId
+          const matchingPeriod = periodList.find((p: PayrollPeriod) => p.id === activeImport.payrollPeriodId);
+          if (matchingPeriod) {
+            setSelectedPeriodId(matchingPeriod.id!);
+            if (matchingPeriod.fiscalYearId) {
+              setSelectedFiscalYearId(matchingPeriod.fiscalYearId);
+            }
+          } else if (periodList.length > 0) {
+            // Fallback to first period
+            setSelectedPeriodId(periodList[0].id!);
+            if (periodList[0].fiscalYearId) {
+              setSelectedFiscalYearId(periodList[0].fiscalYearId);
+            }
+          }
+
+          // Load import detail and OT
           const detail = await attendanceApi.getImportById(activeImport.id);
           if (cancelled) return;
           setImportDetail(detail);
@@ -291,7 +353,13 @@ export const OvertimePage: React.FC = () => {
             const ot = await attendanceApi.getOvertimeResults(activeImport.id);
             if (!cancelled) setOtResult(ot);
           } catch {
-            // No OT calculation yet — that's fine, leave otResult as null
+            // No OT calculation yet
+          }
+        } else if (periodList.length > 0) {
+          // No imports but have periods — select first period
+          setSelectedPeriodId(periodList[0].id!);
+          if (periodList[0].fiscalYearId) {
+            setSelectedFiscalYearId(periodList[0].fiscalYearId);
           }
         }
       } catch (error) {
@@ -369,13 +437,20 @@ export const OvertimePage: React.FC = () => {
 
   // Pagination for employee summary table
   const summaries = importDetail?.monthlySummaries || [];
-  const totalPages = Math.ceil(summaries.length / pageSize);
-  const paginatedSummaries = summaries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // Filter out employees with zero OT across all 4 categories when OT results are available
+  const visibleSummaries = otResult
+    ? summaries.filter(s => {
+        const calcOt = getEmployeeCalculatedOt(s.id, otResult);
+        return calcOt.total > 0;
+      })
+    : summaries;
+  const totalPages = Math.ceil(visibleSummaries.length / pageSize);
+  const paginatedSummaries = visibleSummaries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Reset pagination when selection changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeImportId, selectedImport]);
+  }, [selectedImport?.id]);
 
   // ---- loading state ----
   if (loading) {
@@ -427,7 +502,7 @@ export const OvertimePage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/data')}
-            className="mt-6 px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-900/10"
+            className="mt-6 px-5 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-700 transition-colors flex items-center gap-2 shadow-lg shadow-brand-900/10"
           >
             <Database className="w-4 h-4" /> Go to Data Management
           </button>
@@ -438,354 +513,287 @@ export const OvertimePage: React.FC = () => {
 
   // ---- main content ----
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Overtime Management</h1>
-          <p className="text-slate-500 text-sm">Track and calculate overtime hours and payments</p>
-          {selectedImport && (
-            <p className="text-xs text-slate-400 mt-1">
-              Payroll period: {selectedImport.payrollPeriod?.name ?? selectedImport.periodLabel}
-            </p>
-          )}
-        </motion.div>
+    <div className="space-y-10 pb-12">
+      {/* ─── Ledger Header ──────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="ledger-header">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Overtime Management</h1>
+          <p className="text-slate-500 text-sm mt-1 max-w-2xl font-medium">
+            Audit and authorize overtime hours. Monitor cost distribution and configure active rate rules for the current payroll cycle.
+          </p>
+        </div>
+        
         <div className="flex items-center gap-3">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate('/data')}
-            className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2"
-          >
-            <Database className="w-4 h-4" /> Data Management
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <Button
             onClick={handleCalculateOt}
-            disabled={calculating}
-            className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={calculating || !selectedImport}
+            className="btn-primary min-w-[180px]"
           >
-            {calculating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Calendar className="w-4 h-4" />
-            )}
-            {calculating ? 'Calculating…' : 'Calculate OT'}
-          </motion.button>
+            <RefreshCw className={cn("w-4 h-4", calculating && "animate-spin")} />
+            {calculating ? 'Processing...' : 'Run OT Engine'}
+          </Button>
         </div>
       </div>
 
-      {/* Attendance Imports Section */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <button
-          onClick={() => setImportsSectionOpen(!importsSectionOpen)}
-          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
-        >
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-            Attendance Imports ({allImports.length})
-          </h3>
-          <div className="flex items-center gap-2">
-            {activeImportId && (
-              <span
-                onClick={(e) => { e.stopPropagation(); setActiveImportId(null); setImportDetail(null); setOtResult(null); }}
-                className="text-[11px] text-emerald-600 font-semibold hover:text-emerald-800 cursor-pointer"
-              >
-                Clear filter
+      {/* ─── Context Selector ──────────────────────────────── */}
+      <GlassCard className="flex flex-wrap items-center gap-x-10 gap-y-6 px-8 py-5">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Financial Year</span>
+          <div className="relative group">
+            <select
+              value={selectedFiscalYearId}
+              onChange={(e) => handleFiscalYearChange(e.target.value)}
+              className="appearance-none text-sm font-bold text-slate-700 bg-white border-2 border-brand-200 rounded-xl px-3 py-2 pr-8 cursor-pointer focus:border-brand-400 focus:ring-4 focus:ring-brand-primary/10 transition-all"
+            >
+              {fiscalYears.map((fy) => (
+                <option key={fy.id} value={fy.id}>{fy.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-brand-primary pointer-events-none transition-colors" />
+          </div>
+        </div>
+
+        <div className="h-10 w-px bg-slate-200/60 hidden md:block" />
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payroll Cycle</span>
+          <div className="relative group">
+            <select
+              value={selectedPeriodId}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+              className="appearance-none text-sm font-bold text-slate-700 bg-white border-2 border-brand-200 rounded-xl px-3 py-2 pr-8 cursor-pointer focus:border-brand-400 focus:ring-4 focus:ring-brand-primary/10 transition-all"
+            >
+              {filteredPeriods.map((p) => (
+                <option key={p.id} value={p.id}>{p.name || `${new Date(p.startDate).toLocaleDateString()} - ${new Date(p.endDate).toLocaleDateString()}`}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-hover:text-brand-primary pointer-events-none transition-colors" />
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-4">
+          {selectedImport && (
+            <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/50 border border-emerald-100/50 text-[11px] font-black text-emerald-700 shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-            )}
-            <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", importsSectionOpen && "rotate-180")} />
-          </div>
-        </button>
-        {importsSectionOpen && (
-          <div className="px-4 pb-4">
-            <ImportTable
-              imports={allImports}
-              selectedImportId={activeImportId}
-              onSelectImport={(imp) => {
-                const id = imp.id;
-                setActiveImportId(id === activeImportId ? null : id);
-                setSelectedImport(imp);
-                const loadId = ++activeLoadRef.current;
-                attendanceApi.getImportById(id).then((detail) => {
-                  if (loadId === activeLoadRef.current) {
-                    setImportDetail(detail);
-                  }
-                  return attendanceApi.getOvertimeResults(id);
-                }).then((ot) => {
-                  if (loadId === activeLoadRef.current) {
-                    setOtResult(ot);
-                  }
-                }).catch((err) => {
-                  console.error('Failed to load OT data for import', id, err);
-                });
-              }}
-              onToggleActive={(imp) => {
-                attendanceApi.toggleImportActive(imp.id).then(() => {
-                  attendanceApi.listImports({ limit: 1000 }).then((list) => {
-                    const imps = list ?? [];
-                    setImports(imps);
-                    setAllImports(imps);
-                    const updated = imps.find(i => i.id === imp.id);
-                    if (updated) setSelectedImport(updated);
-                    if (activeImportId === imp.id && updated && !updated.isActive) {
-                      const nextActive = imps.find(i => i.isActive) ?? null;
-                      setActiveImportId(nextActive?.id ?? null);
-                      if (nextActive) {
-                        setSelectedImport(nextActive);
-                        attendanceApi.getImportById(nextActive.id).then(d => setImportDetail(d));
-                        attendanceApi.getOvertimeResults(nextActive.id).then(ot => setOtResult(ot)).catch(() => setOtResult(null));
-                      } else {
-                        setImportDetail(null);
-                        setOtResult(null);
-                      }
-                    }
-                  });
-                }).catch(() => {});
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Total OT Hours"
-          value={(safeNum(totalOtHours) || 0).toFixed(1)}
-          icon={Clock}
-          iconColor="text-emerald-500"
-        />
-        <StatCard
-          label="OT Cost "
-          value={(safeNum(totalOtCost) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          icon={TrendingUp}
-          iconColor="text-emerald-500"
-          subLabel=""
-        />
-        <StatCard
-          label="Employees with OT"
-          value={safeNum(employeesWithOT)}
-          icon={Users}
-          iconColor="text-purple-500"
-          subLabel={importDetail ? `of ${importDetail.monthlySummaries.length}` : ''}
-        />
-        <StatCard
-          label="Avg OT/Employee"
-          value={`${(safeNum(avgOtPerEmployee) || 0).toFixed(1)} hrs`}
-          icon={Clock}
-          iconColor="text-orange-500"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart Column */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-800 mb-8 uppercase tracking-wider">OT Hours by Category</h3>
-          {otResult && otResult.byCategory.length > 0 ? (
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={otResult.byCategory} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="category"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ border: 'none', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: any) => [`${value} hrs`, 'Hours']}
-                    labelFormatter={(label: any) => {
-                      const lower = String(label).toLowerCase();
-                      if (lower.includes('normal') || lower.includes('weekday')) return 'Weekday OT';
-                      if (lower.includes('night')) return 'Night OT';
-                      if (lower.includes('weekend')) return 'Weekend OT';
-                      if (lower.includes('holiday')) return 'Holiday OT';
-                      return String(label);
-                    }}
-                  />
-                  <Bar dataKey="totalHours" name="hours" radius={[4, 4, 0, 0]} barSize={80}>
-                    {otResult.byCategory.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={getBarColor(entry.category)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-[300px] text-slate-400 text-sm">
-              No OT data available. Click "Calculate OT" to generate.
+              ACTIVE IMPORT: {selectedImport.periodLabel}
             </div>
           )}
         </div>
+      </GlassCard>
 
-        {/* Configuration Column */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-800 mb-6 uppercase tracking-wider">OT Rate Configuration</h3>
-          <div className="space-y-4">
+      {/* ─── Executive Summary ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { 
+            label: 'Total OT Hours', 
+            value: (safeNum(totalOtHours) || 0).toFixed(1), 
+            unit: 'HRS', 
+            icon: Clock, 
+            color: 'text-emerald-600',
+            bg: 'bg-brand-50'
+          },
+          { 
+            label: 'Budget Impact', 
+            value: (safeNum(totalOtCost) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }), 
+            unit: 'ETB', 
+            icon: TrendingUp, 
+            color: 'text-brand-accent',
+            bg: 'bg-orange-50'
+          },
+          { 
+            label: 'Eligible Staff', 
+            value: safeNum(employeesWithOT), 
+            unit: 'USERS', 
+            icon: Users, 
+            color: 'text-blue-600',
+            bg: 'bg-blue-50'
+          },
+          { 
+            label: 'Avg Intensity', 
+            value: (safeNum(avgOtPerEmployee) || 0).toFixed(1), 
+            unit: 'H/EMP', 
+            icon: Clock, 
+            color: 'text-purple-600',
+            bg: 'bg-purple-50'
+          },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+          >
+            <GlassCard className="p-6 ledger-border hover:shadow-ledger transition-all group overflow-hidden">
+              <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-start justify-between mb-5 relative z-10">
+                <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-6", stat.bg, stat.color)}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2 relative z-10">
+                <span className="text-3xl font-black tracking-tighter text-slate-900 mono-value">
+                  {stat.value}
+                </span>
+                <span className="text-[10px] font-black text-slate-400 tracking-widest">{stat.unit}</span>
+              </div>
+              <p className="text-[10px] font-black text-slate-500 mt-1 uppercase tracking-widest relative z-10">{stat.label}</p>
+            </GlassCard>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* ─── Distribution Analytics ──────────── */}
+        <div className="lg:col-span-2">
+          <GlassCard className="h-full flex flex-col min-h-[460px]">
+            <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100/60">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Cost Distribution Analytics</h3>
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-brand-primary shadow-sm" />
+                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">STANDARD</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-brand-accent shadow-sm" />
+                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">PREMIUM</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-10 flex-1">
+              {otResult && otResult.byCategory.length > 0 ? (
+                <div className="h-[320px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={otResult.byCategory} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(226, 232, 240, 0.4)" />
+                      <XAxis
+                        dataKey="category"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }}
+                        dy={15}
+                        tickFormatter={(v) => v.replace(/_/g, ' ').split(' ')[0]}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(248, 250, 252, 0.8)' }}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                          backdropFilter: 'blur(12px)',
+                          border: '1px solid rgba(226, 232, 240, 0.6)',
+                          borderRadius: '20px',
+                          boxShadow: '0 15px 40px -10px rgba(0, 0, 0, 0.08)',
+                          padding: '12px 16px'
+                        }}
+                        formatter={(value: any) => [`${value} hrs`, 'Volume']}
+                        labelStyle={{ fontSize: '11px', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}
+                      />
+                      <Bar dataKey="totalHours" radius={[8, 8, 2, 2]} barSize={56}>
+                        {otResult.byCategory.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.category.includes('HOLIDAY') || entry.category.includes('NIGHT') ? '#b07d62' : 'var(--color-brand-700)'} 
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full opacity-30 select-none">
+                  <Database className="w-12 h-12 mb-3 text-slate-400" />
+                  <p className="text-sm font-black tracking-tight uppercase">Awaiting Calculation Results</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tighter">Run the OT engine to generate distribution data</p>
+                </div>
+              )}
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* ─── Rate Rule Auditor ──────────────── */}
+        <GlassCard className="flex flex-col min-h-[460px]">
+          <div className="px-8 py-6 border-b border-slate-100/60">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Rate Rule Auditor</h3>
+          </div>
+          <div className="p-6 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
             {otRules.length > 0 ? (
               otRules.map((rule) => {
-                const label = rule.category.toLowerCase().split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                let color = 'bg-emerald-50 text-emerald-700';
-                if (rule.category.includes('NIGHT')) color = 'bg-purple-50 text-purple-700';
-                if (rule.category.includes('WEEKEND')) color = 'bg-blue-50 text-blue-700';
-                if (rule.category.includes('HOLIDAY')) color = 'bg-amber-50 text-amber-700';
-
+                const label = rule.category.replace(/_/g, ' ');
                 const isEditing = editingRuleId === rule.id;
-                const isSaving = savingRule === rule.id;
-
-                const startEditing = () => {
-                  if (!rule.id) return;
-                  setEditForm({
-                    rate: safeNum(rule.rate) || 1.5,
-                    calculationBase: rule.calculationBase || 'BASIC',
-                    isTaxable: rule.isTaxable !== false,
-                  });
-                  setEditingRuleId(rule.id);
-                  setTimeout(() => editInputRef.current?.focus(), 50);
-                };
-
-                const cancelEditing = () => {
-                  setEditingRuleId(null);
-                };
-
-                const saveRule = async () => {
-                  if (!rule.id) return;
-                  setSavingRule(rule.id);
-                  try {
-                    await overtimeRuleApi.update(rule.id, {
-                      rate: editForm.rate,
-                      calculationBase: editForm.calculationBase,
-                      isTaxable: editForm.isTaxable,
-                    });
-                    // Refresh rules
-                    const res = await overtimeRuleApi.getAll();
-                    const rawRules = res.data?.data;
-                    let extracted: OvertimeRule[] = [];
-                    if (Array.isArray(rawRules)) extracted = rawRules;
-                    else if (Array.isArray(res.data?.overtimeRules)) extracted = res.data.overtimeRules;
-                    else if (Array.isArray(res.data)) extracted = res.data;
-                    setOtRules(extracted);
-                    setEditingRuleId(null);
-                  } catch (err) {
-                    console.error('Failed to save overtime rule:', err);
-                  } finally {
-                    setSavingRule(null);
-                  }
-                };
-
-                const handleKeyDown = (e: React.KeyboardEvent) => {
-                  if (e.key === 'Enter') saveRule();
-                  if (e.key === 'Escape') cancelEditing();
-                };
-
+                const isPremium = rule.category.includes('NIGHT') || rule.category.includes('HOLIDAY');
+                
                 return (
-                  <div key={rule.id} className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors group">
+                  <div key={rule.id} className="relative group p-5 rounded-3xl border border-slate-100/80 bg-white/40 hover:bg-white transition-all hover:shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+                      <div className="flex items-center gap-2 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100">
+                        <div className={cn("w-1.5 h-1.5 rounded-full", rule.isTaxable !== false ? "bg-emerald-500" : "bg-slate-300")} />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Taxable</span>
+                      </div>
+                    </div>
+                    
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">{label}</span>
                       {isEditing ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-3 w-full animate-in fade-in slide-in-from-right-2 duration-200">
                           <input
                             ref={editInputRef}
                             type="number"
                             step="0.01"
-                            min="0"
-                            max="10"
                             value={editForm.rate}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value);
-                              if (!isNaN(val)) setEditForm(f => ({ ...f, rate: val }));
-                            }}
-                            onKeyDown={handleKeyDown}
-                            className="w-20 px-2 py-1 text-[11px] font-black tracking-tight text-center border border-emerald-300 rounded-full bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                            onChange={(e) => setEditForm(f => ({ ...f, rate: parseFloat(e.target.value) }))}
+                            className="w-20 px-3 py-1.5 text-lg font-black bg-slate-50 rounded-xl focus:ring-2 focus:ring-brand-accent/20 outline-none mono-value border border-brand-accent/20"
                           />
-                          <span className="text-[11px] font-black text-slate-400">x</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className={cn("px-3 py-1 rounded-full text-[11px] font-black tracking-tight", color)}>
-                            {safeNum(rule.rate) || 1.5}x
-                          </span>
-                          <button
-                            onClick={startEditing}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-600"
-                            title="Edit rule"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={() => setEditForm(f => ({ ...f, calculationBase: f.calculationBase === 'GROSS' ? 'BASIC' : 'GROSS' }))}
-                            className={cn(
-                              "text-[10px] font-bold px-2 py-1 rounded-md transition-all cursor-pointer",
-                              editForm.calculationBase === 'GROSS'
-                                ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-300'
-                                : 'bg-slate-200 text-slate-600 ring-1 ring-slate-300',
-                            )}
-                          >
-                            {editForm.calculationBase === 'GROSS' ? 'Gross' : 'Basic'}
-                          </button>
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={editForm.isTaxable}
-                              onChange={(e) => setEditForm(f => ({ ...f, isTaxable: e.target.checked }))}
-                              className="w-3 h-3 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                            />
-                            <span className="text-[10px] text-slate-500 font-medium">Taxable</span>
-                          </label>
-                          <div className="ml-auto flex items-center gap-1">
-                            <button
-                              onClick={saveRule}
-                              disabled={isSaving}
-                              className="p-1 rounded-md bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors disabled:opacity-50"
-                              title="Save"
-                            >
-                              {isSaving ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              if (!rule.id) return;
+                              setSavingRule(rule.id);
+                              try {
+                                await overtimeRuleApi.update(rule.id, {
+                                  rate: editForm.rate,
+                                  calculationBase: editForm.calculationBase,
+                                  isTaxable: editForm.isTaxable,
+                                });
+                                const res = await overtimeRuleApi.getAll();
+                                const rawRules = res.data?.data;
+                                let extracted: OvertimeRule[] = [];
+                                if (Array.isArray(rawRules)) extracted = rawRules;
+                                else if (Array.isArray(res.data?.overtimeRules)) extracted = res.data.overtimeRules;
+                                else if (Array.isArray(res.data)) extracted = res.data;
+                                setOtRules(extracted);
+                                setEditingRuleId(null);
+                              } catch (err) {
+                                console.error('Failed to save overtime rule:', err);
+                              } finally {
+                                setSavingRule(null);
+                              }
+                            }} className="w-8 h-8 rounded-full bg-brand-50 text-emerald-600 flex items-center justify-center hover:bg-brand-100 transition-colors">
+                              {savingRule === rule.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                             </button>
-                            <button
-                              onClick={cancelEditing}
-                              disabled={isSaving}
-                              className="p-1 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors disabled:opacity-50"
-                              title="Cancel"
-                            >
-                              <X className="w-3.5 h-3.5" />
+                            <button onClick={() => setEditingRuleId(null)} className="w-8 h-8 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 transition-colors">
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
-                        </>
+                        </div>
                       ) : (
                         <>
-                          <span className={cn(
-                            "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                            rule.calculationBase === 'GROSS'
-                              ? 'bg-violet-50 text-violet-600'
-                              : 'bg-slate-100 text-slate-500',
-                          )}>
-                            {rule.calculationBase === 'GROSS' ? 'Gross' : 'Basic'}
+                          <span className={cn("text-3xl font-black mono-value tracking-tighter", isPremium ? "text-brand-accent" : "text-brand-primary")}>
+                            {rule.rate}x
                           </span>
-                          {rule.isTaxable !== false && (
-                            <span className="text-[10px] text-slate-400">Taxable</span>
-                          )}
+                          <button 
+                            onClick={() => {
+                              setEditForm({ rate: safeNum(rule.rate), calculationBase: rule.calculationBase || 'BASIC', isTaxable: rule.isTaxable !== false });
+                              setEditingRuleId(rule.id!);
+                            }}
+                            className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:text-brand-primary hover:border-brand-primary/20"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
                         </>
                       )}
                     </div>
@@ -793,159 +801,181 @@ export const OvertimePage: React.FC = () => {
                 );
               })
             ) : (
-              <div className="text-center py-6 text-slate-400 text-sm italic">
-                Loading configuration...
+              <div className="py-20 flex flex-col items-center opacity-20">
+                <Database className="w-8 h-8 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-widest">No Active Rules</span>
               </div>
             )}
           </div>
-          {otRules.length > 0 && (
-            <p className="mt-4 text-[10px] text-slate-400 text-center italic">
-              Hover a rule card and click the pencil icon to edit inline
-            </p>
-          )}
-        </div>
+          <div className="p-6 bg-slate-50/50 border-t border-slate-100/60 rounded-b-[1.5rem]">
+             <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Calculation Base</span>
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Prorated Gross</span>
+             </div>
+          </div>
+        </GlassCard>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Employee Overtime Summary</h3>
+      {/* ─── Payroll Impact Audit Table ─────────── */}
+      <GlassCard className="overflow-hidden border-none shadow-glass">
+        <div className="flex flex-col md:flex-row md:items-center justify-between px-8 py-6 border-b border-slate-100/60 gap-6">
+          <div className="flex items-center gap-4">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Payroll Impact Audit</h3>
+            <div className="h-4 w-px bg-slate-200" />
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter shadow-inner">
+              {visibleSummaries.length} VALID ENTRIES
+            </span>
+          </div>
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="relative group flex-1 md:flex-none">
+              <input
+                type="text"
+                placeholder="Audit Search..."
+                className="w-full md:w-72 pl-11 pr-4 py-2.5 text-xs font-bold bg-white border-2 border-brand-200 focus:border-brand-400 rounded-2xl focus:ring-4 focus:ring-brand-primary/10 outline-none transition-all placeholder:text-slate-400"
+              />
+              <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
+            </div>
+            <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-200/60 text-slate-400 hover:text-brand-primary hover:border-brand-primary/20 transition-all shadow-sm">
+              <Database className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="px-8 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest whitespace-nowrap">Employee</th>
-                <th className="px-4 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Weekday</th>
-                <th className="px-4 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Night</th>
-                <th className="px-4 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Weekend</th>
-                <th className="px-4 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Holiday</th>
-                <th className="px-4 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Total Hours</th>
-                <th className="px-8 py-4 text-[11px] font-extrabold text-slate-400 uppercase tracking-widest text-right whitespace-nowrap">OT Payment </th>
+              <tr className="bg-slate-50/40">
+                <th className="px-8 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Employee Registry</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekday (1.5x)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Night (2x)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekend (2x)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Holiday (2.5x)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Volume</th>
+                <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Net Payable</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {importDetail && paginatedSummaries.length > 0 ? (
+            <tbody className="divide-y divide-slate-100/60">
+              {paginatedSummaries.length > 0 ? (
                 paginatedSummaries.map((row, i) => {
                   const calcOt = getEmployeeCalculatedOt(row.id, otResult);
-                  const total = calcOt.total;
-                  // Compute payment using calculated OT hours
-                  const tempSummary = { ...row, normalOtHours: calcOt.weekdayDay, ot1Hours: calcOt.weekdayNight, weekendOtHours: calcOt.weekend, holidayOtHours: calcOt.holiday };
-                  const preOtg = computePreOvertimeGross(row, importDetail.attendancePeriodSummaries || [], workdaysConfig?.defaultMonthlyWorkdays || 30);
-                  const payment = computeEmployeePayment(tempSummary, otRules, monthlyWorkHours, preOtg);
+                  const preOtg = computePreOvertimeGross(row, importDetail?.attendancePeriodSummaries || [], workdaysConfig?.defaultMonthlyWorkdays || 30);
+                  const payment = computeEmployeePayment({ ...row, ...calcOt }, otRules, monthlyWorkHours, preOtg);
+                  const name = buildEmployeeName(row);
+                  
                   return (
-                    <motion.tr
-                      key={row.id ?? i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      whileHover={{ backgroundColor: 'rgba(248, 250, 252, 0.8)' }}
-                      className="transition-colors cursor-pointer group"
-                      onClick={() => selectedImport && navigate(`/overtime/${row.employeeId}?importId=${selectedImport.id}`)}
+                    <motion.tr 
+                      key={row.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.02 }}
+                      className="group hover:bg-white transition-all zebra-row"
                     >
-                      <td className="px-8 py-4 font-bold text-slate-800 text-sm min-w-[220px]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800 text-sm">
-                            {buildEmployeeName(row)}
-                          </span>
-                          <Eye className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <ArrowRight className="w-3.5 h-3.5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-brand-primary border-2 border-brand-200 flex items-center justify-center text-[10px] font-black text-white shadow-lg shadow-brand-900/20 transition-all">
+                            {name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-800 group-hover:text-brand-primary transition-colors">{name}</p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-tighter uppercase">Employee #{row.employeeId.substring(0, 8)}</p>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-center text-slate-600 text-sm">{safeNum(calcOt.weekdayDay) || 0}</td>
-                      <td className="px-4 py-4 text-center text-slate-600 text-sm">{safeNum(calcOt.weekdayNight) || 0}</td>
-                      <td className="px-4 py-4 text-center text-slate-600 text-sm">{safeNum(calcOt.weekend) || 0}</td>
-                      <td className="px-4 py-4 text-center text-slate-600 text-sm">{safeNum(calcOt.holiday) || 0}</td>
-                      <td className="px-4 py-4 text-center font-bold text-emerald-600 text-sm">{(safeNum(total) || 0).toFixed(1)}</td>
-                      <td className="px-8 py-4 text-right font-bold text-emerald-700 text-sm">{(safeNum(payment) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                      <td className="px-4 py-5 text-right mono-value text-slate-500 font-bold text-sm">{calcOt.weekdayDay || '—'}</td>
+                      <td className="px-4 py-5 text-right mono-value text-slate-500 font-bold text-sm">{calcOt.weekdayNight || '—'}</td>
+                      <td className="px-4 py-5 text-right mono-value text-slate-500 font-bold text-sm">{calcOt.weekend || '—'}</td>
+                      <td className="px-4 py-5 text-right mono-value text-slate-500 font-bold text-sm">{calcOt.holiday || '—'}</td>
+                      <td className="px-4 py-5 text-right mono-value text-slate-900 font-black text-sm">{calcOt.total.toFixed(1)}</td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="inline-flex items-baseline gap-1.5 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-100 text-brand-primary group-hover:bg-brand-50 group-hover:border-brand-200 transition-all">
+                          <span className="text-xs font-black opacity-40">ETB</span>
+                          <span className="text-sm font-black mono-value tracking-tighter">
+                            {payment.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      </td>
                     </motion.tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-8 py-12 text-center text-slate-400 text-sm">
-                    {importDetail ? 'No employee summaries available for this import.' : 'Load an import to see employee summaries.'}
+                  <td colSpan={7} className="px-8 py-24 text-center">
+                    <div className="flex flex-col items-center opacity-25">
+                      <Clock className="w-12 h-12 mb-3 text-slate-400" />
+                      <p className="text-sm font-black uppercase tracking-widest">No Records Found</p>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination Controls */}
+        
+        {/* Pagination bar */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              Showing {Math.min(summaries.length, (currentPage - 1) * pageSize + 1)} - {Math.min(summaries.length, currentPage * pageSize)} of {summaries.length} employees
-            </p>
+          <div className="flex flex-col sm:flex-row items-center justify-between px-8 py-6 bg-slate-50/30 border-t border-slate-100/60 gap-4">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Audit Page {currentPage} of {totalPages}
+            </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-200/60 text-slate-400 hover:text-brand-primary disabled:opacity-20 transition-all shadow-sm"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <motion.button
-                    key={page}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setCurrentPage(page)}
-                    className={cn(
-                      "w-8 h-8 rounded-lg text-xs font-bold transition-all",
-                      currentPage === page
-                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/10"
-                        : "text-slate-500 hover:bg-slate-100"
-                    )}
-                  >
-                    {page}
-                  </motion.button>
-                )).slice(Math.max(0, currentPage - 3), Math.min(totalPages, currentPage + 2))}
+              
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+                  const p = start + i;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={cn(
+                        "w-10 h-10 rounded-2xl text-[10px] font-black transition-all shadow-sm",
+                        currentPage === p
+                          ? "bg-brand-primary text-white scale-110"
+                          : "bg-white text-slate-400 border border-slate-200/60 hover:text-brand-primary"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
               </div>
+
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-200/60 text-slate-400 hover:text-brand-primary disabled:opacity-20 transition-all shadow-sm"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Info Alert */}
-      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm flex-shrink-0">
-          <Clock className="w-5 h-5" />
+      </GlassCard>
+      
+      {/* Contextual Info */}
+      <div className="bg-white/40 border border-slate-200/60 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 shadow-sm">
+        <div className="w-16 h-16 rounded-3xl bg-brand-50 flex items-center justify-center text-brand-primary shrink-0 shadow-inner">
+          <Fingerprint className="w-8 h-8" />
         </div>
-        <div>
-          <h4 className="font-bold text-emerald-900 text-sm">Biometric Integration</h4>
-          <p className="text-emerald-700 text-sm mt-1 leading-relaxed opacity-80">
-            OT hours are automatically calculated from biometric attendance system. Manual adjustments can be made for special cases from the Employee portal.
+        <div className="flex-1 text-center md:text-left">
+          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Ledger Integrity Notice</h4>
+          <p className="text-slate-500 text-sm mt-1.5 leading-relaxed font-bold">
+            Overtime calculations are derived directly from biometric authentication logs. Any deviations must be authorized by department heads and recorded in the audit trail.
           </p>
+        </div>
+        <div className="flex gap-4">
+           <Button className="btn-secondary text-[10px] font-black px-8">Audit Logs</Button>
         </div>
       </div>
     </div>
   );
 };
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, icon: Icon, iconColor, subLabel }) => (
-  <motion.div
-    whileHover={{ translateY: -4 }}
-    className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm group hover:shadow-md transition-all"
-  >
-    <div className="flex items-start justify-between mb-4">
-      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center group-hover:bg-emerald-50 transition-colors">
-        <Icon className={cn("w-4 h-4", iconColor)} />
-      </div>
-    </div>
-    <div className="flex items-baseline gap-2">
-      <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
-      {subLabel && <span className="text-xs font-bold text-slate-400">{subLabel}</span>}
-    </div>
-  </motion.div>
-);
+

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Download, UserPlus, RefreshCw, AlertCircle, Users, DollarSign, Building2, ArrowRightLeft } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Plus, Download, UserPlus, RefreshCw, AlertCircle, Users, DollarSign, Building2, ArrowRightLeft, CheckCircle2, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeTable } from '../components/EmployeeTable';
 import { EmployeeFilters } from '../components/EmployeeFilters';
 import { EmployeeDetailModal } from '../components/EmployeeDetailModal';
-import { getEmployees, getEmployeeById, triggerEmployeeSync, type PayrollEmployee, type PaginationMeta } from '../api/employeeApi';
-import { Pagination, Skeleton } from '../../../components/ui';
+import { getEmployees, getEmployeeById, triggerEmployeeSync, exportEmployees, type PayrollEmployee, type PaginationMeta } from '../api/employeeApi';
+import { Pagination, Skeleton, Button } from '../../../components/ui';
 import { cn } from '../../../lib/utils';
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -31,6 +31,7 @@ export const EmployeesPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<PayrollEmployee | null>(null);
@@ -150,6 +151,22 @@ export const EmployeesPage: React.FC = () => {
     }
   };
 
+  /** Export all employees to XLSX. */
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setError('');
+    try {
+        const statusParam = selectedStatus !== 'All Status' ? selectedStatus.toUpperCase() : undefined;
+        await exportEmployees(searchTerm, statusParam);
+    } catch (err: any) {
+        console.error('Export failed:', err);
+        setError(err?.message || 'Export failed. Please try again.');
+    } finally {
+        setExporting(false);
+    }
+  };
+
   /** Refresh a specific employee's details (e.g. after adding a deduction in the modal). */
   const handleRefreshEmployee = async (id: string) => {
     try {
@@ -179,52 +196,58 @@ export const EmployeesPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-10 pb-12 relative">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Employee Profiles</h1>
-          <p className="text-slate-500 text-sm">Manage employee records synced from Employee Module</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Personnel Intelligence</h1>
+          <p className="text-slate-500 font-medium mt-1">Master directory of records synced from ERP</p>
         </div>
-        <div className="flex items-center gap-3">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <button
-              onClick={handleSync}
-              disabled={syncing || loading}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg',
-                syncing || loading
-                  ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-emerald-300 shadow-slate-200/50'
-              )}
-            >
-              <RefreshCw className={cn('w-4 h-4', syncing && 'animate-spin')} />
-              {syncing ? 'Syncing...' : 'Refresh & Sync'}
-            </button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
-              <Download className="w-4 h-4" /> Export Data
-            </button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <button className="px-4 py-2 bg-[#047857] text-white rounded-lg text-sm font-bold hover:bg-[#036246] transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/10">
-              <UserPlus className="w-4 h-4" /> Add Employee
-            </button>
-          </motion.div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            onClick={handleSync}
+            disabled={syncing || loading}
+            variant="secondary"
+            className="shadow-lg border-white"
+          >
+            <RefreshCw className={cn('w-4 h-4', syncing && 'animate-spin')} />
+            {syncing ? 'Synchronizing...' : 'ERP Sync'}
+          </Button>
+          
+          <Button
+              onClick={handleExport}
+              disabled={exporting}
+              variant="secondary"
+              className="shadow-lg border-white"
+          >
+              <Download className="w-4 h-4" /> Export
+          </Button>
+
+          <Button className="shadow-brand-900/20">
+            <UserPlus className="w-4 h-4" /> Onboard New
+          </Button>
         </div>
       </div>
 
       {/* Messages */}
-      {successMsg && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-          <ArrowRightLeft className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <p className="text-emerald-800 text-sm font-medium">{successMsg}</p>
-          <button onClick={() => setSuccessMsg('')} className="ml-auto text-emerald-600 hover:text-emerald-800 text-lg">
-            ×
-          </button>
-        </div>
-      )}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-brand-50 border border-emerald-100 rounded-[2rem] p-5 flex items-center gap-4 shadow-sm"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <p className="text-emerald-800 text-sm font-bold">{successMsg}</p>
+            <button onClick={() => setSuccessMsg('')} className="ml-auto p-2 hover:bg-white rounded-xl text-emerald-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center gap-3">
@@ -236,35 +259,36 @@ export const EmployeesPage: React.FC = () => {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats - Bento Row */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <Skeleton className="h-32 rounded-[2rem]" />
+          <Skeleton className="h-32 rounded-[2rem]" />
+          <Skeleton className="h-32 rounded-[2rem]" />
+          <Skeleton className="h-32 rounded-[2rem]" />
         </div>
       ) : totalItems > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { label: 'Total Employees', value: totalItems, icon: Users, color: 'text-slate-400', bgColor: 'bg-white' },
-            { label: 'Active', value: employees.filter((e) => e.status?.toUpperCase() === 'ACTIVE').length, icon: Users, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
-            { label: 'Departments', value: new Set(employees.filter((e) => e.departmentName).map((e) => e.departmentName)).size || 0, icon: Building2, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-            { label: 'Avg Basic Salary', value: employees.length > 0 ? `${Math.round(employees.filter((e) => e.basicSalary != null).reduce((acc, e) => acc + Number(e.basicSalary || 0), 0) / employees.filter((e) => e.basicSalary != null).length || 0).toLocaleString()} ETB` : '-', icon: DollarSign, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+            { label: 'Total Strength', value: totalItems, icon: Users, color: 'text-brand-primary', bgColor: 'bg-white/50' },
+            { label: 'Active Service', value: employees.filter((e) => e.status?.toUpperCase() === 'ACTIVE').length, icon: Users, color: 'text-brand-secondary', bgColor: 'bg-white/50' },
+            { label: 'Business Units', value: new Set(employees.filter((e) => e.departmentName).map((e) => e.departmentName)).size || 0, icon: Building2, color: 'text-blue-500', bgColor: 'bg-white/50' },
+            { label: 'Avg Base Pay', value: employees.length > 0 ? `${Math.round(employees.filter((e) => e.basicSalary != null).reduce((acc, e) => acc + Number(e.basicSalary || 0), 0) / employees.filter((e) => e.basicSalary != null).length || 0).toLocaleString()} ETB` : '-', icon: DollarSign, color: 'text-amber-500', bgColor: 'bg-white/50' },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              whileHover={{ translateY: -2 }}
-              className={cn("border border-slate-200 rounded-2xl p-4 shadow-sm", stat.bgColor)}
+              className={cn("glass rounded-[2rem] p-6 shadow-xl border-white group hover:-translate-y-1 transition-all duration-300", stat.bgColor)}
             >
-              <div className="flex items-center gap-2 mb-1">
-                <stat.icon className={cn("w-4 h-4", stat.color)} />
-                <p className="text-xs text-slate-500 font-medium">{stat.label}</p>
+              <div className="flex items-center justify-between mb-4">
+                <div className={cn("w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center ring-1 ring-slate-100 group-hover:scale-110 transition-transform", stat.color)}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
               </div>
-              <p className="text-2xl font-black text-slate-900 mt-1 tracking-tight">{stat.value}</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tight font-mono">{stat.value}</p>
             </motion.div>
           ))}
         </div>

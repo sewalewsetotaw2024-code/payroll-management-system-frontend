@@ -1,45 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../../../store/store';
+import type { Notification } from '../../../api/notifications';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export interface AppNotification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'success' | 'warning' | 'info' | 'urgent';
-  read: boolean;
-  category: string;
-  /** When set, only users with this role see the notification. */
-  targetRole?: string;
-  createdAt: string;
-  /** Optional deep-link the user can click. */
-  link?: string;
-}
-
 export interface NotificationState {
-  items: AppNotification[];
+  items: Notification[];
+  unreadCount: number;
+  loading: boolean;
+  error: string | null;
 }
-
-const loadFromStorage = (): AppNotification[] => {
-  try {
-    const raw = localStorage.getItem('app_notifications');
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveToStorage = (items: AppNotification[]) => {
-  try {
-    localStorage.setItem('app_notifications', JSON.stringify(items));
-  } catch {
-    // storage unavailable
-  }
-};
 
 const initialState: NotificationState = {
-  items: loadFromStorage(),
+  items: [],
+  unreadCount: 0,
+  loading: false,
+  error: null,
 };
 
 // ── Slice ────────────────────────────────────────────────────────────────────
@@ -48,30 +24,62 @@ const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
-    addNotification(state, action: PayloadAction<AppNotification>) {
+    // API Actions
+    fetchNotificationsRequest(state) {
+      state.loading = true;
+      state.error = null;
+    },
+    fetchNotificationsSuccess(state, action: PayloadAction<Notification[]>) {
+      state.items = action.payload;
+      state.loading = false;
+      state.error = null;
+    },
+    fetchNotificationsFailure(state, action: PayloadAction<string>) {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    fetchUnreadCountRequest(state) {
+      // No loading state for count updates
+    },
+    fetchUnreadCountSuccess(state, action: PayloadAction<number>) {
+      state.unreadCount = action.payload;
+    },
+    // Local Actions (optimistic updates)
+    addNotification(state, action: PayloadAction<Notification>) {
       state.items.unshift(action.payload);
-      saveToStorage(state.items);
+      if (!action.payload.read) {
+        state.unreadCount += 1;
+      }
     },
     markAsRead(state, action: PayloadAction<string>) {
       const item = state.items.find((n) => n.id === action.payload);
-      if (item) {
+      if (item && !item.read) {
         item.read = true;
-        saveToStorage(state.items);
+        state.unreadCount = Math.max(0, state.unreadCount - 1);
       }
+    },
+    markAsReadSuccess(state, action: PayloadAction<string>) {
+      // Already updated optimistically, just ensure consistency
     },
     markAllAsRead(state) {
       state.items.forEach((n) => {
         n.read = true;
       });
-      saveToStorage(state.items);
+      state.unreadCount = 0;
+    },
+    markAllAsReadSuccess(state) {
+      // Already updated optimistically
     },
     removeNotification(state, action: PayloadAction<string>) {
+      const item = state.items.find((n) => n.id === action.payload);
       state.items = state.items.filter((n) => n.id !== action.payload);
-      saveToStorage(state.items);
+      if (item && !item.read) {
+        state.unreadCount = Math.max(0, state.unreadCount - 1);
+      }
     },
     clearAll(state) {
       state.items = [];
-      saveToStorage(state.items);
+      state.unreadCount = 0;
     },
   },
 });
@@ -84,16 +92,12 @@ export const selectAllNotifications = (state: RootState) =>
   state.notifications.items;
 
 export const selectUnreadCount = (state: RootState) =>
-  state.notifications.items.filter((n) => !n.read).length;
+  state.notifications.unreadCount;
 
-export const selectNotificationsForRole = (role: string) => (state: RootState) =>
-  state.notifications.items.filter(
-    (n) => !n.targetRole || n.targetRole === role,
-  );
+export const selectNotificationsLoading = (state: RootState) =>
+  state.notifications.loading;
 
-export const selectUnreadForRole = (role: string) => (state: RootState) =>
-  state.notifications.items.filter(
-    (n) => !n.read && (!n.targetRole || n.targetRole === role),
-  ).length;
+export const selectNotificationsError = (state: RootState) =>
+  state.notifications.error;
 
 export default notificationSlice.reducer;

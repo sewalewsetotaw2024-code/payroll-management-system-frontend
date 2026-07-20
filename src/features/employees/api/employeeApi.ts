@@ -2,11 +2,9 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 
 // Axios for employee API (from payroll backend - synced data)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
-
-// Employee records are served from the payroll backend under /api/v1/employees
+// Base: /api/v1/configurations (proxied to port 3000)
 const payrollAxios = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api/v1/configurations',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,7 +16,7 @@ payrollAxios.interceptors.request.use((config) => {
 
 // Axios for integration/sync endpoints
 const integrationAxios = axios.create({
-  baseURL: `${API_BASE_URL}/integrations`,
+  baseURL: '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -145,4 +143,39 @@ export const triggerEmployeeSync = async (): Promise<{
     const msg = error?.response?.data?.message || error?.message || 'Sync failed';
     throw new Error(msg);
   }
+};
+
+/**
+ * Exports all employees matching the given filters to an XLSX file.
+ * Triggers a browser download.
+ *
+ * @param search - Optional search string to filter employees.
+ * @param status - Optional status filter (ACTIVE, etc.).
+ */
+export const exportEmployees = async (search?: string, status?: string): Promise<void> => {
+    const token = tokenStorage.getToken();
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    const queryString = params.toString();
+    const url = `/api/v1/configurations/employees/export${queryString ? `?${queryString}` : ''}`;
+
+    const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message || `Export failed: ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `employees-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
 };

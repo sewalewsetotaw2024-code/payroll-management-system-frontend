@@ -55,7 +55,7 @@ const typeLabel = (refId: string): string => {
  */
 const typeColor = (refId: string): string => {
   const map: Record<string, string> = {
-    EMPLOYEE: 'bg-emerald-100 text-emerald-700',
+    EMPLOYEE: 'bg-brand-100 text-emerald-700',
     ATTENDANCE: 'bg-blue-100 text-blue-700',
     ADJUSTMENT: 'bg-amber-100 text-amber-700',
   };
@@ -70,7 +70,7 @@ const typeColor = (refId: string): string => {
  */
 const statusColor = (status: string): string => {
   const map: Record<string, string> = {
-    completed: 'bg-emerald-100 text-emerald-700',
+    completed: 'bg-brand-100 text-emerald-700',
     processing: 'bg-amber-100 text-amber-700',
     failed: 'bg-red-100 text-red-700',
     pending: 'bg-slate-100 text-slate-600',
@@ -399,9 +399,9 @@ const FileRow: React.FC<FileRowProps> = ({
       className={cn(
         'group grid grid-cols-[24px_1fr_140px_120px_100px_100px_32px] items-center gap-2 px-4 py-2.5 border-b border-slate-50 text-xs font-medium transition-all select-none',
         isSelected
-          ? 'bg-emerald-50/60 border-l-2 border-l-emerald-500'
+          ? 'bg-brand-50/60 border-l-2 border-l-emerald-500'
           : dragOverFolderId === file.id
-            ? 'bg-emerald-50/40 border-l-2 border-l-emerald-400'
+            ? 'bg-brand-50/40 border-l-2 border-l-emerald-400'
             : 'hover:bg-slate-50/60 border-l-2 border-l-transparent',
       )}
       draggable
@@ -740,7 +740,7 @@ export const FileListView: React.FC<FileListViewProps> = ({
             handleDrop(e, null);
           }}
         >
-          <div className="absolute inset-0 bg-emerald-500/5 border-2 border-dashed border-emerald-400/40 rounded-xl m-2 flex items-center justify-center">
+          <div className="absolute inset-0 bg-emerald-500/5 border-2 border-dashed border-brand-400/40 rounded-xl m-2 flex items-center justify-center">
             <p className="text-xs font-semibold text-emerald-600 bg-white px-3 py-1.5 rounded-lg shadow-sm">
               Drop here to move to current folder
             </p>

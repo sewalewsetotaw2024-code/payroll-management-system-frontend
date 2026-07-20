@@ -11,6 +11,7 @@ import {
 import { motion } from 'motion/react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { authActions } from '../store/authSlice';
+import { cn } from '../../../lib/utils';
 
 const validateEmail = (email: string) => {
   if (!email) return 'Email is required';
@@ -62,42 +63,36 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden"
-      style={{
-        backgroundImage: `url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
+      className="min-h-screen flex items-center justify-center relative overflow-hidden bg-background"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/40 via-black/20 to-slate-900/40" />
-      <div className="absolute inset-0 backdrop-blur-[3px]" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-brand-light/30 via-white to-brand-primary/10" />
+      
+      {/* Animated Orbs */}
+      <motion.div 
+        animate={{ x: [0, 50, 0], y: [0, -30, 0] }}
+        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        className="absolute top-1/4 -left-20 w-96 h-96 bg-emerald-300/20 rounded-full blur-[120px]" 
+      />
+      <motion.div 
+        animate={{ x: [0, -40, 0], y: [0, 60, 0] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="absolute bottom-1/4 -right-20 w-80 h-80 bg-cyan-200/20 rounded-full blur-[100px]" 
+      />
 
-      <div className="absolute top-1/4 -left-20 w-72 h-72 bg-emerald-400/20 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-emerald-300/15 rounded-full blur-3xl" />
-
-      <div
-        className="relative z-10 w-full max-w-[530px] mx-4"
-        style={{
-          background: 'rgba(30,30,30,0.4)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.15)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 32px rgba(0,0,0,0.3)',
-        }}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-[500px] mx-4 glass rounded-[40px] p-12 border-white shadow-2xl"
       >
-        <div className="px-10 py-10">
+        <div className="">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: '#10B981' }}>
-              <Building2 className="w-5 h-5 text-white" />
+          <div className="flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 bg-brand-primary rounded-3xl shadow-xl shadow-brand-900/20 flex items-center justify-center mb-6">
+              <Building2 className="w-8 h-8 text-white" />
             </div>
-            <span className="text-lg font-black tracking-tight text-white/90">ADIU PAYROLL</span>
-          </div>
-          <div className="mb-8">
-            <h1 className="text-[28px] font-bold text-white leading-tight mb-1">Welcome Back</h1>
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>Sign in to access your payroll dashboard</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Welcome Back</h1>
+            <p className="text-sm text-slate-500 font-medium">Precision payroll for modern enterprises.</p>
           </div>
 
           {error && (
@@ -105,132 +100,106 @@ export const LoginPage: React.FC = () => {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               role="alert"
-              className="flex items-start gap-3 bg-rose-500/20 border border-rose-400/30 rounded-xl p-3.5 mb-6"
-              style={{ backdropFilter: 'blur(8px)' }}
+              className="flex items-start gap-3 bg-rose-50 border border-rose-100 rounded-2xl p-4 mb-8"
             >
-              <AlertCircle className="w-5 h-5 text-rose-300 shrink-0 mt-0.5" />
-              <p className="text-sm text-rose-200">{error}</p>
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-rose-700 font-medium">{error}</p>
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-5 max-w-[380px] mx-auto">
-            <div>
-              <label htmlFor="email" className="block text-[11px] font-semibold mb-1.5 tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
                 Email Address
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: '#6B7280' }} />
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
                   ref={emailRef}
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  aria-invalid={!!emailError}
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    borderRadius: '8px',
-                    border: emailError ? '1px solid rgba(251,146,60,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                    color: '#fff',
-                  }}
-                  className="w-full pl-9 pr-3 py-3 text-sm transition-all placeholder:text-white/25 focus:border-white focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:outline-none"
+                  className={cn(
+                    "w-full pl-12 pr-4 py-3.5 bg-white/50 rounded-2xl text-sm transition-all focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:outline-none border border-slate-200 focus:border-brand-primary shadow-sm",
+                    emailError && "border-rose-300 bg-rose-50/50"
+                  )}
                   placeholder="you@company.com"
-                  autoComplete="email"
-                  onFocus={(e) => (e.target.style.borderColor = '#fff')}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = emailError ? 'rgba(251,146,60,0.5)' : 'rgba(255,255,255,0.1)';
-                    setTouched((p) => ({ ...p, email: true }));
-                  }}
                 />
               </div>
               {emailError && (
-                <p className="text-xs text-rose-300 mt-1.5 font-medium">{emailError}</p>
+                <p className="text-xs text-rose-500 mt-1 font-bold pl-1">{emailError}</p>
               )}
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-[11px] font-semibold mb-1.5 tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: '#6B7280' }} />
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <label htmlFor="password" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  className="text-xs font-bold text-brand-primary hover:text-brand-dark transition-colors"
+                >
+                  Forgot?
+                </button>
+              </div>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  aria-invalid={!!passwordError}
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    borderRadius: '8px',
-                    border: passwordError ? '1px solid rgba(251,146,60,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                    color: '#fff',
-                  }}
-                  className="w-full pl-9 pr-9 py-3 text-sm transition-all placeholder:text-white/25 focus:border-white focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:outline-none"
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  onFocus={(e) => (e.target.style.borderColor = '#fff')}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = passwordError ? 'rgba(251,146,60,0.5)' : 'rgba(255,255,255,0.1)';
-                    setTouched((p) => ({ ...p, password: true }));
-                  }}
+                  className={cn(
+                    "w-full pl-12 pr-12 py-3.5 bg-white/50 rounded-2xl text-sm transition-all focus:bg-white focus:ring-4 focus:ring-brand-primary/10 focus:outline-none border border-slate-200 focus:border-brand-primary shadow-sm",
+                    passwordError && "border-rose-300 bg-rose-50/50"
+                  )}
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors rounded focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:outline-none"
-                  style={{ color: '#6B7280' }}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {passwordError && (
-                <p className="text-xs text-rose-300 mt-1.5 font-medium">{passwordError}</p>
+                <p className="text-xs text-rose-500 mt-1 font-bold pl-1">{passwordError}</p>
               )}
             </div>
 
-            <div>
-              <label className="flex items-center gap-2.5 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <div
-                  className="w-[18px] h-[18px] rounded flex items-center justify-center transition-all group-hover:border-white/40 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-400/40"
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.25)',
-                    background: remember ? '#10B981' : 'transparent',
-                    borderColor: remember ? '#10B981' : 'rgba(255,255,255,0.25)',
-                  }}
-                >
-                  {remember && (
-                    <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="peer sr-only"
+                  />
+                  <div className={cn(
+                    "w-5 h-5 rounded-lg border-2 border-slate-200 transition-all peer-checked:bg-brand-primary peer-checked:border-brand-primary group-hover:border-brand-primary",
+                    remember && "shadow-lg shadow-brand-500/20"
+                  )}>
+                    {remember && (
+                      <svg className="w-3.5 h-3.5 text-white m-auto mt-0.5" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
                 </div>
-                <span className="text-sm select-none transition-colors group-hover:text-white/70" style={{ color: '#9CA3AF' }}>
-                  Remember me
+                <span className="text-sm font-bold text-slate-500 group-hover:text-slate-900 transition-colors">
+                  Keep me signed in
                 </span>
               </label>
             </div>
 
             <button
-              type="button"
-              className="w-full text-sm font-medium text-left transition-colors rounded hover:text-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:outline-none"
-              style={{ color: '#10B981' }}
-            >
-              Forgot password?
-            </button>
-
-            <button
               type="submit"
               disabled={loading}
-              className="w-full text-white py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-400/40 focus-visible:outline-none"
-              style={{ background: '#10B981' }}
+              className="w-full h-[54px] bg-brand-primary text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all hover:bg-brand-dark hover:shadow-xl hover:shadow-brand-900/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed mt-4"
             >
               {loading ? (
                 <div className="flex items-center gap-2.5">
@@ -245,8 +214,12 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          <p className="mt-10 text-center text-xs font-bold text-slate-400">
+            Powered by ADIU Communication & Finance
+          </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

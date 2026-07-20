@@ -28,11 +28,11 @@ const icons: Record<ToastType, React.ReactNode> = {
 };
 
 const theme: Record<ToastType, { border: string; bg: string; text: string; progress: string; close: string; closeHover: string; closeBg: string }> = {
-  success: { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-800', progress: 'bg-emerald-500', close: 'text-emerald-400', closeHover: 'text-emerald-600', closeBg: 'hover:bg-emerald-100' },
+  success: { border: 'border-emerald-200', bg: 'bg-brand-50', text: 'text-emerald-800', progress: 'bg-emerald-500', close: 'text-emerald-400', closeHover: 'text-emerald-600', closeBg: 'hover:bg-brand-100' },
   error: { border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-800', progress: 'bg-rose-500', close: 'text-rose-400', closeHover: 'text-rose-600', closeBg: 'hover:bg-rose-100' },
   warning: { border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-800', progress: 'bg-amber-500', close: 'text-amber-400', closeHover: 'text-amber-600', closeBg: 'hover:bg-amber-100' },
   info: { border: 'border-blue-200', bg: 'bg-blue-50', text: 'text-blue-800', progress: 'bg-blue-500', close: 'text-blue-400', closeHover: 'text-blue-600', closeBg: 'hover:bg-blue-100' },
-  loading: { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-800', progress: 'bg-emerald-500', close: 'text-emerald-400', closeHover: 'text-emerald-600', closeBg: 'hover:bg-emerald-100' },
+  loading: { border: 'border-emerald-200', bg: 'bg-brand-50', text: 'text-emerald-800', progress: 'bg-emerald-500', close: 'text-emerald-400', closeHover: 'text-emerald-600', closeBg: 'hover:bg-brand-100' },
 };
 
 function ToastItemComponent({ item, onRemove }: { item: ToastItem; onRemove: (id: string) => void }) {

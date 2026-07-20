@@ -2,27 +2,21 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users,
-  DollarSign,
   Plus,
-  Pencil,
-  Trash2,
   Search,
-  Clock,
   CheckCircle,
   AlertCircle,
   Wallet,
   Receipt,
   Percent,
-  X,
-  Filter,
+  RefreshCw,
   ChevronDown,
   Eye,
-  UserCheck,
-  Building2,
-  BadgeInfo,
   Banknote,
   Tag,
+  Settings,
 } from 'lucide-react';
+import { cn } from '../../../lib/utils';
 import { Modal, Input, Select, Button, Pagination } from '../../../components/ui';
 import { DataRenderer } from '../../../components/core/renderers/DataRenderer';
 import { ConfigSection, ConfigEmptyState, ConfigModalFooter } from './shared';
@@ -504,102 +498,205 @@ export const EmployeeDeductionManagement: React.FC = () => {
     );
   }, [bulkEmployees, bulkSearch]);
 
-  // ─── Card accent map (white bg, subtle border tint per type) ──
-  const cardAccents: Record<string, string> = {
-    LOAN_REPAYMENT: 'border-violet-200 hover:border-violet-300',
-    COST_SHARING: 'border-blue-200 hover:border-blue-300',
-    ADVANCE_RECOVERY: 'border-amber-200 hover:border-amber-300',
-    COURT_ORDER: 'border-rose-200 hover:border-rose-300',
-    UNION_DUES: 'border-cyan-200 hover:border-cyan-300',
-    PENSION_EMPLOYEE: 'border-emerald-200 hover:border-emerald-300',
-    EMPLOYMENT_INCOME_TAX: 'border-red-200 hover:border-red-300',
-    UNPAID_LEAVE: 'border-slate-200 hover:border-slate-300',
-    LATENESS: 'border-yellow-200 hover:border-yellow-300',
-    OTHER: 'border-slate-200 hover:border-slate-300',
-  };
+// ─── Deduction type card styling maps ──────────────────────
+const iconBgMap: Record<string, string> = {
+  EMPLOYMENT_INCOME_TAX: 'bg-red-50 text-red-600',
+  PENSION_EMPLOYEE: 'bg-blue-50 text-blue-600',
+  HEALTH_INSURANCE: 'bg-brand-50 text-emerald-600',
+  LIFE_INSURANCE: 'bg-brand-50 text-emerald-600',
+  LOAN_REPAYMENT: 'bg-amber-50 text-amber-600',
+  ADVANCE_RECOVERY: 'bg-amber-50 text-amber-600',
+  COST_SHARING: 'bg-blue-50 text-blue-600',
+  COURT_ORDER: 'bg-rose-50 text-rose-600',
+  UNION_DUES: 'bg-cyan-50 text-cyan-600',
+  SAVINGS_AND_CREDIT: 'bg-teal-50 text-teal-600',
+  UNPAID_LEAVE: 'bg-slate-50 text-slate-600',
+  LATENESS: 'bg-yellow-50 text-yellow-600',
+  FINE_PENALTY: 'bg-orange-50 text-orange-600',
+  OVERPAYMENT_RECOVERY: 'bg-indigo-50 text-indigo-600',
+  CHILD_SUPPORT: 'bg-purple-50 text-purple-700',
+  GARNISHMENT: 'bg-slate-100 text-slate-700',
+  OTHER: 'bg-purple-50 text-purple-600',
+};
 
-  const getCardAccent = (type: string) => cardAccents[type] || cardAccents.OTHER;
+const typeBadgeMap: Record<string, string> = {
+  EMPLOYMENT_INCOME_TAX: 'bg-blue-50 text-blue-700',
+  PENSION_EMPLOYEE: 'bg-brand-50 text-emerald-700',
+  HEALTH_INSURANCE: 'bg-blue-50 text-blue-700',
+  LIFE_INSURANCE: 'bg-blue-50 text-blue-700',
+  LOAN_REPAYMENT: 'bg-amber-50 text-amber-700',
+  ADVANCE_RECOVERY: 'bg-amber-50 text-amber-700',
+  COST_SHARING: 'bg-blue-50 text-blue-700',
+  COURT_ORDER: 'bg-rose-50 text-rose-700',
+  UNION_DUES: 'bg-cyan-50 text-cyan-700',
+  SAVINGS_AND_CREDIT: 'bg-teal-50 text-teal-700',
+  UNPAID_LEAVE: 'bg-slate-50 text-slate-600',
+  LATENESS: 'bg-yellow-50 text-yellow-700',
+  FINE_PENALTY: 'bg-orange-50 text-orange-700',
+  OVERPAYMENT_RECOVERY: 'bg-indigo-50 text-indigo-700',
+  CHILD_SUPPORT: 'bg-purple-50 text-purple-700',
+  GARNISHMENT: 'bg-slate-100 text-slate-600',
+  OTHER: 'bg-purple-50 text-purple-700',
+};
+
+const typeLabelMap: Record<string, string> = {
+  EMPLOYMENT_INCOME_TAX: 'Type A — STAT',
+  PENSION_EMPLOYEE: 'Type A — STAT',
+  HEALTH_INSURANCE: 'Type B — PER',
+  LIFE_INSURANCE: 'Type B — PER',
+  LOAN_REPAYMENT: 'Type C — VOL',
+  ADVANCE_RECOVERY: 'Type C — VOL',
+  COST_SHARING: 'Type B — PER',
+  COURT_ORDER: 'Type A — STAT',
+  UNION_DUES: 'Type C — VOL',
+  SAVINGS_AND_CREDIT: 'Type C — VOL',
+  UNPAID_LEAVE: 'Type A — STAT',
+  LATENESS: 'Type B — PER',
+  FINE_PENALTY: 'Type C — VOL',
+  OVERPAYMENT_RECOVERY: 'Type B — PER',
+  CHILD_SUPPORT: 'Type A — STAT',
+  GARNISHMENT: 'Type A — STAT',
+  OTHER: 'Type C — VOL',
+};
 
   return (
-    <div className="space-y-8">
-      {/* ─── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-10 pb-20 px-4 md:px-8">
+      {/* ─── Professional Header ─────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+            <span>Audit & Compliance</span>
+            <span className="w-1 h-1 rounded-full bg-slate-300" />
+            <span>Payroll Components</span>
+          </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
             Employee Deductions
           </h1>
-          <p className="text-slate-500 text-sm mt-1.5 max-w-xl">
-            Manage deduction assignments across your organization. 
-            Click any card to view and manage employees assigned to that deduction type.
+          <p className="text-sm text-slate-500 font-medium mt-1.5 max-w-2xl leading-relaxed">
+            Monitor and control deduction allocations across the workforce. Manage statutory compliance, loan recoveries, and voluntary employee contributions with precision.
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2.5 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98] cursor-pointer">
+            <Settings className="w-4 h-4" />
+            Control Center
+          </button>
+          <button className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-all shadow-md active:scale-[0.98] cursor-pointer">
+            <Plus className="w-4 h-4" />
+            New Component
+          </button>
         </div>
       </div>
 
-      {/* ─── Stats Bar ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-emerald-600" />
+      {/* ─── Structured Stats - Data Precision ──────────────── */}
+      <div className="bg-white border border-slate-200 rounded-[2rem] p-2 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+          {/* Active Allocations - Focal Point */}
+          <div className="p-8 group hover:bg-slate-50/50 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-brand-50 border border-emerald-100 flex items-center justify-center text-emerald-600 transition-transform group-hover:scale-110">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Active Allocations</span>
             </div>
+            <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
+              {totalActiveDeductions}
+            </p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Verified payroll units</p>
           </div>
-          <p className="text-2xl font-black text-slate-900">{deductionTemplates.length}</p>
-          <p className="text-xs text-slate-500 font-medium mt-1">Deduction Types</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <UserCheck className="w-5 h-5 text-blue-600" />
+
+          {/* Monthly Volume */}
+          <div className="p-8 group hover:bg-slate-50/50 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
+                <Banknote className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Monthly Volume</span>
             </div>
+            <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
+              <span className="text-lg font-bold text-slate-400 mr-1.5 uppercase">ETB</span>
+              {totalMonthlyAll >= 1000
+                ? `${(totalMonthlyAll / 1000).toFixed(1)}K`
+                : totalMonthlyAll.toLocaleString()}
+            </p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Est. disbursement</p>
           </div>
-          <p className="text-2xl font-black text-slate-900">{totalActiveDeductions}</p>
-          <p className="text-xs text-slate-500 font-medium mt-1">Active Assignments</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-              <Banknote className="w-5 h-5 text-amber-600" />
+
+          {/* Component Types */}
+          <div className="p-8 group hover:bg-slate-50/50 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
+                <Receipt className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Defined Types</span>
             </div>
+            <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
+              {deductionTemplates.length}
+            </p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Active blueprints</p>
           </div>
-          <p className="text-2xl font-black text-slate-900">
-            {totalMonthlyAll >= 1000
-              ? `${(totalMonthlyAll / 1000).toFixed(1)}K`
-              : totalMonthlyAll.toLocaleString()}
-          </p>
-          <p className="text-xs text-slate-500 font-medium mt-1">Est. Monthly Total</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-              <Users className="w-5 h-5 text-indigo-600" />
+
+          {/* Total Workforce */}
+          <div className="p-8 group hover:bg-slate-50/50 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
+                <Users className="w-5 h-5" />
+              </div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Workforce</span>
             </div>
+            <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
+              {employees.length}
+            </p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Eligible personnel</p>
           </div>
-          <p className="text-2xl font-black text-slate-900">{employees.length}</p>
-          <p className="text-xs text-slate-500 font-medium mt-1">Employees</p>
         </div>
       </div>
 
-      {/* ─── Deduction Template Cards ───────────────────────── */}
-      <div>
-        {/* Search & filter bar */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search deduction types..."
-              value={templateSearch}
-              onChange={(e) => setTemplateSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
-            />
+      {/* ─── Search & Registry Controls ─────────────────── */}
+      <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <div className="relative flex-1 min-w-[320px]">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search payroll components by name or type..."
+            value={templateSearch}
+            onChange={(e) => setTemplateSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all placeholder:text-slate-400 font-medium"
+          />
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select className="appearance-none pl-4 pr-11 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:border-slate-900 outline-none cursor-pointer text-slate-700 font-bold min-w-[180px]">
+              <option>All Compliance Tiers</option>
+              <option>Statutory (Type A)</option>
+              <option>Corporate (Type B)</option>
+              <option>Voluntary (Type C)</option>
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
-          {filteredConfigs.length > 0 && (
-            <span className="text-xs text-slate-400 font-medium">
-              {filteredConfigs.length} of {deductionTemplates.length}
-            </span>
-          )}
+          
+          <button 
+            onClick={loadDeductionTemplates}
+            className="p-3 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Reload Component Registry"
+          >
+            <RefreshCw className={cn("w-4.5 h-4.5", templatesLoading && "animate-spin")} />
+          </button>
         </div>
 
+        {filteredConfigs.length > 0 && (
+          <div className="ml-auto flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">Registry</span>
+              <span className="text-sm font-black text-slate-900 leading-tight">{filteredConfigs.length} Entries</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Component Registry - High Density ──────────── */}
+      <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
         <DataRenderer
           state={{
             data: filteredConfigs,
@@ -609,132 +706,110 @@ export const EmployeeDeductionManagement: React.FC = () => {
           }}
           onRetry={loadDeductionTemplates}
           renderEmpty={
-            <ConfigEmptyState
-              icon={<Percent className="w-10 h-10" />}
-              title={templateSearch ? 'No matching deduction types' : 'No deduction templates configured'}
-              message={
-                templateSearch
-                  ? 'Try a different search term.'
-                  : 'Go to Configuration → Deduction Types to create templates first.'
-              }
-            />
+            <div className="py-24 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
+                <Percent className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">Component Registry Empty</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto leading-relaxed">
+                No payroll components matched your current filter. Adjust your search or define a new deduction blueprint.
+              </p>
+            </div>
           }
           renderSuccess={() => (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredConfigs.map((config) => {
-                const meta = DEDUCTION_TYPE_META[config.deductionType] || DEDUCTION_TYPE_META.OTHER;
-                const hasFixedValue = config.amount != null || config.percent != null;
-                const accent = getCardAccent(config.deductionType);
-                const empCount = (config as any).employeeCount || 0;
-                const activeCount = (config as any).activeCount || 0;
-                const totalMonthly = (config as any).totalMonthly || 0;
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse border-spacing-0">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200">
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Component Blueprint</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Compliance Status</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-center">Current Load</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Registry Volume</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right w-[180px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredConfigs.map((config, idx) => {
+                    const meta = getTypeMeta(config.deductionType);
+                    const empCount = (config as any).employeeCount || 0;
+                    const activeCount = (config as any).activeCount || 0;
+                    const totalMonthly = (config as any).totalMonthly || 0;
+                    const badgeLabel = typeLabelMap[config.deductionType] || "Type C — VOL";
+                    const badgeBg = typeBadgeMap[config.deductionType] || "bg-slate-50 text-slate-600";
 
-                return (
-                  <div
-                    key={config.id}
-                    className={`group bg-white ${accent} rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4`}
-                    onClick={() => navigate(`/employee-deductions/${config.id}`)}
-                  >
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-sm shrink-0 ${
-                          hasFixedValue
-                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                            : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-                        }`}>
-                          {meta.icon}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-900 text-sm leading-tight truncate">
-                            {config.label}
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-medium mt-0.5 uppercase tracking-wider truncate">
-                            {config.deductionType.replace(/_/g, ' ')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
-                        <span className={`text-[9px] font-bold px-2 py-1 rounded-lg shrink-0 ${
-                          hasFixedValue
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {hasFixedValue ? '⚡ Fixed Value' : '👤 Per Employee'}
-                        </span>
-                        {config.id && (
-                          <span className="text-[9px] text-slate-400 font-mono">ID: {config.id.slice(0, 7)}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Stat boxes */}
-                    <div className="flex gap-2 mb-4">
-                      <div className="flex-1 bg-slate-50 rounded-xl px-3 py-2.5">
-                        <p className="text-[10px] text-slate-500 font-medium mb-0.5">Employees</p>
-                        <p className="text-lg font-black text-slate-900 leading-none">{empCount}</p>
-                      </div>
-                      <div className="flex-1 bg-emerald-50 rounded-xl px-3 py-2.5">
-                        <p className="text-[10px] text-emerald-600 font-medium mb-0.5">Active</p>
-                        <p className="text-lg font-black text-emerald-700 leading-none">{activeCount}</p>
-                      </div>
-                      <div className="flex-1 bg-rose-50 rounded-xl px-3 py-2.5">
-                        <p className="text-[10px] text-rose-500 font-medium mb-0.5">Monthly</p>
-                        <p className="text-lg font-black text-rose-600 leading-none">
-                          {totalMonthly >= 1000
-                            ? `${(totalMonthly / 1000).toFixed(1)}K`
-                            : totalMonthly.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Calculation type & value */}
-                    <div className="flex items-center gap-2 mb-3">
-                      {config.calculationType ? (
-                        <>
-                          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                            {CALCULATION_TYPE_OPTIONS.find(o => o.value === config.calculationType)?.label || config.calculationType}
+                    return (
+                      <tr 
+                        key={config.id} 
+                        className="group hover:bg-slate-50/50 transition-all cursor-pointer"
+                        onClick={() => navigate(`/employee-deductions/${config.id}`)}
+                      >
+                        <td className="px-10 py-6">
+                          <div className="flex items-center gap-5">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm transition-all group-hover:scale-105 group-hover:shadow-md",
+                              iconBgMap[config.deductionType] || "bg-slate-50 text-slate-400 border-slate-200"
+                            )}>
+                              {React.cloneElement(meta.icon as React.ReactElement, { className: "w-5.5 h-5.5", strokeWidth: 2.5 })}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 text-base tracking-tight truncate leading-none">{config.label}</p>
+                              <p className="text-[11px] text-slate-400 font-bold font-mono mt-1.5 uppercase tracking-wider opacity-60">{config.deductionType}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6">
+                          <span className={cn(
+                            "inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                            badgeBg.replace('bg-', 'bg-').replace('text-', 'text-'),
+                            "border-current/10"
+                          )}>
+                            {badgeLabel}
                           </span>
-                          {hasFixedValue && (
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                              config.amount != null
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-violet-50 text-violet-700'
-                            }`}>
-                              {config.amount != null
-                                ? `ETB ${config.amount.toLocaleString()}`
-                                : `${config.percent}%`}
-                            </span>
-                          )}
-                          {!hasFixedValue && (
-                            <span className="text-[10px] text-amber-600 font-medium italic">Per-employee value</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 italic">No calc type set</span>
-                      )}
-                    </div>
-
-                    {/* Action buttons (always visible, subtle) */}
-                    <div className="flex gap-2 pt-3 border-t border-slate-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openBulkAssign(config); }}
-                        className="flex-1 py-2 px-3 bg-white hover:bg-emerald-50 text-emerald-700 font-semibold text-[11px] rounded-xl transition-all border border-slate-200 hover:border-emerald-300 flex items-center justify-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Assign
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/employee-deductions/${config.id}`); }}
-                        className="py-2 px-3 bg-white hover:bg-slate-50 text-slate-600 font-semibold text-[11px] rounded-xl transition-all border border-slate-200 hover:border-slate-300 flex items-center justify-center gap-1.5"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        </td>
+                        <td className="px-10 py-6 text-center">
+                          <div className="inline-flex items-center gap-4 bg-white border border-slate-100 px-4 py-2 rounded-2xl shadow-sm group-hover:border-slate-200 transition-colors">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">Global</span>
+                              <span className="text-sm font-black text-slate-900 leading-tight mt-1">{empCount}</span>
+                            </div>
+                            <div className="w-px h-8 bg-slate-100" />
+                            <div className="flex flex-col items-center">
+                              <span className="text-[9px] font-black text-emerald-300 uppercase tracking-widest leading-none">Active</span>
+                              <span className="text-sm font-black text-emerald-600 leading-tight mt-1">{activeCount}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-6 text-right">
+                          <p className="text-base font-black text-slate-900 tabular-nums tracking-tight">
+                            {totalMonthly > 0
+                              ? `ETB ${totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                              : '\u2014'}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">Est. Impact</p>
+                        </td>
+                        <td className="px-10 py-6 text-right">
+                          <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openBulkAssign(config); }}
+                              className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-brand-50 rounded-xl border border-transparent hover:border-emerald-100 transition-all cursor-pointer shadow-sm active:scale-90"
+                              title="Assign Personnel"
+                            >
+                              <Plus className="w-5 h-5" strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/employee-deductions/${config.id}`); }}
+                              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-sm active:scale-90"
+                              title="Audit Register"
+                            >
+                              <Eye className="w-5 h-5" strokeWidth={2.5} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         />
@@ -746,7 +821,7 @@ export const EmployeeDeductionManagement: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editDeduction ? 'Edit Employee Deduction' : 'Add Employee Deduction'}
+        title={editDeduction ? 'Modify Allocation' : 'Establish New Allocation'}
         size="lg"
         footer={
           <ConfigModalFooter
@@ -757,241 +832,239 @@ export const EmployeeDeductionManagement: React.FC = () => {
           />
         }
       >
-        <div className="space-y-5">
-          {/* Employee info (add mode) */}
-          {!editDeduction && !activeCardEmployee && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Employee</label>
+        <div className="space-y-8 px-2 py-4">
+          {/* Identity Section */}
+          {!editDeduction && !activeCardEmployee ? (
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Personnel Identity</label>
               <Select
                 value={form.employeeId}
                 onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
                 options={[
-                  { value: '', label: 'Select an employee...' },
+                  { value: '', label: 'Select personnel from registry...' },
                   ...employees.map((e) => ({
                     value: e.id,
                     label: `${e.firstName} ${e.lastName}`,
                   })),
                 ]}
+                className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2 transition-all font-medium"
               />
             </div>
-          )}
-          {!editDeduction && activeCardEmployee && (
-            <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+          ) : activeCardEmployee && !editDeduction ? (
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-[2rem] shadow-inner">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-full bg-brand-primary flex items-center justify-center text-white text-lg font-black shadow-lg border-4 border-white">
                   {activeCardEmployee.firstName[0]}{activeCardEmployee.lastName[0]}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900">{activeCardEmployee.firstName} {activeCardEmployee.lastName}</p>
-                  <p className="text-xs text-slate-500">{activeCardEmployee.jobPosition || 'No position'}</p>
+                  <p className="font-black text-slate-900 text-lg tracking-tight leading-none">{activeCardEmployee.firstName} {activeCardEmployee.lastName}</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1.5">{activeCardEmployee.jobPosition || 'Verified Personnel'}</p>
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
-          {/* Deduction Type */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Deduction Type</label>
-            <Select
-              value={form.deductionType}
-              onChange={(e) => {
-                const selected = deductionTemplates.find((t) => t.deductionType === e.target.value);
-                setForm({
-                  ...form,
-                  deductionType: e.target.value,
-                  label: selected?.label || form.label,
-                });
-              }}
-              options={[
-                ...deductionTemplates.map((t) => ({
-                  value: t.deductionType,
-                  label: `${t.label} (${t.deductionType})`,
-                })),
-                { value: 'OTHER', label: 'Custom / Other' },
-              ]}
-            />
-          </div>
-
-          {/* Label */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Label / Description <span className="text-rose-500">*</span>
-            </label>
-            <Input
-              value={form.label}
-              onChange={(e) => { setForm({ ...form, label: e.target.value }); setFormError(''); }}
-              placeholder="e.g. Staff Loan - 2024 Q1"
-              error={formError}
-              required
-            />
-          </div>
-
-          {/* Reference Number */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Reference Number (Optional)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">#</span>
+          {/* Configuration Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Blueprint Type</label>
+              <Select
+                value={form.deductionType}
+                onChange={(e) => {
+                  const selected = deductionTemplates.find((t) => t.deductionType === e.target.value);
+                  setForm({
+                    ...form,
+                    deductionType: e.target.value,
+                    label: selected?.label || form.label,
+                  });
+                }}
+                options={[
+                  ...deductionTemplates.map((t) => ({
+                    value: t.deductionType,
+                    label: `${t.label} (${t.deductionType})`,
+                  })),
+                  { value: 'OTHER', label: 'Custom Protocol' },
+                ]}
+                className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Allocation Identifier</label>
               <Input
-                value={form.refNo}
-                onChange={(e) => setForm({ ...form, refNo: e.target.value })}
-                placeholder="e.g. LOAN-2024-001"
-                className="pl-8"
+                value={form.label}
+                onChange={(e) => { setForm({ ...form, label: e.target.value }); setFormError(''); }}
+                placeholder="e.g. Loan Recovery Protocol"
+                error={formError}
+                className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2 font-bold text-slate-900"
               />
             </div>
           </div>
 
-          {/* Calculation Type */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Calculation Type <span className="text-rose-500">*</span></label>
-            <Select
-              value={form.calculationType}
-              onChange={(e) => setForm({ ...form, calculationType: e.target.value as DeductionCalculationType })}
-              options={CALCULATION_TYPE_OPTIONS}
-            />
+          {/* Reference & Model */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Reference Code</label>
+              <div className="relative">
+                <Input
+                  value={form.refNo}
+                  onChange={(e) => setForm({ ...form, refNo: e.target.value })}
+                  placeholder="ADIU-REF-001"
+                  className="h-12 border-slate-200 rounded-2xl focus:border-slate-900 font-mono text-sm tracking-widest pl-10"
+                />
+                <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Calculation Model</label>
+              <Select
+                value={form.calculationType}
+                onChange={(e) => setForm({ ...form, calculationType: e.target.value as DeductionCalculationType })}
+                options={CALCULATION_TYPE_OPTIONS}
+                className="h-12 border-slate-200 rounded-2xl"
+              />
+            </div>
           </div>
 
-          {/* Amount field (FIXED_AMOUNT) */}
-          {form.calculationType === 'FIXED_AMOUNT' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Amount <span className="text-rose-500">*</span></label>
-                <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
-                  <span className="pl-3.5 pr-2 text-slate-500 font-medium text-sm border-r border-slate-200 py-2.5 bg-slate-50">ETB</span>
+          {/* Financial Impact - High Contrast */}
+          <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700" />
+            
+            {form.calculationType === 'FIXED_AMOUNT' && (
+              <div className="space-y-4 relative z-10">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Fixed Monthly Impact</label>
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-white/30 transition-all shadow-inner">
+                  <span className="px-5 py-4 text-xs font-black text-white/20 border-r border-white/10 uppercase tracking-widest bg-white/5">ETB</span>
                   <input
                     type="number"
                     value={form.amount ?? ''}
                     onChange={(e) => setForm({ ...form, amount: e.target.value ? Number(e.target.value) : null })}
                     placeholder="0.00"
-                    className="flex-1 px-3 py-2.5 text-sm outline-none bg-transparent text-slate-900 placeholder:text-slate-400"
+                    className="flex-1 px-6 py-4 text-2xl font-black bg-transparent outline-none placeholder:text-white/10 tabular-nums tracking-tighter"
                   />
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Percent field (PERCENTAGE_OF_*) */}
-          {(form.calculationType === 'PERCENTAGE_OF_BASIC' || form.calculationType === 'PERCENTAGE_OF_GROSS') && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Percentage (0-100) <span className="text-rose-500">*</span></label>
-              <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
-                <input
-                  type="number"
-                  value={form.percent ?? ''}
-                  onChange={(e) => setForm({ ...form, percent: e.target.value ? Number(e.target.value) : null })}
-                  placeholder="0"
-                  className="flex-1 px-4 py-2.5 text-sm outline-none bg-transparent text-slate-900 placeholder:text-slate-400"
-                />
-                <span className="px-3.5 text-slate-500 font-medium text-sm border-l border-slate-200 py-2.5 bg-slate-50">%</span>
+            {(form.calculationType === 'PERCENTAGE_OF_BASIC' || form.calculationType === 'PERCENTAGE_OF_GROSS') && (
+              <div className="space-y-4 relative z-10">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Payroll Impact Factor</label>
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-white/30 transition-all shadow-inner">
+                  <input
+                    type="number"
+                    value={form.percent ?? ''}
+                    onChange={(e) => setForm({ ...form, percent: e.target.value ? Number(e.target.value) : null })}
+                    placeholder="0"
+                    className="flex-1 px-6 py-4 text-2xl font-black bg-transparent outline-none placeholder:text-white/10 tabular-nums tracking-tighter"
+                  />
+                  <span className="px-5 py-4 text-xs font-black text-white/20 border-l border-white/10 uppercase tracking-widest bg-white/5">%</span>
+                </div>
+                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest ml-1 italic opacity-60">
+                  Calculated against {form.calculationType === 'PERCENTAGE_OF_BASIC' ? 'Basic Salary' : 'Gross Salary'} registry
+                </p>
               </div>
-              <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                {form.calculationType === 'PERCENTAGE_OF_BASIC'
-                  ? "Calculated as a percentage of the employee's basic salary each period."
-                  : "Calculated as a percentage of the employee's gross salary each period."}
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Remaining Balance / Loan fields */}
-          {form.calculationType === 'REMAINING_BALANCE' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Total Loan Amount <span className="text-rose-500">*</span></label>
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
-                    <span className="pl-3.5 pr-2 text-slate-500 font-medium text-sm border-r border-slate-200 py-2.5 bg-slate-50">ETB</span>
+            {/* Remaining Balance / Loan fields - Expert Style */}
+            {form.calculationType === 'REMAINING_BALANCE' && (
+              <div className="space-y-6 relative z-10">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Principal Amount</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                      <span className="px-3 py-2 text-[10px] font-black text-white/20 border-r border-white/10 uppercase tracking-widest bg-white/5">ETB</span>
+                      <input
+                        type="number"
+                        value={form.totalAmount ?? ''}
+                        onChange={(e) => setForm({ ...form, totalAmount: e.target.value ? Number(e.target.value) : null })}
+                        placeholder="0.00"
+                        className="flex-1 px-4 py-2 text-base font-bold bg-transparent outline-none placeholder:text-white/10 tabular-nums"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Term (Cycles)</label>
                     <input
                       type="number"
-                      value={form.totalAmount ?? ''}
-                      onChange={(e) => setForm({ ...form, totalAmount: e.target.value ? Number(e.target.value) : null })}
-                      placeholder="0.00"
-                      className="flex-1 px-3 py-2.5 text-sm outline-none bg-transparent text-slate-900 placeholder:text-slate-400"
+                      value={form.numInstallments ?? ''}
+                      onChange={(e) => setForm({ ...form, numInstallments: e.target.value ? Number(e.target.value) : null })}
+                      placeholder="e.g. 12"
+                      className="w-full px-4 py-2 text-base font-bold bg-white/5 border border-white/10 rounded-xl outline-none focus:border-white/30 tabular-nums"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Installments</label>
-                  <Input
-                    type="number"
-                    value={form.numInstallments ?? ''}
-                    onChange={(e) => setForm({ ...form, numInstallments: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="e.g. 24"
-                  />
-                </div>
+                {form.totalAmount && form.numInstallments && form.numInstallments > 0 && (
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Wallet className="w-4 h-4 text-emerald-400" />
+                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Calculated installment</span>
+                    </div>
+                    <span className="text-sm font-black text-emerald-400 tabular-nums">ETB {(form.totalAmount / form.numInstallments).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Priority</label>
-                  <Input
-                    type="number"
-                    value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value ? Number(e.target.value) : 0 })}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              {form.totalAmount && form.numInstallments && form.numInstallments > 0 && (
-                <div className="p-4 bg-gradient-to-r from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-xl">
-                  <p className="text-sm text-emerald-800 font-semibold flex items-center gap-2">
-                    <Wallet className="w-4 h-4" />
-                    Estimated per period: {formatCurrency(form.totalAmount / form.numInstallments)}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Status toggle (edit mode only) */}
-          {editDeduction && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">Status</label>
-              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
-                {(['ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED'] as EmployeeDeductionStatus[]).map((status) => {
-                  const isActive = (editDeduction.status || 'ACTIVE') === status;
-                  const statusColors: Record<string, string> = {
-                    ACTIVE: 'bg-emerald-500 shadow-sm shadow-emerald-200 text-white',
-                    PAUSED: 'bg-amber-500 shadow-sm shadow-amber-200 text-white',
-                    COMPLETED: 'bg-blue-500 shadow-sm shadow-blue-200 text-white',
-                    CANCELLED: 'bg-slate-400 shadow-sm shadow-slate-200 text-white',
-                  };
-                  return (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => {
-                        employeeDeductionApi.update(editDeduction.id!, {
-                          status: status as EmployeeDeductionStatus,
-                        }).then(() => {
-                          toast.success('Deduction status updated');
-                          loadAllDeductions();
-                        }).catch(() => toast.error('Failed to update status'));
-                      }}
-                      className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                        isActive
-                          ? statusColors[status]
-                          : 'text-slate-600 hover:bg-slate-200/50'
-                      }`}
-                    >
-                      {status.charAt(0) + status.slice(1).toLowerCase()}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Notes / Description (Optional)</label>
-            <div className="relative">
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Additional notes about this deduction..."
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none bg-white placeholder:text-slate-400"
-                rows={3}
+          {/* Metadata & Status */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Execution Priority</label>
+              <Input
+                type="number"
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value ? Number(e.target.value) : 0 })}
+                placeholder="0"
+                className="h-12 border-slate-200 rounded-2xl"
               />
             </div>
+            
+            {editDeduction && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Compliance Status</label>
+                <div className="flex gap-2 p-1.5 bg-slate-50 border border-slate-200 rounded-2xl w-fit">
+                  {(['ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED'] as EmployeeDeductionStatus[]).map((status) => {
+                    const isActive = (editDeduction.status || 'ACTIVE') === status;
+                    const statusColors: Record<string, string> = {
+                      ACTIVE: 'bg-emerald-600 shadow-md shadow-brand-200 text-white',
+                      PAUSED: 'bg-amber-500 shadow-md shadow-amber-200 text-white',
+                      COMPLETED: 'bg-blue-600 shadow-md shadow-blue-200 text-white',
+                      CANCELLED: 'bg-slate-500 shadow-md shadow-slate-200 text-white',
+                    };
+                    return (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => {
+                          employeeDeductionApi.update(editDeduction.id!, {
+                            status: status as EmployeeDeductionStatus,
+                          }).then(() => {
+                            toast.success('System status updated');
+                            loadAllDeductions();
+                          }).catch(() => toast.error('Verification failed'));
+                        }}
+                        className={cn(
+                          "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer",
+                          isActive ? statusColors[status] : 'text-slate-400 hover:text-slate-600 hover:bg-white'
+                        )}
+                      >
+                        {status}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Internal Registry Notes</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Record any additional context or compliance notes here..."
+              className="w-full px-5 py-4 rounded-2xl border border-slate-200 text-sm font-medium focus:border-slate-900 transition-all resize-none bg-slate-50/30"
+              rows={3}
+            />
           </div>
         </div>
       </Modal>
@@ -1000,7 +1073,7 @@ export const EmployeeDeductionManagement: React.FC = () => {
       <Modal
         isOpen={bulkModalOpen}
         onClose={() => setBulkModalOpen(false)}
-        title={`Assign "${bulkConfig?.label || ''}"`}
+        title={`Registry Assignment: ${bulkConfig?.label || ''}`}
         size="lg"
         footer={
           <ConfigModalFooter
@@ -1008,88 +1081,66 @@ export const EmployeeDeductionManagement: React.FC = () => {
             onSave={handleBulkAssign}
             isEdit={false}
             saving={bulkSaving}
-            saveLabel="Assign to Selected"
+            saveLabel="Finalize Assignments"
           />
         }
       >
         {bulkConfig && (
-          <div className="space-y-4">
-            {/* Config info card */}
-            <div className={`p-4 rounded-xl border ${
+          <div className="space-y-6 px-2 py-4">
+            {/* Blueprint Indicator */}
+            <div className={cn(
+              "p-6 rounded-[2rem] border shadow-inner",
               bulkConfig.amount || bulkConfig.percent
-                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
-                : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm shrink-0 ${
+                ? 'bg-brand-50 border-emerald-100'
+                : 'bg-blue-50 border-blue-100'
+            )}>
+              <div className="flex items-center gap-5">
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white shrink-0",
                   bulkConfig.amount || bulkConfig.percent
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                    : 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-                }`}>
-                  {DEDUCTION_TYPE_META[bulkConfig.deductionType]?.icon || <Tag className="w-4 h-4" />}
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-blue-600 text-white'
+                )}>
+                  {DEDUCTION_TYPE_META[bulkConfig.deductionType]?.icon || <Tag className="w-5 h-5" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 text-sm truncate">{bulkConfig.label}</p>
-                  <p className="text-[11px] text-slate-500 truncate">
-                    {bulkConfig.calculationType ? (
-                      <>
-                        {CALCULATION_TYPE_OPTIONS.find(o => o.value === bulkConfig.calculationType)?.label}
-                        {bulkConfig.amount != null && <span className="ml-1.5 font-semibold text-blue-600">ETB {bulkConfig.amount.toLocaleString()}</span>}
-                        {bulkConfig.percent != null && <span className="ml-1.5 font-semibold text-violet-600">{bulkConfig.percent}%</span>}
-                        {!bulkConfig.amount && !bulkConfig.percent && <span className="ml-1.5 text-amber-600 font-medium italic">per-employee value</span>}
-                      </>
-                    ) : 'Legacy template'}
-                  </p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Blueprint Identification</p>
+                  <p className="font-black text-slate-900 text-lg tracking-tight leading-none truncate">{bulkConfig.label}</p>
                 </div>
-                <span className={`text-[9px] font-bold px-2 py-1 rounded-lg shrink-0 ${
+                <span className={cn(
+                  "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm shrink-0",
                   bulkConfig.amount || bulkConfig.percent
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                    : 'bg-amber-100 text-amber-700 border border-amber-200'
-                }`}>
-                  {bulkConfig.amount || bulkConfig.percent ? '⚡ Fixed' : '👤 Per-Emp'}
+                    ? 'bg-white border-brand-200 text-emerald-700'
+                    : 'bg-white border-blue-200 text-blue-700'
+                )}>
+                  {bulkConfig.amount || bulkConfig.percent ? 'STATIC RATE' : 'VARIABLE RATE'}
                 </span>
               </div>
             </div>
 
-            {/* Per-employee value hint (Type B) */}
-            {!bulkConfig.amount && !bulkConfig.percent && (
-              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl">
-                <div className="flex items-start gap-2">
-                  <span className="text-amber-600 text-sm mt-0.5">👤</span>
-                  <div>
-                    <p className="text-xs font-semibold text-amber-800">Per-Employee Value Required</p>
-                    <p className="text-[11px] text-amber-700/80 mt-0.5">
-                      {bulkConfig.calculationType === 'FIXED_AMOUNT'
-                        ? 'Enter an amount for each selected employee below.'
-                        : 'Enter a percentage for each selected employee below.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Search */}
+            {/* Registry Search */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search employees by name..."
+                placeholder="Search personnel registry by name..."
                 value={bulkSearch}
                 onChange={(e) => setBulkSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+                className="w-full h-12 pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-2xl focus:border-slate-900 outline-none transition-all font-medium shadow-sm"
               />
             </div>
 
-            {/* Select All + count */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+            {/* Selection Controls */}
+            <div className="flex items-center justify-between px-2">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className={cn(
+                  "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
                   filteredBulkEmployees.length > 0 && selectedBulkIds.size === filteredBulkEmployees.length
-                    ? 'bg-emerald-600 border-emerald-600'
-                    : 'border-slate-300 hover:border-emerald-400'
-                }`}>
+                    ? 'bg-slate-900 border-slate-900 shadow-md'
+                    : 'border-slate-200 group-hover:border-slate-400 bg-white'
+                )}>
                   {filteredBulkEmployees.length > 0 && selectedBulkIds.size === filteredBulkEmployees.length && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                    <CheckCircle className="w-4 h-4 text-white" strokeWidth={3} />
                   )}
                 </div>
                 <input
@@ -1098,92 +1149,71 @@ export const EmployeeDeductionManagement: React.FC = () => {
                   onChange={handleBulkSelectAll}
                   className="sr-only"
                 />
-                <span className="text-sm font-medium text-slate-700">Select All</span>
-                <span className="text-[11px] text-slate-400">({filteredBulkEmployees.length})</span>
+                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select Entire View ({filteredBulkEmployees.length})</span>
               </label>
               {selectedBulkIds.size > 0 && (
-                <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-200">
-                  {selectedBulkIds.size} selected
-                </span>
+                <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10">
+                  {selectedBulkIds.size} Target Personnel
+                </div>
               )}
             </div>
 
-            {/* Employee list */}
-            <div className="max-h-72 overflow-y-auto space-y-1.5 border border-slate-200 rounded-xl p-1.5 bg-white">
+            {/* Personnel Listing - High Density */}
+            <div className="max-h-80 overflow-y-auto rounded-[2rem] border border-slate-200 bg-slate-50/30 p-2 space-y-1 custom-scrollbar">
               {bulkEmployeesLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <div className="animate-spin rounded-full h-7 w-7 border-2 border-emerald-500 border-t-transparent" />
+                <div className="py-20 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto" />
                 </div>
               ) : filteredBulkEmployees.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 text-sm">No employees found</div>
+                <div className="py-20 text-center text-slate-400 text-xs font-black uppercase tracking-widest">No matching personnel</div>
               ) : (
                 filteredBulkEmployees.map((emp) => {
                   const isSelected = selectedBulkIds.has(emp.id);
                   const initials = `${emp.firstName[0] || ''}${emp.lastName[0] || ''}`;
-                  const avatarColors = [
-                    'from-blue-400 to-blue-600', 'from-emerald-400 to-emerald-600',
-                    'from-violet-400 to-violet-600', 'from-rose-400 to-rose-600',
-                    'from-amber-400 to-amber-600', 'from-cyan-400 to-cyan-600',
-                    'from-pink-400 to-pink-600', 'from-indigo-400 to-indigo-600',
-                  ];
-                  const avatarColor = avatarColors[emp.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % avatarColors.length];
 
                   return (
                     <div
                       key={emp.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all cursor-pointer ${
+                      className={cn(
+                        "flex items-center gap-4 px-4 py-3 rounded-2xl border transition-all cursor-pointer",
                         isSelected
-                          ? 'border-emerald-300 bg-emerald-50/80 shadow-sm'
-                          : 'border-transparent hover:border-slate-200 hover:bg-slate-50'
-                      }`}
+                          ? 'bg-white border-slate-900 shadow-md'
+                          : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200'
+                      )}
                       onClick={() => handleBulkSelectOne(emp.id)}
                     >
-                      {/* Custom checkbox */}
-                      <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
-                        isSelected
-                          ? 'bg-emerald-600 border-emerald-600'
-                          : 'border-slate-300 group-hover:border-emerald-400'
-                      }`}>
-                        {isSelected && (
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                        )}
+                      <div className={cn(
+                        "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                        isSelected ? 'bg-slate-900 border-slate-900' : 'border-slate-200 bg-white'
+                      )}>
+                        {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                       </div>
 
-                      {/* Avatar */}
-                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${avatarColor} flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm`}>
+                      <div className="w-10 h-10 rounded-full bg-brand-primary border-2 border-brand-200 shadow-lg shadow-brand-900/20 flex items-center justify-center text-xs font-black text-white shrink-0 uppercase tracking-widest">
                         {initials}
                       </div>
 
-                      {/* Employee info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900 text-sm truncate leading-tight">
-                          {emp.firstName} {emp.lastName}
-                        </p>
-                        <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
-                          {emp.jobPosition || 'No position'}
-                          {emp.departmentName && <span className="text-slate-300 mx-1">•</span>}
-                          {emp.departmentName}
-                        </p>
+                        <p className="font-bold text-slate-900 text-sm tracking-tight truncate">{emp.firstName} {emp.lastName}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{emp.departmentName || 'General Registry'}</p>
                       </div>
 
                       {/* Per-employee value input (Type B) */}
                       {!bulkConfig.amount && !bulkConfig.percent && isSelected && (
-                        <div className="w-28 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
+                        <div className="w-32 shrink-0 animate-in slide-in-from-right-4 duration-300" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden focus-within:border-slate-900 transition-colors shadow-sm">
                             <input
                               type="number"
-                              value={isSelected ? (bulkConfig.calculationType === 'FIXED_AMOUNT'
-                                ? (bulkEmployeeValues[emp.id]?.amount ?? '')
-                                : (bulkEmployeeValues[emp.id]?.percent ?? '')) : ''}
+                              value={bulkEmployeeValues[emp.id]?.[bulkConfig.calculationType === 'FIXED_AMOUNT' ? 'amount' : 'percent'] ?? ''}
                               onChange={(e) => handleBulkEmployeeValueChange(
                                 emp.id,
                                 bulkConfig.calculationType === 'FIXED_AMOUNT' ? 'amount' : 'percent',
                                 e.target.value ? Number(e.target.value) : null
                               )}
-                              placeholder={bulkConfig.calculationType === 'FIXED_AMOUNT' ? 'Amt' : '%'}
-                              className="w-full px-2.5 py-1.5 text-xs outline-none bg-transparent text-slate-900 placeholder:text-slate-400"
+                              placeholder={bulkConfig.calculationType === 'FIXED_AMOUNT' ? '0.00' : '0'}
+                              className="w-full px-3 py-2 text-sm font-bold text-slate-900 outline-none tabular-nums"
                             />
-                            <span className="px-2 text-[10px] text-slate-500 font-medium border-l border-slate-200 py-1.5 bg-slate-50">
+                            <span className="px-3 py-2 text-[10px] font-black text-slate-300 border-l border-slate-100 uppercase tracking-widest bg-slate-50">
                               {bulkConfig.calculationType === 'FIXED_AMOUNT' ? 'ETB' : '%'}
                             </span>
                           </div>

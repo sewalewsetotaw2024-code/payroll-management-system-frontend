@@ -6,12 +6,23 @@
  * The backend serialises Prisma Decimal fields as JSON numbers, so fields
  * like `actingPositionSalary` and `salaryDiff` are typed as `number`.
  *
- * Supports two calculation methods:
- *  - AMOUNT: Fixed amount for all months (no tiers)
+ * Supports three calculation methods:
  *  - PERCENTAGE: Tiered percentage of salary difference
+ *  - FIXED_AMOUNT: Fixed amount per assignment
+ *  - RULE_FIXED_AMOUNT: Fixed amount defined at rule level
  *
  * @module actingAllowanceTypes
  */
+
+/** Supported calculation methods for acting allowance rules. */
+export type CalculationMethod = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'RULE_FIXED_AMOUNT';
+
+/** Human-readable labels for calculation methods */
+export const CALCULATION_METHOD_LABELS: Record<CalculationMethod, string> = {
+    PERCENTAGE: 'Percentage (Tiered)',
+    FIXED_AMOUNT: 'Fixed Amount (Per Assignment)',
+    RULE_FIXED_AMOUNT: 'Fixed Amount (Rule)',
+};
 
 /** A single percentage bracket within an acting allowance rule (PERCENTAGE method). */
 export interface Tier {
@@ -24,9 +35,9 @@ export interface Tier {
 export interface ActingAllowanceRule {
     id: string;
     companyId: number;
-    /** AMOUNT = fixed amount, PERCENTAGE = tiered percentage of salary diff. */
-    calculationMethod: 'AMOUNT' | 'PERCENTAGE';
-    /** Fixed amount for the rule (only used when calculationMethod is AMOUNT). */
+    /** Calculation method (3 calculation methods: PERCENTAGE, FIXED_AMOUNT, RULE_FIXED_AMOUNT). */
+    calculationMethod: CalculationMethod;
+    /** Fixed amount for the rule (used when calculationMethod is RULE_FIXED_AMOUNT). */
     fixedAmount: number | null;
     /** Basis for the salary difference calculation (only for PERCENTAGE method). */
     basis: 'BASIC_DIFF' | 'GROSS_DIFF';
@@ -88,7 +99,7 @@ export interface ActingAssignment {
     };
     actingAllowanceRule?: {
         id: string;
-        calculationMethod: string;
+        calculationMethod: CalculationMethod;
         fixedAmount: number | null;
         basis: string;
         tiers: Tier[];
@@ -126,7 +137,7 @@ export interface PreviewPayload {
     actingAllowanceRuleId: string;
     actingPositionBasicSalary?: number;
     actingPositionGrossSalary?: number | null;
-    calculationMethod?: 'AMOUNT' | 'PERCENTAGE';
+    calculationMethod?: CalculationMethod;
     fixedAmount?: number | null;
     startDate: string;
     payrollPeriodEndDate: string;

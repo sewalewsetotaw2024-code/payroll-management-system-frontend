@@ -34,7 +34,7 @@ const NOTIFICATIONS = [
     time: '1 day ago', 
     icon: CheckCircle2, 
     color: 'text-emerald-500', 
-    bg: 'bg-emerald-50' 
+    bg: 'bg-brand-50' 
   },
   { 
     title: 'Bonus distribution completed for Q1', 

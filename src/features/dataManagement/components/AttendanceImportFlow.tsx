@@ -160,7 +160,7 @@ export const AttendanceImportFlow: React.FC<AttendanceImportFlowProps> = ({
                     <CheckCircle2 className="w-3 h-3" /> PROCESSED
                   </span>
                 )}
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-brand-100 text-emerald-700">
                   ACTIVE
                 </span>
               </div>
@@ -232,7 +232,7 @@ export const AttendanceImportFlow: React.FC<AttendanceImportFlowProps> = ({
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => { setParseError(null); if (fileInputRef.current) { fileInputRef.current.value = ''; fileInputRef.current.click(); } }}
-              className="px-5 py-2.5 text-sm font-bold text-white bg-[#047857] rounded-xl hover:bg-[#036246] transition-colors"
+              className="px-5 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 transition-colors"
             >
               Try Again
             </button>

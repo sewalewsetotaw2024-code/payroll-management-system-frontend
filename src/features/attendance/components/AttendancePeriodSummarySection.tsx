@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Calculator, FileBarChart2, Clock, Users, Search, AlertCircle } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Calculator, Users, Clock, AlertCircle, Search, ChevronLeft, ChevronRight, Download, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import { Button, Skeleton, GlassCard, InitialAvatar } from '../../../components/ui';
+import { Skeleton, Button } from '../../../components/ui';
 import { attendanceApi } from '../api/attendanceApi';
+import { motion, AnimatePresence } from 'motion/react';
 import type {
     AttendanceImport,
     AttendanceMonthlySummary,
     CombinedPeriodSummary,
     ImportDetail,
 } from '../types/attendance.types';
+import { exportAttendanceSummaryToXlsx } from '../utils/exportAttendanceSummary';
 
 interface AttendancePeriodSummarySectionProps {
     periodId: string | null;
@@ -18,6 +19,7 @@ interface AttendancePeriodSummarySectionProps {
 
 export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySectionProps> = ({
     periodId,
+    periodName,
 }) => {
     const [imports, setImports] = useState<AttendanceImport[]>([]);
     const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
@@ -132,219 +134,202 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
     const getEmployeeName = (s: AttendanceMonthlySummary) =>
         [s.employee?.firstName, s.employee?.lastName].filter(Boolean).join(' ') || s.employeeName || 'Unknown Employee';
 
+    const getInitials = (s: AttendanceMonthlySummary) => ({
+        first: s.employee?.firstName?.charAt(0) ?? s.employeeName?.charAt(0) ?? '?',
+        last: s.employee?.lastName?.charAt(0) ?? '',
+    });
+
     // ── Stats ──
     const totalEmployees = summaries.length;
     const totalAbsentHrs = summaries.reduce((sum, s) => sum + Number(s.absenceHours ?? 0), 0);
     const totalRegularHrs = summaries.reduce((sum, s) => sum + Number(s.regularHours ?? 0), 0);
 
+    const formatNumber = (n: number) => n.toLocaleString('en-US');
+    const formatHours = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
     // ── Empty state ──
     if (!periodId) {
         return (
-            <GlassCard className="text-center py-12">
-                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <FileBarChart2 className="w-6 h-6 text-slate-400" />
+            <div className="p-12 text-center glass rounded-[3rem] border-white shadow-xl">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-sm">
+                    <Calculator className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-700 mb-2">Attendance Summary</h3>
-                <p className="text-slate-500 text-sm max-w-md mx-auto">
-                    Select a payroll period to view attendance summaries.
+                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">Matrix Context Missing</h3>
+                <p className="text-slate-500 font-medium max-w-md mx-auto">
+                    Select a valid payroll period from the gateway above to view active attendance summaries.
                 </p>
-            </GlassCard>
+            </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* ── Header Card: Import selector + Calculate button ── */}
-            <GlassCard>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex flex-col gap-2 flex-1">
-                        <span className="text-sm font-bold text-slate-700">Attendance Summary</span>
-                        {imports.length > 0 && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Import:</span>
-                                <select
-                                    value={selectedImportId ?? ''}
-                                    onChange={(e) => setSelectedImportId(e.target.value)}
-                                    className="text-sm bg-white/60 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
-                                >
-                                    {imports.map((imp) => (
-                                        <option key={imp.id} value={imp.id}>
-                                            {imp.periodLabel || `Import ${new Date(imp.importedAt).toLocaleDateString()}`} · {imp.totalRecords ?? 0} records
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        {/* ── Hourly / Monthly toggle ── */}
-                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-                            <button
-                                onClick={() => setViewMode('monthly')}
-                                className={cn(
-                                    'px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer',
-                                    viewMode === 'monthly'
-                                        ? 'bg-white text-slate-800 shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-600',
-                                )}
-                            >
-                                Monthly
-                            </button>
-                            <button
-                                onClick={() => setViewMode('hourly')}
-                                className={cn(
-                                    'px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer',
-                                    viewMode === 'hourly'
-                                        ? 'bg-white text-slate-800 shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-600',
-                                )}
-                            >
-                                Hourly
-                            </button>
-                        </div>
-
-                        <Button
-                            onClick={handleCalculateSummary}
-                            isLoading={calculating}
-                            disabled={!selectedImportId || calculating}
-                            size="md"
+        <div className="space-y-10 pb-6">
+            {/* ── Command Strip: Import Selector + Calculate ── */}
+            <div className="glass rounded-[2.5rem] p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-white shadow-xl bg-white/40">
+                <div className="flex items-center gap-4 pl-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Context</span>
+                    <div className="relative group">
+                        <select
+                            value={selectedImportId ?? ''}
+                            onChange={(e) => setSelectedImportId(e.target.value)}
+                            className="appearance-none bg-white/60 border-none rounded-xl pl-4 pr-10 py-2 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[240px]"
                         >
-                            <Calculator className="w-4 h-4" />
-                            {calculating ? 'Calculating...' : 'Calculate Summary'}
-                        </Button>
+                            {imports.map((imp) => (
+                                <option key={imp.id} value={imp.id}>
+                                    {imp.periodLabel || `Cycle ${new Date(imp.importedAt).toLocaleDateString()}`}
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-brand-primary" />
                     </div>
                 </div>
-            </GlassCard>
 
-            {/* ── Error ── */}
-            {error && (
-                <div className="flex items-center gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    {error}
+                <div className="flex items-center gap-3 pr-2">
+                    {/* View mode toggle - Professional Glassy */}
+                    <div className="glass bg-white/60 p-1 rounded-2xl flex items-center shadow-inner border-white/50">
+                        <button
+                            onClick={() => setViewMode('monthly')}
+                            className={cn(
+                                "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95",
+                                viewMode === 'monthly' ? "bg-white text-slate-900 shadow-md" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            Monthly
+                        </button>
+                        <button
+                            onClick={() => setViewMode('hourly')}
+                            className={cn(
+                                "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95",
+                                viewMode === 'hourly' ? "bg-white text-slate-900 shadow-md" : "text-slate-400 hover:text-slate-600"
+                            )}
+                        >
+                            Hourly
+                        </button>
+                    </div>
+
+                    <Button
+                        onClick={handleCalculateSummary}
+                        disabled={!selectedImportId || calculating}
+                        className="px-8 shadow-xl shadow-brand-900/10 h-10 text-[10px] uppercase font-black tracking-widest rounded-xl"
+                    >
+                        {calculating ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculating...</>
+                        ) : (
+                            <><Calculator className="w-4 h-4" /> Run Matrix</>
+                        )}
+                    </Button>
+
+                    <Button
+                        variant="secondary"
+                        onClick={() => exportAttendanceSummaryToXlsx(summary, viewMode, periodName)}
+                        disabled={!summary || !summary.employees || summary.employees.length === 0}
+                        className="px-6 h-10 border-white shadow-lg text-[10px] uppercase font-black tracking-widest rounded-xl"
+                    >
+                        <Download className="w-4 h-4" /> Export
+                    </Button>
                 </div>
-            )}
+            </div>
 
-            {/* ── Loading skeletons ── */}
+            {/* ── Error Notification ── */}
+            <AnimatePresence>
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="glass bg-rose-50 border-rose-100 rounded-[2rem] p-5 flex items-center gap-4 shadow-sm"
+                    >
+                        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                            <AlertCircle className="w-5 h-5 text-rose-500" />
+                        </div>
+                        <p className="text-rose-800 text-sm font-bold">{error}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Loading Skeletons ── */}
             {(importLoading || detailLoading) && (
-                <div className="space-y-3">
-                    <div className="grid grid-cols-3 gap-4">
-                        <Skeleton className="h-24 rounded-xl" />
-                        <Skeleton className="h-24 rounded-xl" />
-                        <Skeleton className="h-24 rounded-xl" />
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Skeleton className="h-32 rounded-[2rem]" />
+                        <Skeleton className="h-32 rounded-[2rem]" />
+                        <Skeleton className="h-32 rounded-[2rem]" />
                     </div>
-                    <Skeleton className="h-64 rounded-xl" />
+                    <Skeleton className="h-96 rounded-[3rem]" />
                 </div>
             )}
 
-            {/* ── No imports for this period ── */}
-            {!importLoading && imports.length === 0 && (
-                <GlassCard className="text-center py-12">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                        <FileBarChart2 className="w-6 h-6 text-slate-400" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-700 mb-2">No Attendance Imports</h3>
-                    <p className="text-slate-500 text-sm max-w-md mx-auto">
-                        No biometric attendance data imported for this payroll period.
-                        Import attendance data for this period from the Attendance Data tab.
-                    </p>
-                </GlassCard>
-            )}
-
-            {/* ── Summary stats ── */}
+            {/* ── Content Canvas ── */}
             {!importLoading && !detailLoading && summaries.length > 0 && (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {([
-                            { label: 'Employees', value: totalEmployees, icon: Users },
-                            {
-                                label: viewMode === 'hourly' ? 'Total Regular Hours' : 'Total Regular Days',
-                                value: viewMode === 'hourly'
-                                    ? totalRegularHrs.toFixed(1)
-                                    : (totalRegularHrs / STANDARD_HOURS).toFixed(1),
-                                icon: Clock,
-                            },
-                            {
-                                label: viewMode === 'hourly' ? 'Total Absent Hours' : 'Total Absent Days',
-                                value: viewMode === 'hourly'
-                                    ? totalAbsentHrs.toFixed(1)
-                                    : (totalAbsentHrs / STANDARD_HOURS).toFixed(1),
-                                icon: AlertCircle,
-                            },
-                        ] as const).map((stat, i) => (
-                            <motion.div
+                <div className="space-y-10">
+                    {/* ── Summary Stats Bento ── */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        {[
+                            { label: ' PERSONNEL Strength', value: formatNumber(totalEmployees), icon: Users, color: 'text-brand-primary', bg: 'bg-white/50' },
+                            { label: viewMode === 'hourly' ? 'TOTAL CAPACITY (HRS)' : 'TOTAL CAPACITY (DAYS)', value: formatHours(viewMode === 'hourly' ? totalRegularHrs : totalRegularHrs / STANDARD_HOURS), icon: Clock, color: 'text-brand-secondary', bg: 'bg-white/50' },
+                            { label: viewMode === 'hourly' ? 'ABSENCE DEFICIT (HRS)' : 'ABSENCE DEFICIT (DAYS)', value: formatHours(viewMode === 'hourly' ? totalAbsentHrs : totalAbsentHrs / STANDARD_HOURS), icon: AlertCircle, color: 'text-rose-500', bg: 'bg-white/50' },
+                        ].map((stat, i) => (
+                            <motion.div 
                                 key={stat.label}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.08 }}
+                                transition={{ delay: i * 0.1 }}
+                                className="glass rounded-[2rem] p-8 shadow-xl border-white group hover:-translate-y-1 transition-all duration-300 flex flex-col gap-6"
                             >
-                                <GlassCard>
-                                    <div className="flex items-start justify-between mb-3">
-                                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                                            <stat.icon className="w-4 h-4 text-slate-500" />
-                                        </div>
+                                <div className="flex items-center justify-between">
+                                    <div className={cn("w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center ring-1 ring-slate-100 group-hover:scale-110 transition-transform", stat.color)}>
+                                        <stat.icon className="w-5 h-5" />
                                     </div>
-                                    <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{stat.value}</p>
-                                </GlassCard>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.label}</span>
+                                </div>
+                                <p className="text-2xl font-black text-slate-900 tracking-tight font-mono">{stat.value}</p>
                             </motion.div>
                         ))}
                     </div>
 
-                    {/* ── Table ── */}
-                    <GlassCard padding="none" className="overflow-hidden">
-                        {/* Search + info bar */}
-                        <div className="p-4 border-b border-slate-200/60 bg-white/40 flex items-center justify-between gap-3">
-                            <div className="relative max-w-xs flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    {/* ── Table Matrix ── */}
+                    <div className="glass rounded-[3rem] shadow-2xl border-white overflow-hidden bg-white/30 backdrop-blur-md">
+                        {/* Matrix Toolbar */}
+                        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white/40">
+                            <div className="relative group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                                 <input
                                     type="text"
-                                    placeholder="Search employees..."
+                                    placeholder="Filter Personnel Matrix..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2 rounded-lg bg-white/60 backdrop-blur-sm border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                                    className="w-80 pl-12 pr-6 py-3 bg-white/50 border-none rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
                                 />
                             </div>
-                            {!summary && (
-                                <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full font-medium whitespace-nowrap">
-                                    Run "Calculate Summary" for computed totals
+                            <div className="flex items-center gap-3">
+                                <span className="px-4 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                                    {filteredSummaries.length} Records In-Scope
                                 </span>
-                            )}
+                            </div>
                         </div>
 
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left border-collapse min-w-[1000px]">
                                 <thead>
-                                    <tr className="bg-white/30 border-b border-slate-200/60">
-                                        <th className="text-left px-4 py-3 font-bold text-slate-400 uppercase text-[10px] tracking-wider">Employee</th>
-                                        <th className="text-right px-4 py-3 font-bold text-slate-400 uppercase text-[10px] tracking-wider">
-                                            {viewMode === 'hourly' ? 'Absent Hours' : 'Absent Days'}
-                                        </th>
-                                        <th className="text-right px-4 py-3 font-bold text-slate-400 uppercase text-[10px] tracking-wider">
-                                            {viewMode === 'hourly' ? 'Paid Leave Hrs' : 'Paid Leave Days'}
-                                        </th>
-                                        <th className="text-right px-4 py-3 font-bold text-slate-400 uppercase text-[10px] tracking-wider">
-                                            {viewMode === 'hourly' ? 'Total Hours' : 'Total Days'}
-                                            <span className="ml-1 normal-case font-normal text-[9px] text-slate-300">
-                                                {viewMode === 'hourly' ? '(regular + leave)' : '(workdays−absent+leave)'}
-                                            </span>
-                                        </th>
-
+                                    <tr className="bg-white/60 border-b border-slate-100">
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Personnel Identity</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Absence Log</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Governed Absence</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Deployment Yield</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100/80">
+                                <tbody>
                                     {paginatedSummaries.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="px-4 py-12 text-center text-slate-400">
-                                                No employees found
-                                            </td>
+                                            <td colSpan={4} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No active personnel data available</td>
                                         </tr>
                                     ) : (
                                         paginatedSummaries.map((row, i) => {
+                                            const initials = getInitials(row);
                                             const name = getEmployeeName(row);
                                             const sumData = summaryMap.get(row.employeeId);
+                                            const rowBg = i % 2 === 0 ? 'bg-white/20' : 'bg-transparent';
 
-                                            // Compute paid leave hours once (shared by both modes)
                                             const paidLeaveHrs = Number(row.annualLeaveHours ?? 0)
                                                 + Number(row.sickLeaveHours ?? 0)
                                                 + Number(row.casualLeaveHours ?? 0)
@@ -353,69 +338,68 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                                                 + Number(row.businessTripHours ?? 0)
                                                 + Number(row.compensatoryHours ?? 0);
 
-                                            // ── Determine absent / paid / total display based on viewMode ──
                                             let absentDisplay = '';
                                             let paidDisplay = '';
                                             let totalDisplay = '';
 
                                             if (viewMode === 'hourly') {
                                                 const absHrs = Number(row.absenceHours ?? 0);
-                                                absentDisplay = `${absHrs.toFixed(1)} hrs`;
-                                                // Use stored paidLeaveHours from summary (includes LeaveApplication data)
+                                                absentDisplay = `${absHrs.toFixed(1)}h`;
                                                 const displayPaidHrs = (sumData?.paidLeaveHours != null && sumData.paidLeaveHours > 0)
                                                     ? sumData.paidLeaveHours
                                                     : paidLeaveHrs;
-                                                paidDisplay = `${displayPaidHrs.toFixed(1)} hrs`;
+                                                paidDisplay = `${displayPaidHrs.toFixed(1)}h`;
                                                 const totalVal = sumData?.totalHours != null
                                                     ? sumData.totalHours
                                                     : Number(row.regularHours ?? 0) + displayPaidHrs;
-                                                totalDisplay = `${totalVal.toFixed(1)} hrs`;
+                                                totalDisplay = `${totalVal.toFixed(1)}h`;
                                             } else {
                                                 const rawAbsHrs = Number(row.absenceHours ?? 0);
                                                 const absDays = (sumData?.absentDays != null && (sumData.absentDays > 0 || rawAbsHrs === 0))
                                                     ? sumData.absentDays
                                                     : rawAbsHrs / STANDARD_HOURS;
-                                                absentDisplay = `${absDays.toFixed(1)} days`;
-                                                // Use stored paidLeaveDays from summary (includes LeaveApplication data)
+                                                absentDisplay = `${absDays.toFixed(1)}d`;
                                                 const displayPaidDays = (sumData?.paidLeaveDays != null && sumData.paidLeaveDays > 0)
                                                     ? sumData.paidLeaveDays
                                                     : paidLeaveHrs / STANDARD_HOURS;
-                                                paidDisplay = `${displayPaidDays.toFixed(1)} days`;
+                                                paidDisplay = `${displayPaidDays.toFixed(1)}d`;
                                                 const rawRegHrs = Number(row.regularHours ?? 0);
                                                 const totalVal = (sumData?.actualDays != null && (sumData.actualDays > 0 || rawRegHrs === 0))
                                                     ? sumData.actualDays
                                                     : (rawRegHrs + (displayPaidDays * STANDARD_HOURS)) / STANDARD_HOURS;
-                                                totalDisplay = `${totalVal.toFixed(1)} days`;
+                                                totalDisplay = `${totalVal.toFixed(1)}d`;
                                             }
 
-
                                             return (
-                                                <tr key={row.id || i} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <InitialAvatar
-                                                                firstName={row.employee?.firstName ?? name.charAt(0)}
-                                                                lastName={row.employee?.lastName ?? ''}
-                                                                size="sm"
-                                                            />
+                                                <tr key={row.id || i} className={cn(rowBg, "hover:bg-brand-primary/5 transition-all group cursor-default border-b border-slate-50/50")}>
+                                                    <td className="px-8 py-5 border-r border-slate-200/50">
+                                                        <div className="flex items-center gap-5">
+                                                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 flex items-center justify-center font-black text-[10px] text-brand-primary group-hover:scale-110 transition-transform">
+                                                                {initials.first}{initials.last}
+                                                            </div>
                                                             <div>
-                                                                <p className="text-sm font-semibold text-slate-800">{name}</p>
+                                                                <div className="text-sm font-black text-slate-900 tracking-tight">{name}</div>
                                                                 {row.department && (
-                                                                    <p className="text-[11px] text-slate-400">{row.department}</p>
+                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{row.department}</div>
                                                                 )}
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right text-slate-600 tabular-nums text-sm">
-                                                        {absentDisplay}
+                                                    <td className="px-8 py-5 border-r border-slate-200/50 text-right">
+                                                        <span className={cn("text-sm font-black font-mono tracking-tight", parseFloat(absentDisplay) > 0 ? "text-rose-500" : "text-slate-900")}>
+                                                            {absentDisplay}
+                                                        </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right text-slate-600 tabular-nums text-sm">
-                                                        {paidDisplay}
+                                                    <td className="px-8 py-5 border-r border-slate-200/50 text-right">
+                                                        <span className="text-sm font-black font-mono text-slate-900 tracking-tight">
+                                                            {paidDisplay}
+                                                        </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-semibold text-emerald-700 tabular-nums text-sm">
-                                                        {totalDisplay}
+                                                    <td className="px-8 py-5 text-right">
+                                                        <span className="text-sm font-black font-mono text-brand-primary tracking-tight">
+                                                            {totalDisplay}
+                                                        </span>
                                                     </td>
-
                                                 </tr>
                                             );
                                         })
@@ -424,56 +408,52 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                             </table>
                         </div>
 
-                        {/* Pagination */}
-                        <div className="px-4 py-3 bg-white/40 border-t border-slate-200/60 flex items-center justify-between gap-4">
-                            <p className="text-xs text-slate-400">
-                                Showing {paginatedSummaries.length} of {filteredSummaries.length} employees
-                            </p>
-                            <div className="flex items-center gap-1.5">
-                                <button
-                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                    disabled={safePage <= 1}
-                                    className={cn(
-                                        'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-                                        safePage <= 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:bg-white/60',
-                                    )}
-                                >
-                                    Prev
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                                    .map((p, idx, arr) => (
-                                        <React.Fragment key={p}>
-                                            {idx > 0 && arr[idx - 1] !== p - 1 && (
-                                                <span className="px-1 text-slate-300">...</span>
-                                            )}
-                                            <button
-                                                onClick={() => setCurrentPage(p)}
-                                                className={cn(
-                                                    'w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer',
-                                                    p === safePage
-                                                        ? 'bg-emerald-500 text-white shadow-sm'
-                                                        : 'text-slate-500 hover:bg-slate-100',
+                        {/* Pagination Canvas */}
+                        {filteredSummaries.length > 0 && (
+                            <div className="px-8 py-6 border-t border-slate-100 flex items-center justify-between bg-white/40">
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                                    Syncing <span className="text-slate-900 font-mono">{paginatedSummaries.length}</span> of <span className="text-slate-900 font-mono">{filteredSummaries.length}</span> personnel
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                        disabled={safePage <= 1}
+                                        className="w-10 h-10 rounded-2xl glass border-white flex items-center justify-center text-slate-400 hover:text-brand-primary disabled:opacity-30 transition-all shadow-sm active:scale-90"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                        .map((p, idx, arr) => (
+                                            <React.Fragment key={p}>
+                                                {idx > 0 && arr[idx - 1] !== p - 1 && (
+                                                    <span className="px-2 text-slate-300 font-black">...</span>
                                                 )}
-                                            >
-                                                {p}
-                                            </button>
-                                        </React.Fragment>
-                                    ))}
-                                <button
-                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                    disabled={safePage >= totalPages}
-                                    className={cn(
-                                        'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-                                        safePage >= totalPages ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:bg-white/60',
-                                    )}
-                                >
-                                    Next
-                                </button>
+                                                <button
+                                                    onClick={() => setCurrentPage(p)}
+                                                    className={cn(
+                                                        "w-10 h-10 rounded-2xl text-xs font-black transition-all active:scale-90 shadow-sm",
+                                                        p === safePage 
+                                                            ? "bg-brand-primary text-white shadow-brand-900/20" 
+                                                            : "glass border-white text-slate-500 hover:bg-white"
+                                                    )}
+                                                >
+                                                    {p}
+                                                </button>
+                                            </React.Fragment>
+                                        ))}
+                                    <button
+                                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                        disabled={safePage >= totalPages}
+                                        className="w-10 h-10 rounded-2xl glass border-white flex items-center justify-center text-slate-400 hover:text-brand-primary disabled:opacity-30 transition-all shadow-sm active:scale-90"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </GlassCard>
-                </>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

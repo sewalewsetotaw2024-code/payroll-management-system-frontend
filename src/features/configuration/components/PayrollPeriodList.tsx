@@ -16,8 +16,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   ACTIVE: {
     label: 'Open',
     color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
+    bg: 'bg-brand-50',
+    border: 'border-brand-200',
     icon: <CheckCircle2 className="w-3.5 h-3.5" />,
   },
   DRAFT: {
@@ -106,7 +106,7 @@ export const PayrollPeriodList: React.FC<PayrollPeriodListProps> = ({
         <button
           id={`period-card-active-${activePeriod.id}`}
           onClick={() => onSelect(activePeriod)}
-          className="w-full text-left bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[1.5rem] p-6 text-white shadow-xl shadow-emerald-900/20 relative overflow-hidden hover:shadow-2xl transition-all duration-200 group"
+          className="w-full text-left bg-gradient-to-br from-brand-600 to-brand-800 rounded-[1.5rem] p-6 text-white shadow-xl shadow-brand-900/20 relative overflow-hidden hover:shadow-2xl transition-all duration-200 group"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.08)_0%,transparent_60%)]" />
           <div className="relative flex items-start justify-between">
@@ -151,7 +151,7 @@ export const PayrollPeriodList: React.FC<PayrollPeriodListProps> = ({
                   key={period.id}
                   id={`period-card-${period.id}`}
                   onClick={() => onSelect(period)}
-                  className="w-full text-left bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-md rounded-[1.25rem] px-5 py-4 flex items-center gap-4 transition-all duration-150 group"
+                  className="w-full text-left bg-white border border-slate-200 hover:border-brand-300 hover:shadow-md rounded-[1.25rem] px-5 py-4 flex items-center gap-4 transition-all duration-150 group"
                 >
                   <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
                     <CalendarDays className="w-4 h-4" />

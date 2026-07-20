@@ -35,7 +35,7 @@ const getCategoryBadgeColor = (category: string) => {
     case 'Base Pay':
       return 'bg-blue-50 text-blue-700 border-blue-100/50';
     case 'Allowances':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-100/50';
+      return 'bg-brand-50 text-emerald-700 border-emerald-100/50';
     case 'Variable':
       return 'bg-amber-50 text-amber-700 border-amber-100/50';
     default:
@@ -88,7 +88,7 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
               className="flex items-center justify-between px-8 py-5 hover:bg-slate-50/30 transition-all group"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100/50">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-emerald-600 shrink-0 border border-emerald-100/50">
                   {category === 'Base Pay' ? (
                     <DollarSign className="w-5 h-5" />
                   ) : category === 'Allowances' ? (
@@ -111,7 +111,7 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
                   {category}
                 </span>
                 <span
-                  className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border ${allowance.isTaxable ? 'bg-amber-50 text-amber-700 border-amber-100/50' : 'bg-emerald-50 text-emerald-700 border-emerald-100/50'}`}
+                  className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border ${allowance.isTaxable ? 'bg-amber-50 text-amber-700 border-amber-100/50' : 'bg-brand-50 text-emerald-700 border-emerald-100/50'}`}
                 >
                   {allowance.isTaxable ? 'Taxable' : 'Non-Taxable'}
                 </span>
@@ -124,7 +124,7 @@ export const AllowancesView: React.FC<AllowancesViewProps> = ({
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                   <button
                     onClick={() => onOpenEdit(i)}
-                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-brand-50 rounded-xl transition-colors"
                     title="Edit"
                   >
                     <Pencil className="w-4 h-4" />

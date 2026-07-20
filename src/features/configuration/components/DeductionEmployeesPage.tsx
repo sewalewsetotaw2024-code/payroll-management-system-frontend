@@ -5,10 +5,7 @@ import {
   Plus,
   Search,
   Users,
-  CheckCircle,
-  Clock,
   AlertCircle,
-  Receipt,
   X,
   Pencil,
   ChevronLeft,
@@ -184,7 +181,10 @@ export const DeductionEmployeesPage: React.FC = () => {
     const paused = assignedDeductions.filter(
       (d) => d.status === "PAUSED",
     ).length;
-    return { total, active, completed, paused };
+    const cancelled = assignedDeductions.filter(
+      (d) => d.status === "CANCELLED",
+    ).length;
+    return { total, active, completed, paused, cancelled };
   }, [assignedDeductions]);
 
   // ─── Helpers ─────────────────────────────────────────────────
@@ -442,390 +442,257 @@ export const DeductionEmployeesPage: React.FC = () => {
   // ─── Skeleton helper for hero section ───────────────────────
   const heroSkeleton = !config;
 
+  const AVATAR_COLORS = [
+    'bg-brand-primary text-white',
+    'bg-blue-100 text-blue-700',
+    'bg-amber-100 text-amber-700',
+    'bg-purple-100 text-purple-700',
+    'bg-rose-100 text-rose-700',
+  ];
+
   return (
-    <div className="space-y-8 pb-12">
-      {/* ─── Back Button ──────────────────────────────────── */}
+    <div className="space-y-10 pb-20 px-4 md:px-8">
+      {/* ─── Navigation & Context ────────────────────────── */}
       <button
         onClick={() => navigate("/employee-deductions")}
-        className="group inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-600 transition-all"
+        className="group inline-flex items-center gap-2.5 text-slate-400 hover:text-slate-900 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
       >
-        <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center group-hover:border-emerald-200 group-hover:bg-emerald-50 transition-all shadow-sm">
+        <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center group-hover:border-slate-900 transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </div>
-        <span>Back to Employee Deductions</span>
+        Return to Registry
       </button>
 
-      {/* ─── Hero ──────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600 rounded-[2.5rem] p-8 shadow-xl shadow-emerald-200/40">
-        {/* Decorative background elements */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-emerald-400/10 rounded-full blur-2xl" />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-          <div className="flex items-start gap-5">
-            {/* Icon */}
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg ring-1 ring-white/20">
-              {heroSkeleton ? (
-                <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse" />
-              ) : meta ? (
-                <span className="text-3xl text-white">{meta.icon}</span>
-              ) : (
-                <Receipt className="w-8 h-8 text-white" />
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                {heroSkeleton ? (
-                  <>
-                    <div className="h-8 w-56 bg-white/20 rounded-lg animate-pulse" />
-                    <div className="h-5 w-28 bg-white/20 rounded-lg animate-pulse" />
-                  </>
-                ) : (
-                  <>
-                    <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                      {config!.label}
-                    </h1>
-                    <span
-                      className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                        hasFixedValue
-                          ? "bg-emerald-400/30 text-emerald-100 ring-1 ring-emerald-300/30"
-                          : "bg-blue-400/30 text-blue-100 ring-1 ring-blue-300/30"
-                      }`}
-                    >
-                      {hasFixedValue ? "TYPE A — FIXED" : "TYPE B — PER-EMP"}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {heroSkeleton ? (
-                  <div className="h-4 w-72 bg-white/20 rounded animate-pulse" />
-                ) : (
-                  <>
-                    <span className="text-sm text-emerald-100 font-medium">
-                      {config!.deductionType.replace(/_/g, " ")}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-emerald-400/50" />
-                    <span className="text-sm text-emerald-100 font-medium">
-                      {getCalculationLabel(config!.calculationType)}
-                    </span>
-                    {config!.amount != null && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-emerald-400/50" />
-                        <span className="text-sm text-white font-bold">
-                          ETB {config!.amount.toLocaleString()}
-                        </span>
-                      </>
-                    )}
-                    {config!.percent != null && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-emerald-400/50" />
-                        <span className="text-sm text-white font-bold">
-                          {config!.percent}%
-                        </span>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+      {/* ─── Component Blueprint Header ───────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-slate-200">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-4 flex-wrap mb-4">
+            {heroSkeleton ? (
+              <div className="h-10 w-64 bg-slate-100 animate-pulse rounded-xl" />
+            ) : (
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight">{config!.label}</h1>
+            )}
+            {!heroSkeleton && (
+              <span className={cn(
+                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] border shadow-sm",
+                hasFixedValue ? 'bg-brand-50 border-emerald-100 text-emerald-700' : 'bg-blue-50 border-blue-100 text-blue-700'
+              )}>
+                {hasFixedValue ? 'Corporate (Type B)' : 'Voluntary (Type C)'}
+              </span>
+            )}
           </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-6">
+            {!heroSkeleton && (
+              <>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">System Type</span>
+                  <span className="text-sm font-bold text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 w-fit">{config!.deductionType}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Registry Code</span>
+                  <span className="text-sm font-bold text-slate-900 truncate tracking-tight">{configId?.slice(0, 12)}...</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Calculation Model</span>
+                  <span className="text-sm font-black text-slate-900">
+                    {getCalculationLabel(config!.calculationType)}
+                    {config!.amount != null && <span className="text-emerald-600 ml-2">ETB {config!.amount.toLocaleString()}</span>}
+                    {config!.percent != null && <span className="text-blue-600 ml-2">{config!.percent}%</span>}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
-          {/* Add Employees Button */}
-          <Button
+        {/* Primary Actions - Expert Style */}
+        <div className="flex items-center gap-4 shrink-0">
+          <button
             onClick={openBulkAssign}
             disabled={heroSkeleton}
-            className="bg-white/20 hover:bg-white/30 text-white border-0 shadow-lg backdrop-blur-sm ring-1 ring-white/20 hover:ring-white/30 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-            size="lg"
+            className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-white bg-primary border-2 border-brand-800/30 rounded-xl hover:bg-brand-800 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
-            <Plus className="w-5 h-5" /> Add Employees
-          </Button>
+            <Plus className="w-4 h-4" strokeWidth={3} />
+            Add Personnel
+          </button>
+          <button
+            disabled={heroSkeleton}
+            className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit Blueprint
+          </button>
         </div>
       </div>
 
-      {/* ─── Stats Grid ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total Assigned",
-            value: stats.total,
-            icon: <Users className="w-5 h-5" />,
-            gradient: "from-slate-50 to-white",
-            border: "border-slate-200",
-            text: "text-slate-900",
-            accent: "text-slate-400",
-          },
-          {
-            label: "Active",
-            value: stats.active,
-            icon: <CheckCircle className="w-5 h-5" />,
-            gradient: "from-emerald-50 to-white",
-            border: "border-emerald-200",
-            text: "text-emerald-700",
-            accent: "text-emerald-500",
-          },
-          {
-            label: "Completed",
-            value: stats.completed,
-            icon: <Clock className="w-5 h-5" />,
-            gradient: "from-blue-50 to-white",
-            border: "border-blue-200",
-            text: "text-blue-700",
-            accent: "text-blue-500",
-          },
-          {
-            label: "Paused",
-            value: stats.paused,
-            icon: <AlertCircle className="w-5 h-5" />,
-            gradient: "from-amber-50 to-white",
-            border: "border-amber-200",
-            text: "text-amber-700",
-            accent: "text-amber-500",
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className={`relative overflow-hidden bg-gradient-to-br ${stat.gradient} border ${stat.border} rounded-2xl p-5 shadow-sm hover:shadow-md transition-all`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className={stat.accent}>{stat.icon}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {stat.label}
-              </span>
-            </div>
-            <p className={`text-3xl font-black ${stat.text}`}>{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* ─── Employee List ───────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-[2rem] shadow-sm overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-6 pb-4 border-b border-slate-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                Assigned Employees
-                <span className="ml-2 text-sm font-medium text-slate-400">
-                  ({totalItems})
+      {/* ─── Filter & Status Dashboard ─────────────────── */}
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-3">
+          {[
+            { key: '', label: 'Full Register', count: stats.total, color: 'slate' },
+            { key: 'ACTIVE', label: 'Active', count: stats.active, color: 'emerald' },
+            { key: 'COMPLETED', label: 'Fulfilled', count: stats.completed, color: 'blue' },
+            { key: 'PAUSED', label: 'On Hold', count: stats.paused, color: 'amber' },
+            { key: 'CANCELLED', label: 'Void', count: stats.cancelled, color: 'rose' },
+          ].map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setStatusFilter(tab.key); setPage(1); }}
+                className={cn(
+                  "inline-flex items-center gap-3 px-5 py-3 rounded-2xl border transition-all cursor-pointer",
+                  isActive 
+                    ? `border-${tab.color}-500 bg-${tab.color}-50 text-${tab.color}-700 shadow-sm`
+                    : "border-slate-100 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                )}
+              >
+                <span className={cn(
+                  "text-base font-black tabular-nums",
+                  isActive ? `text-${tab.color}-900` : "text-slate-900"
+                )}>
+                  {tab.count}
                 </span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Employees with this deduction type assigned
-              </p>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ─── Employee Register Table ─────────────────────── */}
+        <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
+          {/* Table Control Bar */}
+          <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between gap-6 bg-slate-50/30">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Find personnel by name..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border-2 border-brand-200 focus:border-brand-400 rounded-xl focus:ring-4 focus:ring-brand-primary/10 outline-none transition-all font-medium"
+              />
+              {search && (
+                <button onClick={() => { setSearch(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-56 pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
-                />
-                {search && (
-                  <button
-                    onClick={() => {
-                      setSearch("");
-                      setPage(1);
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-              {/* Status Filter */}
-              <Select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                options={[
-                  { value: "", label: "All Status" },
-                  ...STATUS_OPTIONS,
-                ]}
-                className="min-w-[130px]"
-              />
+              <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Displaying {assignedDeductions.length} Records</div>
+              <div className="w-px h-6 bg-slate-200 mx-2" />
+              <button className="flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all cursor-pointer shadow-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Table / List */}
-        <div className="overflow-x-auto">
-          {/* Loading state */}
-          {assignedLoading && (
-            <div className="p-16 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
-                <p className="text-slate-500 font-medium">
-                  Loading assigned employees...
-                </p>
+          <div className="overflow-x-auto">
+            {assignedLoading && (
+              <div className="py-24 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto" />
+                <p className="mt-4 text-xs font-black text-slate-400 uppercase tracking-widest">Accessing Registry...</p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Empty state */}
-          {!assignedLoading && assignedDeductions.length === 0 && (
-            <div className="p-16 text-center">
-              <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <Users className="w-10 h-10 text-slate-300" />
+            {!assignedLoading && assignedDeductions.length === 0 && (
+              <div className="py-24 text-center">
+                <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mx-auto mb-6 border border-slate-100">
+                  <Users className="w-10 h-10 text-slate-300" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Register is Empty</h3>
+                <p className="text-sm text-slate-500 mt-2 max-w-xs mx-auto">No employees are currently assigned to this component within the selected filter.</p>
+                <button onClick={openBulkAssign} className="mt-8 px-8 py-3 text-xs font-black uppercase tracking-widest text-white bg-slate-900 rounded-2xl hover:bg-slate-800 transition-all cursor-pointer">
+                  Assign Personnel
+                </button>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
-                No employees assigned yet
-              </h3>
-              <p className="text-slate-500 mb-6 max-w-sm mx-auto">
-                Click the "Add Employees" button above to assign{" "}
-                <span className="font-semibold text-slate-700">
-                  {config?.label || "..."}
-                </span>{" "}
-                to employees.
-              </p>
-              <Button onClick={openBulkAssign} variant="primary">
-                <Plus className="w-4 h-4" /> Add Employees
-              </Button>
-            </div>
-          )}
+            )}
 
-          {/* Data table */}
-          {!assignedLoading && assignedDeductions.length > 0 && (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Employee
-                  </th>
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Amount
-                  </th>
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Status
-                  </th>
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {assignedDeductions.map((ded) => {
-                  const badge =
-                    STATUS_BADGE[ded.status as EmployeeDeductionStatus] ||
-                    STATUS_BADGE.ACTIVE;
-                  const initials = ded.employee
-                    ? `${ded.employee.firstName?.[0] || ""}${ded.employee.lastName?.[0] || ""}`
-                    : "??";
-                  const fullName = ded.employee
-                    ? `${ded.employee.firstName || ""} ${ded.employee.lastName || ""}`
-                    : "Unknown Employee";
-                  const dept = ded.employee?.departmentName;
-                  const position = ded.employee?.jobPosition;
+            {!assignedLoading && assignedDeductions.length > 0 && (
+              <table className="w-full text-left border-collapse border-spacing-0">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Personnel Identity</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Organization Unit</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Payroll Impact</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Compliance Status</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {assignedDeductions.map((ded, idx) => {
+                    const badge = STATUS_BADGE[ded.status as EmployeeDeductionStatus] || STATUS_BADGE.ACTIVE;
+                    const initials = ded.employee ? `${ded.employee.firstName?.[0] || ""}${ded.employee.lastName?.[0] || ""}` : "??";
+                    const fullName = ded.employee ? `${ded.employee.firstName || ""} ${ded.employee.lastName || ""}` : "Unknown";
+                    const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
 
-                  return (
-                    <tr
-                      key={ded.id}
-                      className="hover:bg-slate-50/50 transition-colors group"
-                    >
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-sm shrink-0">
-                            {initials || "?"}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-sm truncate">
-                              {fullName}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              {position && (
-                                <span className="text-[11px] text-slate-400 font-medium">
-                                  {position}
-                                </span>
-                              )}
-                              {dept && (
-                                <>
-                                  {position && (
-                                    <span className="text-slate-200">|</span>
-                                  )}
-                                  <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">
-                                    {dept}
-                                  </span>
-                                </>
-                              )}
+                    return (
+                      <tr key={ded.id} className="group hover:bg-slate-50/80 transition-all cursor-pointer">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-xs font-black shrink-0 shadow-lg shadow-brand-900/20 border-2 border-brand-200 transition-transform group-hover:scale-110", avatarColor)}>
+                              {initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 text-base tracking-tight truncate leading-none">{fullName}</p>
+                              <p className="text-[11px] text-slate-400 font-bold font-mono mt-1.5 uppercase tracking-wider opacity-60">REF: {ded.refNo || 'NO-REF'}</p>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-emerald-600">
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="text-sm font-bold text-slate-700">{ded.employee?.departmentName || '\u2014'}</p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">Verified Dept</p>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <p className="text-base font-black text-rose-600 tabular-nums tracking-tight">
                             {ded.calculationType === "FIXED_AMOUNT"
-                              ? formatCurrency(ded.amount)
+                              ? `-ETB ${Number(ded.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                               : ded.calculationType?.startsWith("PERCENTAGE")
-                                ? formatPercent(ded.percent)
+                                ? `${ded.percent ?? 0}%`
                                 : ded.calculationType === "REMAINING_BALANCE"
-                                  ? formatCurrency(ded.paymentPlan?.totalAmount)
-                                  : "-"}
+                                  ? `-ETB ${Number(ded.paymentPlan?.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                                  : "\u2014"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">Monthly Deduction</p>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={cn(
+                            "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                            badge.bg, badge.text, "border-current/10"
+                          )}>
+                            <span className={cn("w-2 h-2 rounded-full", badge.dot)} />
+                            {STATUS_OPTIONS.find((o) => o.value === ded.status)?.label || ded.status}
                           </span>
-                          {ded.refNo && (
-                            <span className="text-[10px] text-blue-500 font-mono font-medium mt-0.5">
-                              Ref: {ded.refNo}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border",
-                            badge.bg,
-                            badge.text,
-                            badge.border,
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              badge.dot,
-                            )}
-                          />
-                          {STATUS_OPTIONS.find((o) => o.value === ded.status)
-                            ?.label || ded.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEdit(ded)}
-                            className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer active:scale-90"
-                            title="Edit deduction"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          {ded.id &&
-                            ded.status !== "COMPLETED" &&
-                            ded.status !== "CANCELLED" && (
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                            <button
+                              onClick={() => openEdit(ded)}
+                              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-sm active:scale-90"
+                              title="Update Allocation"
+                            >
+                              <Pencil className="w-4.5 h-4.5" />
+                            </button>
+                            {ded.id && ded.status !== "COMPLETED" && ded.status !== "CANCELLED" && (
                               <button
                                 onClick={() => setDeleteConfirm(ded.id!)}
-                                className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer active:scale-90"
-                                title="Cancel deduction"
+                                className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-transparent hover:border-rose-100 transition-all cursor-pointer shadow-sm active:scale-90"
+                                title="Void Record"
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-5 h-5" />
                               </button>
                             )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && !assignedLoading && (
@@ -842,7 +709,7 @@ export const DeductionEmployeesPage: React.FC = () => {
                       setPageSize(Number(e.target.value));
                       setPage(1);
                     }}
-                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                    className="border-2 border-brand-200 focus:border-brand-400 rounded-lg px-2 py-1 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {[5, 10, 20, 50].map((s) => (
                       <option key={s} value={s}>
@@ -870,7 +737,7 @@ export const DeductionEmployeesPage: React.FC = () => {
                     className={cn(
                       "min-w-[32px] h-8 rounded-lg text-xs font-bold transition-all cursor-pointer",
                       p === page
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        ? "bg-brand-50 text-emerald-700 border border-brand-200"
                         : "text-slate-500 hover:bg-slate-50 hover:text-slate-700",
                     )}
                   >
@@ -893,10 +760,11 @@ export const DeductionEmployeesPage: React.FC = () => {
       {/* ─── Modals (only render when config is loaded) ──────── */}
       {config && (
         <>
+          {/* ─── Bulk Assign Modal ──────────────────────────────── */}
           <Modal
             isOpen={bulkModalOpen}
             onClose={() => setBulkModalOpen(false)}
-            title={`Assign "${config.label}" to Employees`}
+            title={`Mass Assignment: ${config.label}`}
             size="lg"
             footer={
               <ConfigModalFooter
@@ -904,191 +772,145 @@ export const DeductionEmployeesPage: React.FC = () => {
                 onSave={handleBulkAssign}
                 isEdit={false}
                 saving={bulkSaving}
-                saveLabel="Assign to Selected"
+                saveLabel="Initialize Mass Allocation"
               />
             }
           >
-            <div className="space-y-4">
-              {/* Config Info Banner */}
-              <div className="p-4 bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  {meta && <span className={meta.accent}>{meta.icon}</span>}
-                  <div className="flex-1">
-                    <p className="font-bold text-slate-900">{config.label}</p>
-                    <p className="text-xs text-slate-500">
+            <div className="space-y-6 px-2 py-4">
+              {/* Blueprint Indicator */}
+              <div className={cn(
+                "p-6 rounded-[2.5rem] border shadow-inner transition-colors",
+                hasFixedValue ? 'bg-brand-50 border-emerald-100' : 'bg-blue-50 border-blue-100'
+              )}>
+                <div className="flex items-center gap-5">
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg border-2 border-white shrink-0",
+                    hasFixedValue ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                  )}>
+                    {meta?.icon || <Users className="w-6 h-6" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Active Blueprint</p>
+                    <p className="font-black text-slate-900 text-lg tracking-tight leading-none truncate">{config.label}</p>
+                    <p className="text-[11px] text-slate-500 font-medium mt-1.5 opacity-80">
                       {getCalculationLabel(config.calculationType)}
-                      {config.amount != null &&
-                        ` — ETB ${config.amount.toLocaleString()}`}
-                      {config.percent != null && ` — ${config.percent}%`}
-                      {!config.amount &&
-                        !config.percent &&
-                        " (enter per employee)"}
+                      {config.amount != null && <span className="ml-1.5 font-black text-emerald-600">ETB {config.amount.toLocaleString()}</span>}
+                      {config.percent != null && <span className="ml-1.5 font-black text-blue-600">{config.percent}%</span>}
+                      {!hasFixedValue && <span className="ml-1.5 text-amber-600 font-bold uppercase tracking-wider italic">Variable rate protocol</span>}
                     </p>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg ${
-                      hasFixedValue
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-blue-50 text-blue-700 border border-blue-200"
-                    }`}
-                  >
-                    {hasFixedValue ? "FIXED" : "PER-EMP"}
-                  </span>
                 </div>
               </div>
 
-              {/* Per-Employee Value Notice (Type B) */}
-              {!config.amount &&
-                !config.percent &&
-                config.calculationType === "FIXED_AMOUNT" && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-700 font-medium">
-                      This template requires an amount for each employee. Enter
-                      it below.
-                    </p>
-                  </div>
-                )}
-              {!config.amount &&
-                !config.percent &&
-                (config.calculationType === "PERCENTAGE_OF_BASIC" ||
-                  config.calculationType === "PERCENTAGE_OF_GROSS") && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-700 font-medium">
-                      This template requires a percentage for each employee.
-                      Enter it below.
-                    </p>
-                  </div>
-                )}
-
-              {/* Search */}
+              {/* Registry Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search employees..."
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter personnel registry..."
                   value={bulkSearch}
                   onChange={(e) => setBulkSearch(e.target.value)}
-                  className="pl-10"
+                  className="w-full h-12 pl-11 pr-4 py-3 text-sm bg-white border-2 border-brand-200 focus:border-brand-400 rounded-2xl outline-none transition-all font-medium shadow-sm"
                 />
               </div>
 
-              {/* Select All */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* Selection Controls */}
+              <div className="flex items-center justify-between px-2">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={cn(
+                    "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
+                    filteredBulkEmployees.length > 0 && selectedBulkIds.size === filteredBulkEmployees.length
+                      ? 'bg-slate-900 border-slate-900 shadow-md'
+                      : 'border-slate-200 group-hover:border-slate-400 bg-white'
+                  )}>
+                    {filteredBulkEmployees.length > 0 && selectedBulkIds.size === filteredBulkEmployees.length && (
+                      <CheckCircle className="w-4 h-4 text-white" strokeWidth={3} />
+                    )}
+                  </div>
                   <input
                     type="checkbox"
-                    checked={
-                      filteredBulkEmployees.length > 0 &&
-                      selectedBulkIds.size === filteredBulkEmployees.length
-                    }
+                    checked={filteredBulkEmployees.length > 0 && selectedBulkIds.size === filteredBulkEmployees.length}
                     onChange={handleBulkSelectAll}
-                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    className="sr-only"
                   />
-                  <span className="text-sm font-medium text-slate-700">
-                    Select All ({filteredBulkEmployees.length})
-                  </span>
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select Results ({filteredBulkEmployees.length})</span>
                 </label>
-                <span className="text-xs text-slate-500">
-                  {selectedBulkIds.size} selected
-                </span>
+                {selectedBulkIds.size > 0 && (
+                  <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10">
+                    {selectedBulkIds.size} Target Profiles
+                  </div>
+                )}
               </div>
 
-              {/* Employee List */}
-              <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-2">
+              {/* High-Density Grid */}
+              <div className="max-h-80 overflow-y-auto rounded-[2.5rem] border border-slate-200 bg-slate-50/40 p-2 space-y-1.5 custom-scrollbar">
                 {bulkEmployeesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+                  <div className="py-20 text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mx-auto" />
                   </div>
                 ) : filteredBulkEmployees.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-sm">
-                    No employees found
-                  </div>
+                  <div className="py-20 text-center text-slate-400 text-xs font-black uppercase tracking-widest">No matching records</div>
                 ) : (
-                  filteredBulkEmployees.map((emp) => (
-                    <div
-                      key={emp.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                        selectedBulkIds.has(emp.id)
-                          ? "border-emerald-300 bg-emerald-50"
-                          : "border-slate-100 hover:border-slate-200"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedBulkIds.has(emp.id)}
-                        onChange={() => handleBulkSelectOne(emp.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 flex-shrink-0"
-                      />
-                      <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {emp.firstName[0]}
-                        {emp.lastName[0]}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900 text-sm truncate">
-                          {emp.firstName} {emp.lastName}
-                        </p>
-                        <p className="text-xs text-slate-500 truncate">
-                          {emp.jobPosition || "No position"}
-                          {emp.departmentName && ` • ${emp.departmentName}`}
-                        </p>
-                      </div>
-                      {/* Per-employee value input (Type B only) */}
-                      {!config.amount &&
-                        !config.percent &&
-                        selectedBulkIds.has(emp.id) && (
-                          <div className="w-28 flex-shrink-0">
-                            {config.calculationType === "FIXED_AMOUNT" && (
-                              <Input
+                  filteredBulkEmployees.map((emp) => {
+                    const isSelected = selectedBulkIds.has(emp.id);
+                    return (
+                      <div
+                        key={emp.id}
+                        className={cn(
+                          "flex items-center gap-4 px-4 py-3.5 rounded-2xl border transition-all cursor-pointer",
+                          isSelected
+                            ? 'bg-white border-slate-900 shadow-md translate-x-1'
+                            : 'bg-transparent border-transparent hover:bg-white/80 hover:border-slate-200'
+                        )}
+                        onClick={() => handleBulkSelectOne(emp.id)}
+                      >
+                        <div className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                          isSelected ? 'bg-slate-900 border-slate-900' : 'border-slate-200 bg-white'
+                        )}>
+                          {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-brand-primary border-2 border-brand-200 shadow-lg shadow-brand-900/20 flex items-center justify-center text-[10px] font-black text-white shrink-0 uppercase tracking-widest">
+                          {emp.firstName[0]}{emp.lastName[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-900 text-sm tracking-tight truncate leading-none">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate mt-1">{emp.departmentName || 'General Register'}</p>
+                        </div>
+                        {/* Per-profile value input (Type B only) */}
+                        {!hasFixedValue && isSelected && (
+                          <div className="w-32 shrink-0 animate-in slide-in-from-right-4" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center bg-white border-2 border-brand-200 rounded-xl overflow-hidden focus-within:border-brand-400 transition-colors shadow-sm">
+                              <input
                                 type="number"
-                                value={bulkEmployeeValues[emp.id]?.amount ?? ""}
-                                onChange={(e) =>
-                                  handleBulkEmployeeValueChange(
-                                    emp.id,
-                                    "amount",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : null,
-                                  )
-                                }
-                                placeholder="Amount"
-                                className="text-sm"
+                                value={bulkEmployeeValues[emp.id]?.[config.calculationType === 'FIXED_AMOUNT' ? 'amount' : 'percent'] ?? ''}
+                                onChange={(e) => handleBulkEmployeeValueChange(
+                                  emp.id,
+                                  config.calculationType === 'FIXED_AMOUNT' ? 'amount' : 'percent',
+                                  e.target.value ? Number(e.target.value) : null
+                                )}
+                                placeholder={config.calculationType === 'FIXED_AMOUNT' ? '0.00' : '0'}
+                                className="w-full px-3 py-2 text-sm font-bold text-slate-900 outline-none tabular-nums"
                               />
-                            )}
-                            {(config.calculationType ===
-                              "PERCENTAGE_OF_BASIC" ||
-                              config.calculationType ===
-                                "PERCENTAGE_OF_GROSS") && (
-                              <Input
-                                type="number"
-                                value={
-                                  bulkEmployeeValues[emp.id]?.percent ?? ""
-                                }
-                                onChange={(e) =>
-                                  handleBulkEmployeeValueChange(
-                                    emp.id,
-                                    "percent",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : null,
-                                  )
-                                }
-                                placeholder="%"
-                                className="text-sm"
-                              />
-                            )}
+                              <span className="px-3 py-2 text-[10px] font-black text-slate-300 border-l border-slate-100 bg-slate-50">
+                                {config.calculationType === 'FIXED_AMOUNT' ? 'ETB' : '%'}
+                              </span>
+                            </div>
                           </div>
                         )}
-                    </div>
-                  ))
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
           </Modal>
 
-          {/* ─── Edit Deduction Modal ───────────────────────────── */}
+          {/* ─── Individual Record Edit Modal ───────────────────── */}
           <Modal
             isOpen={!!editDeduction}
             onClose={() => setEditDeduction(null)}
-            title={`Edit: ${editForm.label || "Deduction"}`}
+            title={`Audit Record: ${editForm.label}`}
             size="md"
             footer={
               <ConfigModalFooter
@@ -1096,97 +918,62 @@ export const DeductionEmployeesPage: React.FC = () => {
                 onSave={handleEditSave}
                 isEdit={true}
                 saving={editSaving}
-                saveLabel="Save Changes"
+                saveLabel="Synchronize Changes"
               />
             }
           >
-            <div className="space-y-5">
-              {/* Label */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Label
-                </label>
+            <div className="space-y-6 px-2 py-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Protocol Identifier</label>
                 <Input
                   value={editForm.label}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, label: e.target.value })
-                  }
-                  placeholder="Deduction label"
+                  onChange={(e) => setEditForm({ ...editForm, label: e.target.value })}
+                  placeholder="Record label"
+                  className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2 font-bold"
                 />
               </div>
 
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Status
-                </label>
-                <Select
-                  value={editForm.status}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, status: e.target.value })
-                  }
-                  options={STATUS_OPTIONS}
-                />
-              </div>
-
-              {/* Amount / Percent (depending on calculation type) */}
-              {editDeduction &&
-                editDeduction.calculationType === "FIXED_AMOUNT" && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Amount
-                    </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Lifecycle Status</label>
+                  <Select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    options={STATUS_OPTIONS}
+                    className="h-12 border-brand-200 rounded-2xl border-2"
+                  />
+                </div>
+                {editDeduction?.calculationType === "FIXED_AMOUNT" && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Verified Amount (ETB)</label>
                     <Input
                       type="number"
                       value={editForm.amount ?? ""}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          amount: e.target.value
-                            ? Number(e.target.value)
-                            : null,
-                        })
-                      }
-                      placeholder="Enter amount"
+                      onChange={(e) => setEditForm({ ...editForm, amount: e.target.value ? Number(e.target.value) : null })}
+                      className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2 font-bold tabular-nums"
                     />
                   </div>
                 )}
-              {editDeduction &&
-                editDeduction.calculationType?.startsWith("PERCENTAGE") && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                      Percent (%)
-                    </label>
+                {editDeduction?.calculationType?.startsWith("PERCENTAGE") && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">Impact Factor (%)</label>
                     <Input
                       type="number"
                       value={editForm.percent ?? ""}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          percent: e.target.value
-                            ? Number(e.target.value)
-                            : null,
-                        })
-                      }
-                      placeholder="0-100"
-                      min={0}
-                      max={100}
+                      onChange={(e) => setEditForm({ ...editForm, percent: e.target.value ? Number(e.target.value) : null })}
+                      className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2 font-bold tabular-nums"
                     />
                   </div>
                 )}
+              </div>
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Description (Optional)
-                </label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block ml-1">System Audit Notes</label>
                 <textarea
                   value={editForm.description}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, description: e.target.value })
-                  }
-                  placeholder="Additional notes..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="Add record context..."
+                  className="w-full px-5 py-4 rounded-2xl border-2 border-brand-200 focus:border-brand-400 text-sm font-medium transition-all resize-none bg-slate-50/50"
                   rows={3}
                 />
               </div>

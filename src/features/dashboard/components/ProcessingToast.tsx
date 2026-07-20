@@ -22,10 +22,10 @@ export const ProcessingToast: React.FC<ProcessingToastProps> = ({ status, onClos
             "px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-4 transition-all duration-500",
             status === 'processing' 
               ? "bg-white border-slate-200 text-slate-800" 
-              : "bg-[#047857] border-emerald-600 text-white"
+              : "bg-primary border-brand-600 text-white"
           )}>
             {status === 'processing' ? (
-              <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center">
                 <Loader2 className="w-5 h-5 text-emerald-600 animate-spin" />
               </div>
             ) : (

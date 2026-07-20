@@ -13,6 +13,7 @@ export interface AttendanceImport {
     isActive?: boolean;
     processedAt?: string | null; // Set when used in a payroll run — prevents re-processing
     fileReference?: string;
+    sizeBytes?: number;
     recordCount?: number;
     errorDetails?: string;
     periodLabel: string;

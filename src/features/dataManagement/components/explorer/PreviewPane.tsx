@@ -42,7 +42,7 @@ const typeLabel = (refId: string): string => {
  */
 const typeColor = (refId: string): string => {
   const map: Record<string, string> = {
-    EMPLOYEE: 'bg-emerald-100 text-emerald-700',
+    EMPLOYEE: 'bg-brand-100 text-emerald-700',
     ATTENDANCE: 'bg-blue-100 text-blue-700',
     ADJUSTMENT: 'bg-amber-100 text-amber-700',
   };
@@ -72,7 +72,7 @@ const typeIcon = (refId: string): React.ReactNode => {
  */
 const typeIconColor = (refId: string): string => {
   const map: Record<string, string> = {
-    EMPLOYEE: 'text-emerald-500 bg-emerald-50',
+    EMPLOYEE: 'text-emerald-500 bg-brand-50',
     ATTENDANCE: 'text-blue-500 bg-blue-50',
     ADJUSTMENT: 'text-amber-500 bg-amber-50',
   };
@@ -279,7 +279,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
         <button
           type="button"
           onClick={handleDownload}
-          className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors cursor-pointer"
+          className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-colors cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" /> Download
         </button>

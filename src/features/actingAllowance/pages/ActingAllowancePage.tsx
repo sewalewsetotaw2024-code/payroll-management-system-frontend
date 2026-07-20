@@ -10,15 +10,16 @@
  *                           employee salary info and dual salary inputs.
  *
  *   **Configuration tab** — Create and edit acting allowance rules.
- *                           Supports two calculation methods:
- *                             AMOUNT       — fixed amount for all months
- *                             PERCENTAGE   — tiered percentage of salary diff
+ *                           Supports three calculation methods:
+ *                             PERCENTAGE        — tiered percentage of salary diff
+ *                             FIXED_AMOUNT      — fixed amount per assignment (computed from salary diff)
+ *                             RULE_FIXED_AMOUNT — fixed amount from rule, same for all positions
  *                           Includes a toggle switch, inline tier editing
- *                           (PERCENTAGE), fixed amount input (AMOUNT),
+ *                           (PERCENTAGE), fixed amount input (FIXED_AMOUNT / RULE_FIXED_AMOUNT),
  *                           and a bar-chart visualisation.
  *
  * Key features:
- *   - AMOUNT/PERCENTAGE toggle per rule (mutually exclusive)
+ *   - PERCENTAGE / FIXED_AMOUNT / RULE_FIXED_AMOUNT toggle per rule (mutually exclusive)
  *   - Employee selection auto-fills basic + gross salary in modal
  *   - Salary difference column in the assignments table
  *   - Rules use optimistic toggle for isActive state
@@ -35,11 +36,11 @@ import { cn } from '../../../lib/utils';
 import { StatCardProps } from '../../../types/ui.types';
 import { actingAllowanceApi } from '../api/actingAllowanceApi';
 import { getEmployees } from '../../employees/api/employeeApi';
-import type { ActingAssignment, ActingAllowanceRule, Tier, CreateAssignmentPayload } from '../types/actingAllowance.types';
+import type { ActingAssignment, ActingAllowanceRule, Tier, CreateAssignmentPayload, CalculationMethod } from '../types/actingAllowance.types';
 import type { PayrollEmployee } from '../../employees/api/employeeApi';
 
 const statusColors: Record<string, string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  ACTIVE: 'bg-brand-100 text-emerald-700',
   COMPLETED: 'bg-blue-100 text-blue-700',
   CANCELLED: 'bg-red-100 text-red-700',
   EXPIRED: 'bg-amber-100 text-amber-700',
@@ -129,20 +130,20 @@ const TierEditor: React.FC<{
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-slate-100">
-            <th className="pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Month</th>
-            <th className="pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Percent</th>
+            <th className="pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Month</th>
+            <th className="pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Percent</th>
             <th className="pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-50">
+        <tbody>
           {tiers.map((tier, idx) => (
-            <tr key={idx}>
-              <td className="py-2 pr-2">
+            <tr key={idx} className={cn('border-b border-slate-100', idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white')}>
+              <td className="py-2 pr-2 border-r border-slate-200/50">
                 <input type="number" min={1} value={tier.startMonth}
                   onChange={(e) => updateMonth(idx, Number(e.target.value))}
                   className="w-full max-w-[80px] px-2 py-1.5 border border-slate-200 rounded-lg text-sm" />
               </td>
-              <td className="py-2 pr-2">
+              <td className="py-2 pr-2 border-r border-slate-200/50">
                 <div className="flex items-center gap-1">
                   <input type="number" min={0} max={100} value={tier.percent}
                     onChange={(e) => updatePercent(idx, Number(e.target.value))}
@@ -161,7 +162,7 @@ const TierEditor: React.FC<{
         </tbody>
       </table>
       <button type="button" onClick={addTier}
-        className="mt-3 flex items-center gap-1 text-xs font-bold text-[#047857] hover:text-[#036246] transition-colors cursor-pointer">
+        className="mt-3 flex items-center gap-1 text-xs font-bold text-primary hover:text-brand-800 transition-colors cursor-pointer">
         <Plus className="w-3 h-3" /> Add Month
       </button>
     </div>
@@ -191,7 +192,7 @@ const Pagination: React.FC<{
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button key={p} onClick={() => onPageChange(p)}
             className={cn('w-8 h-8 rounded-lg text-xs font-bold transition-colors cursor-pointer',
-              p === page ? 'bg-[#047857] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')}>
+              p === page ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')}>
             {p}
           </button>
         ))}
@@ -220,7 +221,7 @@ const EmptyState: React.FC<{
     <p className="text-xs text-slate-400 max-w-[280px] mb-5">{description}</p>
     {action && (
       <button onClick={action.onClick}
-        className="cursor-pointer flex items-center gap-2 text-sm font-bold text-white bg-[#047857] px-5 py-2.5 rounded-xl hover:bg-[#036246] transition-colors shadow-lg shadow-emerald-900/10">
+        className="cursor-pointer flex items-center gap-2 text-sm font-bold text-white bg-primary px-5 py-2.5 rounded-xl hover:bg-brand-800 transition-colors shadow-lg shadow-brand-900/10">
         <Plus className="w-4 h-4" /> {action.label}
       </button>
         )}
@@ -265,7 +266,7 @@ const ConfirmDialog: React.FC<{
         <p className="text-sm text-slate-500 mb-8 leading-relaxed">{message}</p>
         <div className="flex gap-3 justify-center">
           <button onClick={onCancel} className="cursor-pointer px-6 py-3 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">{cancelLabel}</button>
-          <button onClick={onConfirm} className={cn('cursor-pointer px-6 py-3 text-sm font-bold text-white rounded-xl transition-colors shadow-lg', variant === 'danger' ? 'bg-red-500 hover:bg-red-600 shadow-red-900/10' : 'bg-[#047857] hover:bg-[#036246] shadow-emerald-900/10')}>{confirmLabel}</button>
+          <button onClick={onConfirm} className={cn('cursor-pointer px-6 py-3 text-sm font-bold text-white rounded-xl transition-colors shadow-lg', variant === 'danger' ? 'bg-red-500 hover:bg-red-600 shadow-red-900/10' : 'bg-primary hover:bg-brand-800 shadow-brand-900/10')}>{confirmLabel}</button>
         </div>
       </div>
     </div>
@@ -286,18 +287,22 @@ const ToggleSwitch: React.FC<{
 );
 
 /* ────────────────────────────────────────────────────────── */
-/*  MethodToggle — AMOUNT vs PERCENTAGE selector                */
+/*  MethodToggle — PERCENTAGE / FIXED_AMOUNT / RULE_FIXED_AMOUNT */
 /* ────────────────────────────────────────────────────────── */
 const MethodToggle: React.FC<{
-  value: 'AMOUNT' | 'PERCENTAGE';
-  onChange: (v: 'AMOUNT' | 'PERCENTAGE') => void;
+  value: CalculationMethod;
+  onChange: (v: CalculationMethod) => void;
 }> = ({ value, onChange }) => (
   <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
-    {(['PERCENTAGE', 'AMOUNT'] as const).map((method) => (
+    {([
+      'PERCENTAGE',
+      'FIXED_AMOUNT',
+      'RULE_FIXED_AMOUNT',
+    ] as CalculationMethod[]).map((method) => (
       <button key={method} type="button" onClick={() => onChange(method)}
         className={cn('cursor-pointer px-4 py-2 rounded-lg text-sm font-bold transition-all',
           value === method ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
-        {method === 'PERCENTAGE' ? 'Percentage' : 'Fixed Amount'}
+        {method === 'PERCENTAGE' ? 'Percentage' : method === 'FIXED_AMOUNT' ? 'Fixed Amount (Per Assignment)' : 'Fixed Amount (Rule)'}
       </button>
     ))}
   </div>
@@ -338,7 +343,7 @@ const EmployeeSearch: React.FC<{
         <div onClick={() => { if (!disabled) { setIsOpen(true); setQuery(''); } }}
           className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {selected.firstName[0]}{selected.lastName[0]}
             </div>
             <div>
@@ -365,9 +370,9 @@ const EmployeeSearch: React.FC<{
             ) : (
               filtered.map(emp => (
                 <button key={emp.id} type="button" onClick={() => handleSelect(emp.id)}
-                  className={cn('w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-emerald-50 transition-colors text-sm',
-                    emp.id === value ? 'bg-emerald-50 font-bold text-emerald-700' : 'text-slate-700')}>
-                  <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">
+                  className={cn('w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-brand-50 transition-colors text-sm',
+                    emp.id === value ? 'bg-brand-50 font-bold text-emerald-700' : 'text-slate-700')}>
+                  <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {emp.firstName[0]}{emp.lastName[0]}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -495,7 +500,7 @@ const PositionSearch: React.FC<{
                   <button key={pos.id} type="button" onClick={() => handleSelect(pos)}
                     className={cn('w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-sky-50 transition-colors text-sm',
                       pos.id === valueId ? 'bg-sky-50 font-bold text-sky-700' : 'text-slate-700')}>
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-bold flex-shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-brand-primary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                       {pos.title[0]}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -580,18 +585,22 @@ export const ActingAllowancePage: React.FC = () => {
 
   // ── Rule editing (config tab) ──────────────────────────────
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [editRuleMethod, setEditRuleMethod] = useState<CalculationMethod>('PERCENTAGE');
   const [editRuleTiers, setEditRuleTiers] = useState<Tier[]>([]);
   const [editRuleBasis, setEditRuleBasis] = useState<'BASIC_DIFF' | 'GROSS_DIFF'>('BASIC_DIFF');
   const [editRuleDate, setEditRuleDate] = useState('');
+  const [editRuleFixedAmount, setEditRuleFixedAmount] = useState(0);
+  const [editRulePayablePercent, setEditRulePayablePercent] = useState(100);
 
   // ── Create new rule (config tab) ──────────────────────────
   const [showCreateRule, setShowCreateRule] = useState(false);
   const [showInactiveRules, setShowInactiveRules] = useState(false);
-  const [newRuleMethod, setNewRuleMethod] = useState<'AMOUNT' | 'PERCENTAGE'>('PERCENTAGE');
+  const [newRuleMethod, setNewRuleMethod] = useState<CalculationMethod>('PERCENTAGE');
   const [newRuleBasis, setNewRuleBasis] = useState<'BASIC_DIFF' | 'GROSS_DIFF'>('BASIC_DIFF');
   const [newRuleFixedAmount, setNewRuleFixedAmount] = useState(0);
   const [newRuleDate, setNewRuleDate] = useState(new Date().toISOString().split('T')[0]);
   const [newRuleTiers, setNewRuleTiers] = useState<Tier[]>(DEFAULT_TIERS);
+  const [newRulePayablePercent, setNewRulePayablePercent] = useState(100);
   const [creatingRule, setCreatingRule] = useState(false);
 
   // ── Pagination ─────────────────────────────────────────────
@@ -654,11 +663,11 @@ export const ActingAllowancePage: React.FC = () => {
         const rule = a.actingAllowanceRule;
         if (!rule) return sum;
 
-        if (rule.calculationMethod === 'AMOUNT') {
+        const method = rule.calculationMethod;
+        if (method === 'FIXED_AMOUNT' || method === 'RULE_FIXED_AMOUNT') {
           return sum + (a.actingPositionSalary ?? 0);
         }
 
-        // PERCENTAGE method logic
         const start = new Date(a.startDate);
         const now = new Date();
         const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
@@ -669,6 +678,7 @@ export const ActingAllowancePage: React.FC = () => {
           return sum;
         }
 
+        // PERCENTAGE: tiered logic
         const sortedTiers = [...(rule.tiers || [])].sort((a, b) => a.startMonth - b.startMonth);
         const matchedTier = sortedTiers.reduceRight<Tier | null>(
           (found, t) => found ?? (monthsElapsed >= t.startMonth ? t : null),
@@ -807,7 +817,7 @@ export const ActingAllowancePage: React.FC = () => {
       hasError = true;
     }
 
-    const isAmount = selectedRule?.calculationMethod === 'AMOUNT';
+    const isAmount = selectedRule?.calculationMethod === 'FIXED_AMOUNT' || selectedRule?.calculationMethod === 'RULE_FIXED_AMOUNT';
     const basis = selectedRule?.basis ?? 'BASIC_DIFF';
     if (!isAmount && formBasicSalary <= 0 && basis === 'BASIC_DIFF') {
       hasError = true;
@@ -841,12 +851,12 @@ export const ActingAllowancePage: React.FC = () => {
     // Both methods send salary fields — backend computes the allowance from the difference
     payload.actingPositionBasicSalary = formBasicSalary;
     payload.actingPositionGrossSalary = formGrossSalary > 0 ? formGrossSalary : null;
-    if (selectedRule?.calculationMethod === 'AMOUNT') {
-      // For AMOUNT, also send the computed fixed amount for reference
+    if (selectedRule?.calculationMethod === 'FIXED_AMOUNT') {
       payload.fixedAmount = selectedRule.basis === 'GROSS_DIFF'
         ? Math.max(0, formGrossSalary - Number(formEmployeeData?.grossSalary ?? 0))
         : Math.max(0, formBasicSalary - Number(formEmployeeData?.basicSalary ?? 0));
     }
+    // RULE_FIXED_AMOUNT: amount comes from the rule itself, no fixedAmount needed on assignment
 
     try {
       if (editingAssignment) {
@@ -862,11 +872,12 @@ export const ActingAllowancePage: React.FC = () => {
         // Both methods send salary fields — backend computes the allowance from the difference
         updateData.actingPositionBasicSalary = formBasicSalary;
         updateData.actingPositionGrossSalary = formGrossSalary > 0 ? formGrossSalary : null;
-        if (selectedRule?.calculationMethod === 'AMOUNT') {
+        if (selectedRule?.calculationMethod === 'FIXED_AMOUNT') {
           updateData.fixedAmount = selectedRule.basis === 'GROSS_DIFF'
             ? Math.max(0, formGrossSalary - Number(formEmployeeData?.grossSalary ?? 0))
             : Math.max(0, formBasicSalary - Number(formEmployeeData?.basicSalary ?? 0));
         }
+        // RULE_FIXED_AMOUNT: amount comes from the rule itself, no fixedAmount needed on assignment
         await actingAllowanceApi.updateAssignment(editingAssignment.id, updateData);
       } else {
         await actingAllowanceApi.createAssignment(payload);
@@ -896,13 +907,10 @@ export const ActingAllowancePage: React.FC = () => {
   const handlePreview = useCallback(async () => {
     if (!formEmployee || !formRule || !formStart) return;
     if (selectedRule?.calculationMethod === 'PERCENTAGE' && !formBasicSalary) return;
-    if (selectedRule?.calculationMethod === 'AMOUNT' && formBasicSalary <= 0 && formGrossSalary <= 0) return;
+    if ((selectedRule?.calculationMethod === 'FIXED_AMOUNT' || selectedRule?.calculationMethod === 'RULE_FIXED_AMOUNT') && formBasicSalary <= 0 && formGrossSalary <= 0) return;
     setPreviewLoading(true);
     try {
       const method = selectedRule?.calculationMethod ?? 'PERCENTAGE';
-      const computedFixed = selectedRule?.basis === 'GROSS_DIFF'
-        ? Math.max(0, formGrossSalary - Number(formEmployeeData?.grossSalary ?? 0))
-        : Math.max(0, formBasicSalary - Number(formEmployeeData?.basicSalary ?? 0));
       const result = await actingAllowanceApi.previewAllowance({
         employeeId: formEmployee,
         replacedEmployeeId: formReplacedEmployee || undefined,
@@ -910,7 +918,9 @@ export const ActingAllowancePage: React.FC = () => {
         calculationMethod: method,
         actingPositionBasicSalary: formBasicSalary,
         actingPositionGrossSalary: formGrossSalary > 0 ? formGrossSalary : null,
-        fixedAmount: method === 'AMOUNT' ? computedFixed : null,
+        fixedAmount: method === 'FIXED_AMOUNT'
+          ? Math.max(0, formBasicSalary - Number(formEmployeeData?.basicSalary ?? 0))
+          : null,
         startDate: formStart,
         payrollPeriodEndDate: formEnd || currentMonthEnd(),
       });
@@ -921,33 +931,47 @@ export const ActingAllowancePage: React.FC = () => {
   // ── Rule editing handlers ──────────────────────────────────
   const startEditRule = useCallback((rule: ActingAllowanceRule) => {
     setEditingRuleId(rule.id);
+    setEditRuleMethod(rule.calculationMethod);
     setEditRuleTiers([...rule.tiers]);
     setEditRuleBasis(rule.basis);
     setEditRuleDate(rule.effectiveDate?.split('T')[0] ?? '');
+    setEditRuleFixedAmount(Number(rule.fixedAmount ?? 0));
+    setEditRulePayablePercent(100);
   }, []);
 
   const cancelEditRule = useCallback(() => {
     setEditingRuleId(null);
+    setEditRuleMethod('PERCENTAGE');
     setEditRuleTiers([]);
     setEditRuleBasis('BASIC_DIFF');
     setEditRuleDate('');
+    setEditRuleFixedAmount(0);
+    setEditRulePayablePercent(100);
   }, []);
 
   const saveRuleTiers = useCallback(async (ruleId: string) => {
     try {
-      const rule = rules.find(r => r.id === ruleId);
-      const isAmount = rule?.calculationMethod === 'AMOUNT';
-      await actingAllowanceApi.updateRule(ruleId, {
-        tiers: isAmount ? undefined : editRuleTiers,
+      const payload: any = {
+        calculationMethod: editRuleMethod,
         basis: editRuleBasis,
         effectiveDate: editRuleDate || undefined,
-      });
-      setEditingRuleId(null); setEditRuleTiers([]);
-      setEditRuleBasis('BASIC_DIFF');
-      setEditRuleDate('');
+      };
+      if (editRuleMethod === 'PERCENTAGE') {
+        payload.tiers = editRuleTiers;
+        payload.fixedAmount = null;
+      } else if (editRuleMethod === 'RULE_FIXED_AMOUNT') {
+        payload.fixedAmount = editRuleFixedAmount;
+        payload.tiers = [];
+      } else {
+        // FIXED_AMOUNT — amount is set per-assignment, not on the rule
+        payload.fixedAmount = null;
+        payload.tiers = [];
+      }
+      await actingAllowanceApi.updateRule(ruleId, payload);
+      setEditingRuleId(null);
       await loadData();
     } catch (err) { console.error('Failed to update rule:', err); }
-  }, [editRuleTiers, editRuleBasis, editRuleDate, rules, loadData]);
+  }, [editRuleMethod, editRuleTiers, editRuleBasis, editRuleDate, editRuleFixedAmount, editRulePayablePercent, loadData]);
 
   const handleCreateRule = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -955,21 +979,32 @@ export const ActingAllowancePage: React.FC = () => {
     if (newRuleMethod === 'PERCENTAGE' && newRuleTiers.length === 0) return;
     setCreatingRule(true);
     try {
-      await actingAllowanceApi.createRule({
+      const payload: any = {
         calculationMethod: newRuleMethod,
-        basis: newRuleBasis, // always send basis for both methods
-        tiers: newRuleMethod === 'PERCENTAGE' ? newRuleTiers : undefined,
+        basis: newRuleBasis,
         effectiveDate: newRuleDate,
-        fixedAmount: null, // amount is per-assignment now
-      });
+      };
+      if (newRuleMethod === 'PERCENTAGE') {
+        payload.tiers = newRuleTiers;
+        payload.fixedAmount = null;
+      } else if (newRuleMethod === 'RULE_FIXED_AMOUNT') {
+        payload.fixedAmount = newRuleFixedAmount;
+        payload.tiers = [];
+      } else {
+        // FIXED_AMOUNT — amount is set per-assignment, not on the rule
+        payload.fixedAmount = null;
+        payload.tiers = [];
+      }
+      await actingAllowanceApi.createRule(payload);
       setShowCreateRule(false);
       setNewRuleTiers(DEFAULT_TIERS);
       setNewRuleBasis('BASIC_DIFF');
       setNewRuleMethod('PERCENTAGE');
       setNewRuleFixedAmount(0);
+      setNewRulePayablePercent(100);
       await loadData();
     } catch (err) { console.error('Failed to create rule:', err); } finally { setCreatingRule(false); }
-  }, [newRuleMethod, newRuleBasis, newRuleDate, newRuleTiers, loadData]);
+  }, [newRuleMethod, newRuleBasis, newRuleDate, newRuleTiers, newRuleFixedAmount, newRulePayablePercent, loadData]);
 
   const handleDeleteRule = useCallback((id: string) => {
     setConfirmDialog({
@@ -1008,7 +1043,7 @@ export const ActingAllowancePage: React.FC = () => {
         </div>
         {activeTab === 'assignments' && (
           <button onClick={openCreateForm}
-            className="btn-primary cursor-pointer flex items-center gap-2 bg-[#047857] text-white px-5 py-2.5 rounded-xl hover:bg-[#036246] transition-colors shadow-lg shadow-emerald-900/10 text-sm font-bold">
+            className="btn-primary cursor-pointer flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl hover:bg-brand-800 transition-colors shadow-lg shadow-brand-900/10 text-sm font-bold">
             <UserPlus className="w-4 h-4" /> Assign Acting Role
           </button>
         )}
@@ -1064,10 +1099,10 @@ export const ActingAllowancePage: React.FC = () => {
                   <input type="text" value={searchQuery}
                     onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
                     placeholder="Search employee name or TIN..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm bg-white" />
+                    className="w-full pl-10 pr-4 py-2.5 border-2 border-brand-200 focus:border-brand-400 rounded-xl focus:ring-2 focus:ring-brand-primary/10 focus:outline-none transition-all text-sm bg-white" />
                 </div>
                 <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-                  className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-sm">
+                  className="px-4 py-2.5 border-2 border-brand-200 focus:border-brand-400 rounded-xl focus:ring-2 focus:ring-brand-primary/10 focus:outline-none transition-all bg-white text-sm">
                   <option value="ALL">All Statuses</option>
                   <option value="ACTIVE">Active</option>
                   <option value="COMPLETED">Completed</option>
@@ -1075,9 +1110,9 @@ export const ActingAllowancePage: React.FC = () => {
                   <option value="EXPIRED">Expired</option>
                 </select>
                 <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }}
-                  placeholder="From" className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm" />
+                  placeholder="From" className="px-4 py-2.5 border-2 border-brand-200 focus:border-brand-400 rounded-xl focus:ring-2 focus:ring-brand-primary/10 focus:outline-none transition-all text-sm" />
                 <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }}
-                  placeholder="To" className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm" />
+                  placeholder="To" className="px-4 py-2.5 border-2 border-brand-200 focus:border-brand-400 rounded-xl focus:ring-2 focus:ring-brand-primary/10 focus:outline-none transition-all text-sm" />
                 {(searchQuery || statusFilter !== 'ALL' || dateFrom || dateTo) && (
                   <button onClick={() => { setSearchQuery(''); setStatusFilter('ALL'); setDateFrom(''); setDateTo(''); setPage(1); }}
                     className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors whitespace-nowrap">Clear</button>
@@ -1105,24 +1140,24 @@ export const ActingAllowancePage: React.FC = () => {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Employee</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Position</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rule</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Start</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">End</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Salary Difference</th>
-                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                        <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Employee</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Position</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Rule</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center border-r border-slate-200/50">Start</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center border-r border-slate-200/50">End</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right border-r border-slate-200/50">Salary Difference</th>
+                        <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Status</th>
                         <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedAssignments.map((row) => {
+                    <tbody>
+                      {paginatedAssignments.map((row, idx) => {
                         const emp = empMap.get(row.employeeId);
                         const rule = row.actingAllowanceRule;
-                        const isAmount = rule?.calculationMethod === 'AMOUNT';
+                        const isAmount = rule?.calculationMethod === 'FIXED_AMOUNT' || rule?.calculationMethod === 'RULE_FIXED_AMOUNT';
                         
-                        // For AMOUNT method, the actual fixed amount is in actingPositionSalary.
-                        // For PERCENTAGE, salaryDiff = acting position salary - employee salary.
+                        // For FIXED_AMOUNT/RULE_FIXED_AMOUNT method, the actual fixed amount is in actingPositionSalary.
+                        // For PERCENTAGE: salaryDiff = acting position salary - employee salary.
                         const displayAmount = isAmount
                           ? (row.actingPositionSalary ?? 0)
                           : (row.salaryDiff ?? 0);
@@ -1132,10 +1167,10 @@ export const ActingAllowancePage: React.FC = () => {
                           : formatCurrency(displayAmount);
                         const salaryColor = isAmount ? 'text-purple-600' : 'text-emerald-700';
                         return (
-                          <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-8 py-4">
+                          <tr key={row.id} className={cn('transition-colors border-b border-slate-100', idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white', 'hover:bg-brand-50/60')}>
+                            <td className="px-8 py-4 border-r border-slate-200/50">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold">
+                                <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-xs font-bold">
                                   {emp ? `${emp.firstName[0]}${emp.lastName[0]}` : '?'}
                                 </div>
                                 <div>
@@ -1146,23 +1181,23 @@ export const ActingAllowancePage: React.FC = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-emerald-600 font-medium text-sm whitespace-nowrap">{row.actingPosition?.title ?? '-'}</td>
-                            <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap">
+                            <td className="px-6 py-4 text-emerald-600 font-medium text-sm whitespace-nowrap border-r border-slate-200/50">{row.actingPosition?.title ?? '-'}</td>
+                            <td className="px-6 py-4 text-slate-500 text-sm whitespace-nowrap border-r border-slate-200/50">
                               {rule?.basis ?? '-'}
                               {isAmount && <span className="ml-1 text-purple-500">(Fixed)</span>}
                             </td>
-                            <td className="px-6 py-4 text-slate-500 text-xs font-mono text-center whitespace-nowrap">{row.startDate?.split('T')[0]}</td>
-                            <td className="px-6 py-4 text-slate-500 text-xs font-mono text-center whitespace-nowrap">{row.expectedEndDate?.split('T')[0] ?? '-'}</td>
-                            <td className="px-6 py-4 text-right whitespace-nowrap">
+                            <td className="px-6 py-4 text-slate-500 text-xs font-mono text-center whitespace-nowrap border-r border-slate-200/50">{row.startDate?.split('T')[0]}</td>
+                            <td className="px-6 py-4 text-slate-500 text-xs font-mono text-center whitespace-nowrap border-r border-slate-200/50">{row.expectedEndDate?.split('T')[0] ?? '-'}</td>
+                            <td className="px-6 py-4 text-right whitespace-nowrap border-r border-slate-200/50">
                               <span className={cn('font-bold font-mono text-sm', salaryColor)}>{salaryLabel}</span>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 border-r border-slate-200/50">
                               <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold uppercase', statusColors[row.status] || 'bg-slate-100 text-slate-600')}>{row.status}</span>
                             </td>
                             <td className="px-8 py-4 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button onClick={() => openEditForm(row)}
-                                  className="cursor-pointer p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Edit assignment">
+                                  className="cursor-pointer p-2 text-slate-400 hover:text-emerald-600 hover:bg-brand-50 rounded-lg transition-colors" title="Edit assignment">
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 {row.status === 'ACTIVE' && (
@@ -1187,7 +1222,7 @@ export const ActingAllowancePage: React.FC = () => {
           </div>
 
           {/* ── Footer Info ───────────────────────────────────── */}
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+          <div className="bg-brand-50 border border-emerald-100 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-emerald-600 shadow-sm flex-shrink-0"><TrendingUp className="w-5 h-5" /></div>
             <div>
               <h4 className="font-bold text-emerald-900 text-sm">Automatic Calculation</h4>
@@ -1229,10 +1264,11 @@ export const ActingAllowancePage: React.FC = () => {
                 setNewRuleBasis('BASIC_DIFF');
                 setNewRuleMethod('PERCENTAGE');
                 setNewRuleFixedAmount(0);
+                setNewRulePayablePercent(100);
                 setNewRuleDate(new Date().toISOString().split('T')[0]);
                 setShowCreateRule(true);
               }}
-                className="cursor-pointer flex items-center gap-2 text-sm font-bold text-white bg-[#047857] px-4 py-2 rounded-xl hover:bg-[#036246] transition-colors shadow-lg shadow-emerald-900/10">
+                className="cursor-pointer flex items-center gap-2 text-sm font-bold text-white bg-primary px-4 py-2 rounded-xl hover:bg-brand-800 transition-colors shadow-lg shadow-brand-900/10">
                 <Plus className="w-4 h-4" /> Create New Rule
               </button>
             )}
@@ -1241,8 +1277,8 @@ export const ActingAllowancePage: React.FC = () => {
 
           {/* ── Create rule form ──────────────────────────────── */}
           {showCreateRule && (
-            <div className="bg-white border border-emerald-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-emerald-100 bg-emerald-50/30 flex items-center justify-between">
+            <div className="bg-white border border-brand-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-emerald-100 bg-brand-50/30 flex items-center justify-between">
                 <h3 className="font-bold text-emerald-800">Create New Allowance Rule</h3>
                 <button onClick={() => setShowCreateRule(false)} className="cursor-pointer text-slate-400 hover:text-slate-600 transition-colors p-1"><X className="w-4 h-4" /></button>
               </div>
@@ -1254,17 +1290,18 @@ export const ActingAllowancePage: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Basis — shown for both methods now */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Basis</label>
-                    <select value={newRuleBasis} onChange={(e) => setNewRuleBasis(e.target.value as 'BASIC_DIFF' | 'GROSS_DIFF')}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-slate-600 text-sm">
-                      <option value="BASIC_DIFF">Basic Salary Difference</option>
-                      <option value="GROSS_DIFF">Gross Salary Difference</option>
-                    </select>
-                  </div>
+                  {newRuleMethod !== 'RULE_FIXED_AMOUNT' && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700">Basis</label>
+                      <select value={newRuleBasis} onChange={(e) => setNewRuleBasis(e.target.value as 'BASIC_DIFF' | 'GROSS_DIFF')}
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-slate-600 text-sm">
+                        <option value="BASIC_DIFF">Basic Salary Difference</option>
+                        <option value="GROSS_DIFF">Gross Salary Difference</option>
+                      </select>
+                    </div>
+                  )}
 
-                  <div className="space-y-2">
+                  <div className={cn("space-y-2", newRuleMethod === 'RULE_FIXED_AMOUNT' && "md:col-span-2")}>
                     <label className="text-sm font-bold text-slate-700">Effective Date</label>
                     <input type="date" value={newRuleDate} onChange={(e) => setNewRuleDate(e.target.value)}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm" />
@@ -1281,10 +1318,23 @@ export const ActingAllowancePage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Info for AMOUNT: amount is set per-assignment */}
-                {newRuleMethod === 'AMOUNT' && (
-                  <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 text-sm text-sky-700">
-                    Fixed amount is set <strong>per assignment</strong> — you'll enter the amount when creating an acting assignment.
+                {/* Fixed Amount input for FIXED_AMOUNT method */}
+                {newRuleMethod === 'RULE_FIXED_AMOUNT' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700">Fixed Amount (ETB)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">ETB</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={newRuleFixedAmount || ''}
+                        onChange={(e) => setNewRuleFixedAmount(Number(e.target.value))}
+                        placeholder="0.00"
+                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400">This fixed amount will be paid every month regardless of salary difference.</p>
                   </div>
                 )}
 
@@ -1292,7 +1342,7 @@ export const ActingAllowancePage: React.FC = () => {
                   <button type="button" onClick={() => setShowCreateRule(false)}
                     className="cursor-pointer px-6 py-3 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancel</button>
                   <button type="submit" disabled={creatingRule || (newRuleMethod === 'PERCENTAGE' && newRuleTiers.length === 0)}
-                    className="cursor-pointer px-6 py-3 text-sm font-bold text-white bg-[#047857] rounded-xl hover:bg-[#036246] transition-colors shadow-lg shadow-emerald-900/10 disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="cursor-pointer px-6 py-3 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 transition-colors shadow-lg shadow-brand-900/10 disabled:opacity-50 disabled:cursor-not-allowed">
                     {creatingRule ? 'Creating...' : 'Create Rule'}
                   </button>
                 </div>
@@ -1303,8 +1353,8 @@ export const ActingAllowancePage: React.FC = () => {
           {/* Rules list */}
           {rules.length === 0 && !showCreateRule ? (
             <EmptyState icon={Settings} title="No Rules Configured"
-              description="Create your first acting allowance rule with either a fixed amount or tiered percentage brackets."
-              action={{ label: 'Create Rule', onClick: () => { setNewRuleTiers(DEFAULT_TIERS); setNewRuleBasis('BASIC_DIFF'); setNewRuleMethod('PERCENTAGE'); setNewRuleFixedAmount(0); setNewRuleDate(new Date().toISOString().split('T')[0]); setShowCreateRule(true); }}} />
+              description="Create your first acting allowance rule with a tiered percentage, fixed amount per assignment, or a fixed amount per rule."
+              action={{ label: 'Create Rule', onClick: () => { setNewRuleTiers(DEFAULT_TIERS); setNewRuleBasis('BASIC_DIFF'); setNewRuleMethod('PERCENTAGE'); setNewRuleFixedAmount(0); setNewRulePayablePercent(100); setNewRuleDate(new Date().toISOString().split('T')[0]); setShowCreateRule(true); }}} />
           ) : rules.length > 0 && visibleRules.length === 0 && !showCreateRule ? (
             <EmptyState icon={Settings} title="All Rules Hidden"
               description="All allowance rules are deactivated. Enable 'Show inactive' above to see them, or create a new rule." />
@@ -1313,31 +1363,32 @@ export const ActingAllowancePage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {visibleRules.map((rule) => {
                 const isActive = rule.isActive;
-                const isAmount = rule.calculationMethod === 'AMOUNT';
+                const isAmount = rule.calculationMethod === 'FIXED_AMOUNT' || rule.calculationMethod === 'RULE_FIXED_AMOUNT';
+                const isPct = rule.calculationMethod === 'PERCENTAGE';
                 const tiers = rule.tiers ?? [];
 
                 return (
                   <div key={rule.id}
                     className={cn('group relative rounded-3xl overflow-hidden transition-all duration-300',
-                      isActive ? 'bg-white shadow-lg shadow-emerald-900/5 hover:shadow-xl hover:shadow-emerald-900/10 border border-emerald-100/50'
+                      isActive ? 'bg-white shadow-lg shadow-emerald-900/5 hover:shadow-xl hover:shadow-brand-900/10 border border-emerald-100/50'
                         : 'bg-white/60 shadow-sm border border-slate-200/60 hover:border-slate-300/60')}>
                     {/* Gradient accent bar */}
-                    <div className={cn('h-1.5 w-full', isActive ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600' : 'bg-gradient-to-r from-slate-200 to-slate-300')} />
+                    <div className={cn('h-1.5 w-full', isActive ? 'bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600' : 'bg-gradient-to-r from-slate-200 to-slate-300')} />
 
                     {/* Header */}
                     <div className="px-6 pt-5 pb-4 flex items-start justify-between">
                       <div className="flex items-start gap-3">
                         <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shadow-sm mt-0.5',
-                          isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400')}>
+                          isActive ? 'bg-brand-50 text-emerald-600' : 'bg-slate-100 text-slate-400')}>
                           <DollarSign className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2.5 mb-1">
                             <h3 className="font-bold text-slate-800 text-base">
-                              {isAmount ? 'Fixed Amount' : rule.basis.replace('_', ' ')}
+                              {isAmount ? (rule.calculationMethod === 'RULE_FIXED_AMOUNT' ? 'Fixed Amount (Rule)' : 'Fixed Amount (Per Assignment)') : rule.basis.replace('_', ' ')}
                             </h3>
                             <span className={cn('px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide',
-                              isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500')}>
+                              isActive ? 'bg-brand-100 text-emerald-700' : 'bg-slate-200 text-slate-500')}>
                               {isActive ? 'Active' : 'Inactive'}
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
@@ -1363,14 +1414,14 @@ export const ActingAllowancePage: React.FC = () => {
                           {editingRuleId === rule.id ? (
                             <>
                               <button onClick={() => saveRuleTiers(rule.id)}
-                                className="cursor-pointer p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title={isAmount ? 'Save rule' : 'Save tiers'}><Save className="w-4 h-4" /></button>
+                                className="cursor-pointer p-2 text-emerald-600 hover:bg-brand-50 rounded-xl transition-colors" title={isAmount ? 'Save rule' : 'Save tiers'}><Save className="w-4 h-4" /></button>
                               <button onClick={cancelEditRule}
                                 className="cursor-pointer p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-colors" title="Cancel edit"><X className="w-4 h-4" /></button>
                             </>
                           ) : (
                             <>
                               <button onClick={() => startEditRule(rule)}
-                                className="cursor-pointer p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title={isAmount ? 'Edit rule' : 'Edit tiers'}><Edit2 className="w-4 h-4" /></button>
+                                className="cursor-pointer p-2 text-slate-400 hover:text-emerald-600 hover:bg-brand-50 rounded-xl transition-colors" title={isAmount ? 'Edit rule' : 'Edit tiers'}><Edit2 className="w-4 h-4" /></button>
                               {isActive && (
                                 <button onClick={() => handleDeleteRule(rule.id)}
                                   className="cursor-pointer p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors" title="Deactivate rule"><Trash2 className="w-4 h-4" /></button>
@@ -1383,58 +1434,58 @@ export const ActingAllowancePage: React.FC = () => {
 
                     {/* Body */}
                     <div className="px-6 pb-6">
-                      {/* AMOUNT method — show basis, amount is per-assignment */}
-                      {isAmount && editingRuleId === rule.id ? (
-                        <div className="mt-2 p-5 bg-slate-50 rounded-2xl space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Basis</label>
-                            <select value={editRuleBasis} onChange={(e) => setEditRuleBasis(e.target.value as 'BASIC_DIFF' | 'GROSS_DIFF')}
-                              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-sm">
-                              <option value="BASIC_DIFF">Basic Salary Difference</option>
-                              <option value="GROSS_DIFF">Gross Salary Difference</option>
-                            </select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Effective Date</label>
-                            <input type="date" value={editRuleDate} onChange={(e) => setEditRuleDate(e.target.value)}
-                              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm" />
-                          </div>
-                        </div>
-                      ) : isAmount ? (
-                        <div className="mt-2 p-5 bg-slate-50 rounded-2xl">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Basis</p>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">Per-Assignment</span>
-                          </div>
-                          <p className="text-lg font-bold text-slate-800">
-                            {rule.basis === 'GROSS_DIFF' ? 'Gross Salary Difference' : 'Basic Salary Difference'}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-2">Amount is set when creating an acting assignment</p>
-                        </div>
-                      ) : editingRuleId === rule.id ? (
-                        /* PERCENTAGE editing mode — tiers + basis + effective date */
+                      {/* Edit mode — shows method toggle + all fields for both methods */}
+                      {editingRuleId === rule.id ? (
                         <div className="mt-2 space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Calculation Method</label>
+                            <MethodToggle value={editRuleMethod} onChange={setEditRuleMethod} />
+                          </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Basis</label>
-                              <select value={editRuleBasis} onChange={(e) => setEditRuleBasis(e.target.value as 'BASIC_DIFF' | 'GROSS_DIFF')}
-                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-sm">
-                                <option value="BASIC_DIFF">Basic Salary Difference</option>
-                                <option value="GROSS_DIFF">Gross Salary Difference</option>
-                              </select>
-                            </div>
-                            <div className="space-y-2">
+                            {editRuleMethod !== 'RULE_FIXED_AMOUNT' && (
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Basis</label>
+                                <select value={editRuleBasis} onChange={(e) => setEditRuleBasis(e.target.value as 'BASIC_DIFF' | 'GROSS_DIFF')}
+                                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all bg-white text-sm">
+                                  <option value="BASIC_DIFF">Basic Salary Difference</option>
+                                  <option value="GROSS_DIFF">Gross Salary Difference</option>
+                                </select>
+                              </div>
+                            )}
+                            <div className={cn("space-y-2", editRuleMethod === 'RULE_FIXED_AMOUNT' && "sm:col-span-2")}>
                               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Effective Date</label>
                               <input type="date" value={editRuleDate} onChange={(e) => setEditRuleDate(e.target.value)}
                                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm" />
                             </div>
                           </div>
-                          <div className="bg-slate-50 rounded-2xl p-4">
-                            <TierEditor tiers={editRuleTiers} onChange={setEditRuleTiers} />
-                          </div>
+                           {editRuleMethod === 'PERCENTAGE' ? (
+                             <div className="bg-slate-50 rounded-2xl p-4">
+                               <TierEditor tiers={editRuleTiers} onChange={setEditRuleTiers} />
+                             </div>
+                           ) : editRuleMethod === 'RULE_FIXED_AMOUNT' ? (
+                             <div className="space-y-2">
+                               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Fixed Amount (ETB)</label>
+                               <div className="relative">
+                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">ETB</span>
+                                 <input
+                                   type="number" min={0} step={0.01}
+                                   value={editRuleFixedAmount || ''}
+                                   onChange={(e) => setEditRuleFixedAmount(Number(e.target.value))}
+                                   placeholder="0.00"
+                                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all text-sm"
+                                 />
+                               </div>
+                               <p className="text-xs text-slate-400">This fixed amount applies to all assignments using this rule.</p>
+                             </div>
+                           ) : (
+                             <div className="bg-slate-50 rounded-2xl p-4">
+                               <p className="text-xs text-slate-500 mb-1 font-medium">Per-Assignment Fixed Amount</p>
+                               <p className="text-[11px] text-slate-400 leading-relaxed">The fixed amount for this rule is calculated from the salary difference at assignment time — no amount is configured on the rule itself.</p>
+                             </div>
+                           )}
                         </div>
                       ) : (
-                        <>
+                         <>
                           {/* Month breakdown — shows every configured month */}
                           {tiers.length > 0 ? (
                             <div className="mt-3 divide-y divide-slate-100">
@@ -1444,7 +1495,7 @@ export const ActingAllowancePage: React.FC = () => {
                                     <div className="flex items-center gap-3">
                                       <span className={cn(
                                         'w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold',
-                                        isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                                        isActive ? 'bg-brand-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                                       )}>
                                         M{tier.startMonth}
                                       </span>
@@ -1519,9 +1570,11 @@ export const ActingAllowancePage: React.FC = () => {
                   <option value="">Choose rule...</option>
                   {rules.filter(r => r.isActive).map((rule) => (
                     <option key={rule.id} value={rule.id}>
-                      {rule.calculationMethod === 'AMOUNT'
-                        ? `Fixed Amount (${rule.basis})`
-                        : `${rule.basis} (${(rule.tiers ?? []).length} tiers)`
+                      {rule.calculationMethod === 'PERCENTAGE'
+                        ? `${rule.basis} (${(rule.tiers ?? []).length} tiers)`
+                        : rule.calculationMethod === 'RULE_FIXED_AMOUNT'
+                          ? 'Fixed Amount - Rule'
+                          : 'Fixed Amount (Per Assignment)'
                       }
                     </option>
                   ))}
@@ -1564,8 +1617,8 @@ export const ActingAllowancePage: React.FC = () => {
               )}
             </div>
 
-            {/* Computed fixed amount (AMOUNT method only) */}
-            {selectedRule?.calculationMethod === 'AMOUNT' && formEmployeeData && formReplacedEmployeeData && (formBasicSalary > 0 || formGrossSalary > 0) && (
+            {/* Computed fixed amount (FIXED_AMOUNT method) */}
+            {selectedRule?.calculationMethod === 'FIXED_AMOUNT' && formEmployeeData && formReplacedEmployeeData && (formBasicSalary > 0 || formGrossSalary > 0) && (
               <div className="col-span-1 md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
                 <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-3">Computed Fixed Amount</h4>
                 <div className="text-sm">
@@ -1590,10 +1643,10 @@ export const ActingAllowancePage: React.FC = () => {
             )}
 
             {/* Salary Difference Display (PERCENTAGE method, basis-aware) */}
-            {selectedRule && selectedRule.calculationMethod !== 'AMOUNT' && formEmployeeData && formReplacedEmployeeData && (
+            {selectedRule && selectedRule.calculationMethod === 'PERCENTAGE' && formEmployeeData && formReplacedEmployeeData && (
               (selectedRule?.basis === 'BASIC_DIFF' ? formBasicSalary > 0 : formGrossSalary > 0)
             ) && (
-              <div className="col-span-1 md:col-span-2 bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+              <div className="col-span-1 md:col-span-2 bg-brand-50 border border-emerald-100 rounded-2xl p-4">
                 <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest mb-3">
                   {selectedRule?.basis === 'GROSS_DIFF' ? 'Gross Salary' : 'Basic Salary'} Difference
                 </h4>
@@ -1685,14 +1738,14 @@ export const ActingAllowancePage: React.FC = () => {
           </div>
 
           {/* Preview */}
-          {formEmployee && formRule && formStart && (selectedRule?.calculationMethod === 'AMOUNT' || formBasicSalary > 0) && (
+          {formEmployee && formRule && formStart && (selectedRule?.calculationMethod === 'PERCENTAGE' ? formBasicSalary > 0 : true) && (
             <div className="border-t border-slate-100 pt-5">
               <button type="button" onClick={handlePreview} disabled={previewLoading}
-                className="cursor-pointer flex items-center gap-2 text-sm font-bold text-[#047857] hover:text-[#036246] transition-colors">
+                className="cursor-pointer flex items-center gap-2 text-sm font-bold text-primary hover:text-brand-800 transition-colors">
                 <Eye className="w-4 h-4" /> {previewLoading ? 'Calculating...' : 'Preview Allowance'}
               </button>
               {preview && (
-                <div className="mt-3 bg-emerald-50 border border-emerald-100 rounded-2xl p-5">
+                <div className="mt-3 bg-brand-50 border border-emerald-100 rounded-2xl p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
                     <span className="text-sm font-bold text-emerald-900">Estimated Allowance</span>
@@ -1710,7 +1763,7 @@ export const ActingAllowancePage: React.FC = () => {
             <button type="button" onClick={closeForm}
               className="cursor-pointer px-8 py-3 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancel</button>
             <button type="submit" disabled={submitting}
-              className="cursor-pointer px-8 py-3 text-sm font-bold text-white bg-[#047857] rounded-xl hover:bg-[#036246] transition-colors shadow-lg shadow-emerald-900/10 disabled:opacity-60 disabled:cursor-not-allowed">
+              className="cursor-pointer px-8 py-3 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 transition-colors shadow-lg shadow-brand-900/10 disabled:opacity-60 disabled:cursor-not-allowed">
               {submitting ? 'Saving...' : editingAssignment ? 'Update Assignment' : 'Create Assignment'}
             </button>
           </div>
@@ -1732,7 +1785,7 @@ const StatCard: React.FC<StatCardProps & { description?: string }> = ({ label, v
   <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm group hover:shadow-md transition-all">
     <div className="flex items-start justify-between mb-4">
       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center group-hover:bg-emerald-50 transition-colors">
+      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center group-hover:bg-brand-50 transition-colors">
         <Icon className={cn('w-4 h-4', iconColor)} />
       </div>
     </div>

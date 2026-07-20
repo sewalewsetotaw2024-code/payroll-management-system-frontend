@@ -41,7 +41,7 @@ export const PensionView: React.FC<PensionViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Rate Summary Hero */}
-      <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[2rem] p-8 text-white shadow-xl">
+      <div className="bg-gradient-to-br from-brand-600 to-brand-800 rounded-[2rem] p-8 text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Total Pension Contribution</p>
@@ -142,7 +142,7 @@ export const PensionView: React.FC<PensionViewProps> = ({
       </div>
 
       {/* Mandatory Compliance */}
-      <div className="flex items-center gap-4 p-6 bg-emerald-50/50 rounded-[1.5rem] border border-emerald-100/80 shadow-sm">
+      <div className="flex items-center gap-4 p-6 bg-brand-50/50 rounded-[1.5rem] border border-emerald-100/80 shadow-sm">
         <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 shrink-0">
           <ShieldCheck className="w-6 h-6" />
         </div>

@@ -6,6 +6,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { configurationActions } from '../store/configurationSlice';
 import { Modal, Input, Select, Button, Toggle } from '../../../components/ui';
+import { cn } from '../../../lib/utils';
 import { DataRenderer } from '../../../components/core/renderers/DataRenderer';
 import { ConfigSection, ConfigEmptyState, ConfigModalFooter, ConfigSaveButton } from './shared';
 import { CurrencyConfigurationView } from './CurrencyConfigurationView';
@@ -108,7 +109,7 @@ const BaseCurrencyCard: React.FC<{
   }
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/30 border border-emerald-200 rounded-2xl p-6">
+    <div className="bg-gradient-to-br from-brand-50 to-brand-100/30 border border-brand-200 rounded-2xl p-6">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100">
@@ -151,7 +152,7 @@ const BaseCurrencyCard: React.FC<{
             variant="outline"
             size="sm"
             onClick={() => setSelectOpen(true)}
-            className="border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+            className="border-brand-300 text-emerald-700 hover:bg-brand-100"
           >
             Change Base
           </Button>
@@ -194,14 +195,19 @@ const BaseCurrencyCard: React.FC<{
 const CurrencyRow: React.FC<{
   currency: SystemCurrency;
   isBase: boolean;
+  index: number;
   onEdit: (c: SystemCurrency) => void;
   onDelete: (id: string) => void;
   onSetBase: (id: string) => void;
-}> = ({ currency, isBase, onEdit, onDelete, onSetBase }) => (
-  <tr className="hover:bg-slate-50/50 transition-colors">
-    <td className="px-4 py-4">
+}> = ({ currency, isBase, index, onEdit, onDelete, onSetBase }) => (
+  <tr className={cn(
+    "border-b border-slate-100",
+    index % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+    "hover:bg-brand-50/60 transition-colors",
+  )}>
+    <td className="px-4 py-4 border-r border-slate-200/50">
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${isBase ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
+        <div className={`p-2 rounded-lg ${isBase ? 'bg-brand-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
           {isBase ? <Star className="w-4 h-4 fill-emerald-500" /> : <DollarSign className="w-4 h-4" />}
         </div>
         <div>
@@ -212,17 +218,17 @@ const CurrencyRow: React.FC<{
         </div>
       </div>
     </td>
-    <td className="px-4 py-4">
+    <td className="px-4 py-4 border-r border-slate-200/50">
       <span className="text-sm text-slate-700">{currency.name}</span>
     </td>
-    <td className="px-4 py-4 font-mono font-bold text-slate-900">{currency.symbol}</td>
-    <td className="px-4 py-4 text-sm text-slate-700">{currency.decimalPlaces}</td>
-    <td className="px-4 py-4">
+    <td className="px-4 py-4 font-mono font-bold text-slate-900 border-r border-slate-200/50">{currency.symbol}</td>
+    <td className="px-4 py-4 text-sm text-slate-700 border-r border-slate-200/50">{currency.decimalPlaces}</td>
+    <td className="px-4 py-4 border-r border-slate-200/50">
       <span className="text-xs font-semibold text-slate-600">
         {ROUNDING_RULE_OPTIONS.find((o) => o.value === currency.roundingRule)?.label ?? currency.roundingRule}
       </span>
     </td>
-    <td className="px-4 py-4">
+    <td className="px-4 py-4 border-r border-slate-200/50">
       {currency.autoFetchRate ? (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold">
           <RefreshCw className="w-3 h-3" />
@@ -232,9 +238,9 @@ const CurrencyRow: React.FC<{
         <span className="text-xs text-slate-400">Manual</span>
       )}
     </td>
-    <td className="px-4 py-4">
+    <td className="px-4 py-4 border-r border-slate-200/50">
       {currency.isActive ? (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-brand-50 text-emerald-700 text-[10px] font-bold">
           <CheckCircle2 className="w-3 h-3" />
           Active
         </span>
@@ -444,7 +450,7 @@ export const CurrencyConfiguration: React.FC = () => {
               title="No Currencies Configured"
               message="Add at least one currency to enable multi-currency payroll. The first currency you add can be set as the base currency."
             />
-            <Button onClick={openAddCurrency} variant="primary" className="rounded-full shadow shadow-emerald-200/50">
+            <Button onClick={openAddCurrency} variant="primary" className="rounded-full shadow shadow-brand-200/50">
               <Plus className="w-4 h-4 mr-1.5" />
               Add Currency
             </Button>
@@ -478,21 +484,22 @@ export const CurrencyConfiguration: React.FC = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/50">
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Currency</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Name</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Symbol</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Decimals</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Rounding</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Rate</th>
-                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Status</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Currency</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Name</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Symbol</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Decimals</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Rounding</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Rate</th>
+                        <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Status</th>
                         <th className="text-right text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                       {baseCurrency && (
                         <CurrencyRow
                           currency={baseCurrency}
                           isBase={true}
+                          index={0}
                           onEdit={openEditCurrency}
                           onDelete={handleDeleteCurrency}
                           onSetBase={handleSetBaseCurrency}
@@ -505,11 +512,12 @@ export const CurrencyConfiguration: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        otherCurrencies.map((c) => (
+                        otherCurrencies.map((c, idx) => (
                           <CurrencyRow
                             key={c.id}
                             currency={c}
                             isBase={false}
+                            index={idx + 1}
                             onEdit={openEditCurrency}
                             onDelete={handleDeleteCurrency}
                             onSetBase={handleSetBaseCurrency}

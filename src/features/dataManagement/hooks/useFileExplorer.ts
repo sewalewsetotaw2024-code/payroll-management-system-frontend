@@ -22,7 +22,7 @@ export type CategoryFilter = ImportType | null;
 export function useFileExplorer(allImports: ImportRecord[] = []) {
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>(null);
 

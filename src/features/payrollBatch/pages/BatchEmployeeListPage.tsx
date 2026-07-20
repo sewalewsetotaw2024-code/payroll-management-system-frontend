@@ -33,7 +33,7 @@ export const BatchEmployeeListPage: React.FC = () => {
           onClick={goBack}
           className="group flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-600 mb-4 transition-colors cursor-pointer font-bold uppercase tracking-widest"
         >
-          <div className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center group-hover:border-emerald-200 group-hover:bg-emerald-50 transition-all">
+          <div className="w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center group-hover:border-brand-200 group-hover:bg-brand-50 transition-all">
             <ArrowLeft className="w-3.5 h-3.5" />
           </div>
           Back to batches
@@ -63,7 +63,7 @@ export const BatchEmployeeListPage: React.FC = () => {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by name or code…"
-            className="w-full max-w-sm pl-9 pr-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-shadow hover:shadow-sm"
+            className="w-full max-w-sm pl-9 pr-3 py-2.5 text-sm bg-white/60 backdrop-blur-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-shadow hover:shadow-sm"
           />
         </div>
       </GlassCard>
@@ -108,28 +108,28 @@ export const BatchEmployeeListPage: React.FC = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200/60 bg-white/30">
-                    <th className="text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code</th>
-                    <th className="text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Employee</th>
-                    <th className="text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</th>
+                    <th className="border-r border-slate-200/50 text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code</th>
+                    <th className="border-r border-slate-200/50 text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Employee</th>
+                    <th className="border-r border-slate-200/50 text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</th>
                     <th className="text-left px-4 py-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Position</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100/60">
+                <tbody>
                   {employees.map((item, idx) => (
                     <tr
                       key={item.id}
                       className={cn(
-                        'transition-colors',
-                        idx % 2 === 0 ? 'bg-white/20' : 'bg-white/5',
-                        'hover:bg-slate-50/60',
+                        'border-b border-slate-100 transition-colors',
+                        idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                        'hover:bg-brand-50/60',
                       )}
                     >
-                      <td className="px-4 py-3.5">
+                      <td className="border-r border-slate-200/50 px-4 py-3.5">
                         <span className="text-sm font-mono text-slate-500 bg-white/40 backdrop-blur-sm px-2 py-0.5 rounded border border-slate-200/60">
                           {item.employee.externalId}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="border-r border-slate-200/50 px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <InitialAvatar
                             firstName={item.employee.firstName ?? '?'}
@@ -143,7 +143,7 @@ export const BatchEmployeeListPage: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-slate-500">
+                      <td className="border-r border-slate-200/50 px-4 py-3.5 text-sm text-slate-500">
                         {item.employee.department?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3.5 text-sm text-slate-500">
@@ -182,7 +182,7 @@ export const BatchEmployeeListPage: React.FC = () => {
                           className={cn(
                             'min-w-[30px] h-7 rounded-md text-xs font-bold transition-all cursor-pointer',
                             p === page
-                              ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                              ? 'bg-emerald-500 text-white shadow-sm shadow-brand-500/20'
                               : 'text-slate-500 hover:bg-white/60 hover:border-slate-200 border border-transparent',
                           )}
                         >

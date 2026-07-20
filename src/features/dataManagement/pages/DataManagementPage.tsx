@@ -27,8 +27,10 @@ import { dataManagementApi } from '../api/dataManagementApi';
 import { folderApi } from '../api/folderApi';
 import { ImportModal } from '../components/ImportModal';
 import { ExplorerLayout } from '../components/explorer/ExplorerLayout';
+import { attendanceApi } from '../../attendance/api/attendanceApi';
 import type { ImportType, ImportRecord } from '../types/dataManagement.types';
 import type { FolderTreeNode } from '../types/folder.types';
+import type { AttendanceImport } from '../../attendance/types/attendance.types';
 import { AttendanceImportFlow } from '../components/AttendanceImportFlow';
 /** Sample historical archive data for display. */
 const ARCHIVE_DATA = [
@@ -59,7 +61,7 @@ const UPLOAD_CARDS: {
       sub: 'Excel (.xlsx) or CSV (.csv)',
       icon: <Users className="w-5 h-5" />,
       color: 'text-emerald-600',
-      bgColor: 'bg-emerald-100',
+      bgColor: 'bg-brand-100',
     },
     {
       type: 'ATTENDANCE',
@@ -85,8 +87,21 @@ const DEFAULT_PAGE_SIZE = 5;
  * DataManagementPage component that serves as the main entry point for the Data Management feature.
  * Displays import/export cards, recent imports table, file explorer, and historical archive sections.
  */
+/** Map an AttendanceImport to the ImportRecord shape used by the data management page. */
+const toImportRecord = (imp: AttendanceImport): ImportRecord => ({
+  id: imp.id,
+  referenceType: 'ATTENDANCE',
+  referenceId: 'ATTENDANCE',
+  fileName: imp.periodLabel || `Attendance Import — ${new Date(imp.importedAt).toLocaleDateString()}`,
+  filePath: imp.fileReference || '',
+  mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  sizeBytes: imp.sizeBytes ?? 0,
+  folderId: null,
+  uploadedBy: Number(imp.importedBy) || 0,
+  uploadedAt: imp.importedAt,
+});
+
 export const DataManagementPage: React.FC = () => {
-  const [imports, setImports] = useState<ImportRecord[]>([]);
   const [allImports, setAllImports] = useState<ImportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,16 +110,12 @@ export const DataManagementPage: React.FC = () => {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [folders, setFolders] = useState<FolderTreeNode[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImportType = useRef<ImportType | null>(null);
-  const currentPageRef = useRef(1);
-  const pageSizeRef = useRef(DEFAULT_PAGE_SIZE);
   const [selectedFile, setSelectedFile] = useState<ImportRecord | null>(null);
   const activeFolderIdRef = useRef<string | null>(null);
   const [attendanceFlowOpen, setAttendanceFlowOpen] = useState(false);
@@ -122,56 +133,44 @@ export const DataManagementPage: React.FC = () => {
     }
   }, []);
 
-  const loadImports = useCallback(async (targetPage: number, customPageSize?: number) => {
+  const loadAllImports = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const limit = customPageSize ?? pageSizeRef.current;
-      const res = await dataManagementApi.getImportHistory({ page: targetPage, limit });
-      setImports(Array.isArray(res?.imports) ? res.imports : []);
-      setTotalItems(res.totalItems);
-      setCurrentPage(res.currentPage);
-      setTotalPages(res.totalPages);
-      currentPageRef.current = res.currentPage;
+      // 1. Fetch all data management imports (paginate client-side to handle server caps)
+      const PAGE_LIMIT = 100;
+      const first = await dataManagementApi.getImportHistory({ page: 1, limit: PAGE_LIMIT });
+      let dmRecords: ImportRecord[] = Array.isArray(first?.imports) ? first.imports : [];
+      const totalDM = first.totalPages || 1;
+      for (let p = 2; p <= totalDM; p++) {
+        const page = await dataManagementApi.getImportHistory({ page: p, limit: PAGE_LIMIT });
+        const records = Array.isArray(page?.imports) ? page.imports : [];
+        dmRecords = dmRecords.concat(records);
+      }
+
+      // 2. Fetch all attendance imports and transform to ImportRecord shape
+      const attImports = (await attendanceApi.listImports({ limit: 1000 })) ?? [];
+      const attRecords = attImports.map(toImportRecord);
+
+      // 3. Merge and sort by date (newest first)
+      const merged = [...dmRecords, ...attRecords].sort(
+        (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+      );
+
+      setAllImports(merged);
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Failed to load imports');
-      setImports([]);
+      console.error('loadAllImports error:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const loadAllImports = useCallback(async () => {
-    try {
-      // Fetch pages with a conservative limit so servers with max-page-size caps don't reject
-      const PAGE_LIMIT = 100;
-      const first = await dataManagementApi.getImportHistory({ page: 1, limit: PAGE_LIMIT });
-      let allRecords: ImportRecord[] = Array.isArray(first?.imports) ? first.imports : [];
-      const totalPages = first.totalPages || 1;
-
-      // Fetch remaining pages if the server paginated the response
-      for (let p = 2; p <= totalPages; p++) {
-        const page = await dataManagementApi.getImportHistory({ page: p, limit: PAGE_LIMIT });
-        const records = Array.isArray(page?.imports) ? page.imports : [];
-        allRecords = allRecords.concat(records);
-      }
-
-      setAllImports(allRecords);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Unknown error';
-      toast.error(`Failed to load file explorer data: ${msg}`);
-      console.error('loadAllImports error:', err);
-    }
-  }, []);
-
   const reloadAllImports = useCallback(() => {
     setAllImports([]);
+    setCurrentPage(1);
     loadAllImports();
   }, [loadAllImports]);
-
-  const reloadImports = useCallback(() => {
-    loadImports(currentPageRef.current);
-  }, [loadImports]);
 
   const handleUploadClick = (type: ImportType, folderId?: string | null) => {
     if (type === 'ATTENDANCE') {
@@ -194,16 +193,21 @@ export const DataManagementPage: React.FC = () => {
     setModalOpen(true);
   };
 
+  const totalItems = allImports.length;
+  const totalPages = Math.max(1, Math.ceil(allImports.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedImports = useMemo(
+    () => allImports.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [allImports, safePage, pageSize]
+  );
+
   const handlePageChange = (newPage: number) => {
-    loadImports(newPage);
+    setCurrentPage(newPage);
   };
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
-    pageSizeRef.current = newSize;
     setCurrentPage(1);
-    currentPageRef.current = 1;
-    loadImports(1, newSize);
   };
 
   const formatSize = (bytes: number) => {
@@ -228,7 +232,7 @@ export const DataManagementPage: React.FC = () => {
 
   const typeColor = (refId: string) => {
     const map: Record<string, string> = {
-      EMPLOYEE: 'bg-emerald-100 text-emerald-700',
+      EMPLOYEE: 'bg-brand-100 text-emerald-700',
       ATTENDANCE: 'bg-blue-100 text-blue-700',
       ADJUSTMENT: 'bg-amber-100 text-amber-700',
     };
@@ -236,15 +240,15 @@ export const DataManagementPage: React.FC = () => {
   };
 
   const stats = useMemo(() => {
-    const totalFiles = totalItems;
+    const totalFiles = allImports.length;
     const now = new Date();
-    const thisMonth = imports.filter(i => {
+    const thisMonth = allImports.filter(i => {
       const d = new Date(i.uploadedAt);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
-    const totalSize = imports.reduce((sum, i) => sum + i.sizeBytes, 0);
+    const totalSize = allImports.reduce((sum, i) => sum + i.sizeBytes, 0);
     return { totalFiles, thisMonth, totalSize };
-  }, [imports, totalItems]);
+  }, [allImports]);
 
   // Upload handler adapter for ExplorerLayout
   const handleExplorerUpload = useCallback(() => {
@@ -253,12 +257,12 @@ export const DataManagementPage: React.FC = () => {
 
   const handleRefreshAll = useCallback(async () => {
     setAllImports([]);
+    setCurrentPage(1);
     await Promise.all([
       loadFolders(),
       loadAllImports(),
-      loadImports(currentPageRef.current),
     ]);
-  }, [loadFolders, loadAllImports, loadImports]);
+  }, [loadFolders, loadAllImports]);
 
   const handleImportComplete = useCallback(() => {
     setModalOpen(false);
@@ -267,10 +271,9 @@ export const DataManagementPage: React.FC = () => {
   }, [handleRefreshAll]);
 
   useEffect(() => {
-    loadImports(1);
     loadFolders();
     loadAllImports();
-  }, [loadImports, loadFolders, loadAllImports]);
+  }, [loadFolders, loadAllImports]);
 
   return (
     <div className="min-h-screen space-y-6 p-6 xl:p-8">
@@ -287,7 +290,7 @@ export const DataManagementPage: React.FC = () => {
             </Button>
           </motion.div>
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button variant="primary" size="sm" onClick={reloadImports} className="rounded-xl font-bold">
+            <Button variant="primary" size="sm" onClick={reloadAllImports} className="rounded-xl font-bold">
               <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} /> Refresh
             </Button>
           </motion.div>
@@ -305,7 +308,7 @@ export const DataManagementPage: React.FC = () => {
           <Card className="!p-5 hover:shadow-md transition-all duration-300">
             <div className="flex items-start justify-between mb-3">
               <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Files</span>
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-200">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-sm shadow-brand-200">
                 <Database className="w-4 h-4 text-white" />
               </div>
             </div>
@@ -396,7 +399,7 @@ export const DataManagementPage: React.FC = () => {
                 <button
                   key={card.type}
                   onClick={() => handleUploadClick(card.type, activeFolderId)}
-                  className="w-full flex items-center gap-4 p-4 border-2 border-dashed border-emerald-200/60 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/50 hover:shadow-sm hover:shadow-emerald-100 transition-all cursor-pointer group"
+                  className="w-full flex items-center gap-4 p-4 border-2 border-dashed border-brand-200/60 rounded-2xl hover:border-brand-400 hover:bg-brand-50/50 hover:shadow-sm hover:shadow-brand-100 transition-all cursor-pointer group"
                 >
                   <div className={cn(
                     'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110',
@@ -408,7 +411,7 @@ export const DataManagementPage: React.FC = () => {
                     <p className="text-sm font-bold text-slate-800">{card.label}</p>
                     <p className="text-[11px] text-slate-400 font-medium mt-0.5">{card.sub}</p>
                   </div>
-                  <div className="w-8 h-8 rounded-xl bg-white border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-50 transition-colors shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-white border border-emerald-100 flex items-center justify-center group-hover:bg-brand-50 transition-colors shrink-0">
                     <Upload className="w-4 h-4 text-emerald-400 group-hover:text-emerald-600 transition-colors" />
                   </div>
                 </button>
@@ -465,7 +468,7 @@ export const DataManagementPage: React.FC = () => {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={cn(
                       'w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
-                      idx === 0 && 'bg-emerald-50',
+                      idx === 0 && 'bg-brand-50',
                       idx === 1 && 'bg-blue-50',
                       idx === 2 && 'bg-amber-50',
                     )}>
@@ -490,7 +493,7 @@ export const DataManagementPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center group-hover:bg-emerald-50 group-hover:border-emerald-200 transition-all shrink-0 ml-3">
+                  <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center group-hover:bg-brand-50 group-hover:border-brand-200 transition-all shrink-0 ml-3">
                     <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
                   </div>
                 </button>
@@ -511,11 +514,11 @@ export const DataManagementPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-slate-400" />
               <h3 className="font-bold text-slate-900 text-sm">Recent Imports</h3>
-              <span className="text-xs text-slate-400 ml-1">({imports.length})</span>
+              <span className="text-xs text-slate-400 ml-1">({allImports.length})</span>
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={reloadImports}
+                onClick={loadAllImports}
                 className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer"
               >
                 <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
@@ -523,7 +526,7 @@ export const DataManagementPage: React.FC = () => {
             </div>
           </div>
 
-          {loading && imports.length === 0 ? (
+          {loading && allImports.length === 0 ? (
             <div className="p-8 space-y-3">
               <Skeleton className="h-12 w-full rounded-xl" />
               <Skeleton className="h-12 w-full rounded-xl" />
@@ -535,11 +538,11 @@ export const DataManagementPage: React.FC = () => {
             <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
               <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
               <p className="text-sm text-red-600 font-medium mb-2">{error}</p>
-              <Button variant="secondary" size="sm" onClick={reloadImports}>
+              <Button variant="secondary" size="sm" onClick={loadAllImports}>
                 Try Again
               </Button>
             </div>
-          ) : imports.length === 0 ? (
+          ) : allImports.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
               <Upload className="w-12 h-12 text-slate-300 mb-3" />
               <p className="text-sm font-bold text-slate-500">No imports yet</p>
@@ -550,24 +553,24 @@ export const DataManagementPage: React.FC = () => {
               <table className="w-full text-left">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-slate-100 bg-white/80 backdrop-blur-sm">
-                    <th className="px-8 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">File Name</th>
-                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Size</th>
-                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Format</th>
+                    <th className="px-8 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">File Name</th>
+                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">Type</th>
+                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">Date</th>
+                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">Size</th>
+                    <th className="px-6 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">Format</th>
                     <th className="px-8 py-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {imports.map((file, idx) => (
+                <tbody>
+                  {paginatedImports.map((file, idx) => (
                     <motion.tr
                       key={file.id}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: idx * 0.03 }}
-                      className={`transition-all text-sm cursor-default hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/40' : ''}`}
+                      className={cn("border-b border-slate-100 transition-all text-sm cursor-default", idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white', "hover:bg-brand-50/60 transition-colors")}
                     >
-                      <td className="px-8 py-4">
+                      <td className="px-8 py-4 border-r border-slate-200/50">
                         <div className="flex items-center gap-3 min-w-0">
                           <FileText className="w-5 h-5 text-emerald-500 shrink-0" />
                           <div className="flex flex-col min-w-0">
@@ -575,7 +578,7 @@ export const DataManagementPage: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-slate-200/50">
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             'px-2.5 py-1 rounded-lg text-[11px] font-bold',
@@ -585,16 +588,16 @@ export const DataManagementPage: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-slate-200/50">
                         <div className="flex items-center gap-1.5 text-slate-500">
                           <Clock className="w-3 h-3 text-slate-400 shrink-0" />
                           <span className="text-xs font-mono">{formatDate(file.uploadedAt)}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-slate-200/50">
                         <span className="text-sm font-semibold text-slate-600 font-mono">{formatSize(file.sizeBytes)}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 border-r border-slate-200/50">
                         <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{getFileExtension(file.fileName)}</span>
                       </td>
                       <td className="px-8 py-4 text-right relative">
@@ -603,7 +606,7 @@ export const DataManagementPage: React.FC = () => {
                             href={file.filePath?.replace('/upload/', '/upload/fl_attachment/') ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-all"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-emerald-500 hover:bg-brand-50 hover:text-emerald-700 transition-all"
                             download
                             title="Download"
                           >
@@ -662,7 +665,7 @@ export const DataManagementPage: React.FC = () => {
                 className={cn(
                   'p-5 rounded-2xl border-2 transition-all',
                   archive.status === 'current'
-                    ? 'border-emerald-200 bg-emerald-50/30'
+                    ? 'border-brand-200 bg-brand-50/30'
                     : 'border-slate-200 bg-white',
                 )}
               >
@@ -675,7 +678,7 @@ export const DataManagementPage: React.FC = () => {
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">{archive.period}</h4>
                       {archive.status === 'current' && (
-                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Current</span>
+                        <span className="text-[10px] font-bold bg-brand-100 text-emerald-700 px-2 py-0.5 rounded-full">Current</span>
                       )}
                     </div>
                   </div>
@@ -699,7 +702,7 @@ export const DataManagementPage: React.FC = () => {
                     <span className={cn(
                       'inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase',
                       archive.status === 'current'
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-brand-100 text-emerald-700'
                         : 'bg-slate-100 text-slate-500',
                     )}>
                       {archive.status}

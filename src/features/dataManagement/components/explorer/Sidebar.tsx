@@ -45,7 +45,7 @@ interface SidebarProps {
 /* ---------- Category config ---------- */
 /** Configuration for each file category filter shown in the sidebar. */
 const CATEGORIES = [
-  { key: 'EMPLOYEE', label: 'Employee', color: 'bg-emerald-500' },
+  { key: 'EMPLOYEE', label: 'Employee', color: 'bg-brand-500' },
   { key: 'ATTENDANCE', label: 'Attendance', color: 'bg-blue-500' },
   { key: 'ADJUSTMENT', label: 'Adjustment', color: 'bg-amber-500' },
 ] as const;
@@ -196,7 +196,7 @@ const FolderTreeNodeItem: React.FC<FolderTreeNodeItemProps> = ({
         className={cn(
           'group flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all select-none',
           isActive
-            ? 'bg-emerald-50 text-emerald-700'
+            ? 'bg-brand-50 text-emerald-700'
             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
@@ -382,7 +382,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={cn(
               'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
               activeFolderId === null && activeCategory === null
-                ? 'bg-emerald-50 text-emerald-700'
+                ? 'bg-brand-50 text-emerald-700'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
             )}
           >
@@ -450,7 +450,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 if (e.key === 'Enter') confirmRename();
                 if (e.key === 'Escape') setRenamingFolder(null);
               }}
-              className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+              className="w-full px-2 py-1 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
               autoFocus
               placeholder="Folder name..."
             />
@@ -469,7 +469,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className={cn(
                   'flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer',
                   isActiveCat
-                    ? 'bg-emerald-50 text-emerald-700'
+                    ? 'bg-brand-50 text-emerald-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
                 )}
               >

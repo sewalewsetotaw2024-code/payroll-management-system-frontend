@@ -48,7 +48,7 @@ function FolderOption({
         className={cn(
           "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center gap-2",
           selectedId === folder.id
-            ? "bg-emerald-100 text-emerald-800 font-semibold"
+            ? "bg-brand-100 text-emerald-800 font-semibold"
             : "hover:bg-slate-100 text-slate-700"
         )}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
@@ -122,7 +122,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
         <div className="p-8 space-y-6">
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+            <div className="bg-brand-50 rounded-xl p-4 border border-emerald-100">
               <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Employees</p>
               <p className="text-2xl font-black text-emerald-900 mt-1">{parsed.employees.length}</p>
             </div>
@@ -151,15 +151,18 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Name</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</th>
-                    {parsed.summaryCols.filter((c) => c.name).map((col) => {
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">ID</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Name</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-r border-slate-200/50">Department</th>
+                    {parsed.summaryCols.filter((c) => c.name).map((col, ci, arr) => {
                       const isOT = /ot|overtime/i.test(col.name!);
                       return (
                         <th
                           key={col.name}
-                          className={`px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-center ${isOT ? "text-purple-500" : "text-slate-400"}`}
+                          className={cn(
+                            `px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-center ${isOT ? "text-purple-500" : "text-slate-400"}`,
+                            ci < arr.length - 1 ? 'border-r border-slate-200/50' : ''
+                          )}
                         >
                           {col.name}
                         </th>
@@ -167,14 +170,14 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
                     })}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody>
                   {parsed.employees.slice(0, 20).map((emp, i) => (
-                    <tr key={emp.empId || i} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{emp.empId}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-800">{emp.firstName}</td>
-                      <td className="px-4 py-3 text-slate-500">{emp.department}</td>
-                      {parsed.summaryCols.filter((c) => c.name).map((col) => (
-                        <td key={col.name} className="px-4 py-3 text-center">
+                    <tr key={emp.empId || i} className={cn("border-b border-slate-100 transition-colors", i % 2 === 0 ? 'bg-slate-50/40' : 'bg-white', "hover:bg-brand-50/60 transition-colors")}>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600 border-r border-slate-200/50">{emp.empId}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800 border-r border-slate-200/50">{emp.firstName}</td>
+                      <td className="px-4 py-3 text-slate-500 border-r border-slate-200/50">{emp.department}</td>
+                      {parsed.summaryCols.filter((c) => c.name).map((col, ci, arr) => (
+                        <td key={col.name} className={cn("px-4 py-3 text-center", ci < arr.length - 1 ? 'border-r border-slate-200/50' : '')}>
                           <span className={getSummaryColor(col.name!, emp.summaryData[col.name!])}>
                             {formatHourValue(emp.summaryData[col.name!])}
                           </span>
@@ -200,7 +203,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
             <div className="relative">
               <button
                 onClick={() => setFolderOpen(!folderOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-emerald-300 transition-colors bg-white"
+                className="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-brand-300 transition-colors bg-white"
               >
                 <span className={cn(selectedFolderId ? "text-slate-800" : "text-slate-400")}>
                   {selectedFolderId ? selectedFolderName ?? "Unknown folder" : "No folder (file will be root-level)"}
@@ -213,7 +216,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
                     onClick={() => { setSelectedFolderId(null); setFolderOpen(false); }}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                      !selectedFolderId ? "bg-emerald-100 text-emerald-800 font-semibold" : "hover:bg-slate-100 text-slate-700"
+                      !selectedFolderId ? "bg-brand-100 text-emerald-800 font-semibold" : "hover:bg-slate-100 text-slate-700"
                     )}
                   >
                     Root (no folder)
@@ -244,7 +247,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
           <button
             onClick={() => onImport(selectedFolderId)}
             disabled={uploading}
-            className="px-5 py-2.5 text-sm font-bold text-white bg-[#047857] rounded-xl hover:bg-[#036246] transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-900/10"
+            className="px-5 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-brand-900/10"
           >
             {uploading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

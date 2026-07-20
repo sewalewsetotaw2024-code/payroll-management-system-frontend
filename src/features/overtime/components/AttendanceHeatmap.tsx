@@ -210,7 +210,7 @@ const CalendarCell = ({ item, idx, compact }: { item: any; idx: number; compact:
   let border = "border-slate-100";
 
   if (isPresent) {
-    cellBg = "bg-emerald-50 shadow-sm shadow-emerald-600/5";
+    cellBg = "bg-brand-50 shadow-sm shadow-emerald-600/5";
     textColor = "text-emerald-900";
     subColor = "text-emerald-600";
     border = "border-emerald-100";

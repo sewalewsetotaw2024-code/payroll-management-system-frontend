@@ -25,10 +25,10 @@ export const BatchGenerator: React.FC<BatchGeneratorProps> = ({
   return (
     <GlassCard className="relative overflow-hidden">
       {/* Subtle top accent */}
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-emerald-500 to-emerald-400" />
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-brand-500 to-brand-400" />
 
       <div className="flex items-center gap-3 mb-5">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-emerald-500/20">
+        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-brand-500/20">
           <Package className="w-5 h-5" />
         </div>
         <div>
@@ -58,7 +58,7 @@ export const BatchGenerator: React.FC<BatchGeneratorProps> = ({
               const val = parseInt(e.target.value, 10);
               if (!isNaN(val) && val >= 1) setBatchSize(val);
             }}
-            className="w-full rounded-lg bg-white/60 backdrop-blur-sm border border-slate-200 px-3 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-shadow hover:shadow-sm"
+            className="w-full rounded-lg bg-white/60 backdrop-blur-sm border border-slate-200 px-3 py-2.5 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-shadow hover:shadow-sm"
             placeholder="e.g. 50"
             disabled={generating || disabled}
           />
@@ -70,7 +70,7 @@ export const BatchGenerator: React.FC<BatchGeneratorProps> = ({
         <button
           onClick={handleGenerate}
           disabled={generating || disabled || batchSize < 1}
-          className="relative px-6 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.97] shadow-lg shadow-emerald-600/20 overflow-hidden group cursor-pointer"
+          className="relative px-6 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.97] shadow-lg shadow-brand-600/20 overflow-hidden group cursor-pointer"
         >
           {/* Shine effect on hover */}
           <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent" />

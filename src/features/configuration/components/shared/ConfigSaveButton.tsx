@@ -22,7 +22,7 @@ export const ConfigSaveButton: React.FC<ConfigSaveButtonProps> = ({
   label = 'Save Configuration',
   className,
 }) => (
-  <Button onClick={onClick} disabled={saving} className={`w-full sm:w-auto px-6 sm:px-10 shadow shadow-emerald-200/50 ${className ?? ''}`}>
+  <Button onClick={onClick} disabled={saving} className={`w-full sm:w-auto px-6 sm:px-10 shadow shadow-brand-200/50 ${className ?? ''}`}>
     {saving ? (
       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
     ) : (

@@ -12,6 +12,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { Button } from '../../../components/ui';
+import { cn } from '../../../lib/utils';
 import type { PayFrequency } from '../types/configuration.types';
 
 interface PayFrequencyViewProps {
@@ -70,23 +71,23 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="w-10 px-2" />
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="w-10 px-2 border-r border-slate-200/50" />
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Name
                 </th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Frequency
                 </th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Periods / Year
                 </th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Pay Day Rule
                 </th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Employee Group
                 </th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">
                   Status
                 </th>
                 <th className="text-right text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">
@@ -94,7 +95,7 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {frequencies.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-400">
@@ -102,14 +103,18 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                frequencies.map((freq) => {
+                frequencies.map((freq, idx) => {
                   const isExpanded = expandedId === freq.id;
                   const isDaily = freq.frequency === 'DAILY';
 
                   return (
                     <React.Fragment key={freq.id}>
-                      <tr className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-2 py-4">
+                      <tr className={cn(
+                        "border-b border-slate-100",
+                        idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                        "hover:bg-brand-50/60 transition-colors",
+                      )}>
+                        <td className="px-2 py-4 border-r border-slate-200/50">
                           <button
                             onClick={() => setExpandedId(isExpanded ? null : freq.id!)}
                             className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
@@ -121,7 +126,7 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                             )}
                           </button>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           <div className="flex items-center gap-3">
                             <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
                               <Calendar className="w-4 h-4" />
@@ -129,15 +134,15 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                             <span className="font-bold text-slate-900">{freq.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-50 text-slate-700 text-xs font-bold">
                             {FREQUENCY_LABELS[freq.frequency] || freq.frequency}
                           </span>
                         </td>
-                        <td className="px-4 py-4 font-mono font-bold text-slate-900">
+                        <td className="px-4 py-4 font-mono font-bold text-slate-900 border-r border-slate-200/50">
                           {freq.periodsPerYear}
                         </td>
-                        <td className="px-4 py-4 text-slate-700">
+                        <td className="px-4 py-4 text-slate-700 border-r border-slate-200/50">
                           {freq.payDayRule ? (
                             <span className="text-xs font-semibold">
                               {PAY_DAY_RULE_LABELS[freq.payDayRule]}
@@ -152,7 +157,7 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                             <span className="text-xs text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           {freq.applicableEmployeeGroup ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-[10px] font-bold">
                               <Users className="w-3 h-3" />
@@ -162,9 +167,9 @@ export const PayFrequencyView: React.FC<PayFrequencyViewProps> = ({
                             <span className="text-xs text-slate-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           {freq.isActive ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider border border-emerald-100/50">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider border border-emerald-100/50">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Active
                             </span>

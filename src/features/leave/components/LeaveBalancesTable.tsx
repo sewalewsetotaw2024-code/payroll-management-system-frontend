@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter } from 'lucide-react';
+import { cn } from '../../../lib/utils';
 import type { LeaveBalance } from '../types/leave.types';
 
 interface Props {
@@ -25,7 +26,7 @@ export const LeaveBalancesTable: React.FC<Props> = ({ balances, loading }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center h-48 text-slate-400">
-                <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mr-3" />
+                <div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full mr-3" />
                 Loading balances...
             </div>
         );
@@ -41,13 +42,13 @@ export const LeaveBalancesTable: React.FC<Props> = ({ balances, loading }) => {
                         placeholder="Search by employee or leave type..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                     />
                 </div>
                 <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                 >
                     <option value="">All Types</option>
                     {leaveTypes.map((t) => (
@@ -66,28 +67,28 @@ export const LeaveBalancesTable: React.FC<Props> = ({ balances, loading }) => {
                     <table className="w-full text-sm">
                         <thead className="bg-slate-50">
                             <tr>
-                                <th className="text-left px-4 py-3 font-semibold text-slate-600">Employee</th>
-                                <th className="text-left px-4 py-3 font-semibold text-slate-600">Leave Type</th>
-                                <th className="text-left px-4 py-3 font-semibold text-slate-600">Fiscal Year</th>
-                                <th className="text-right px-4 py-3 font-semibold text-slate-600">Entitlement</th>
-                                <th className="text-right px-4 py-3 font-semibold text-slate-600">Used</th>
-                                <th className="text-right px-4 py-3 font-semibold text-slate-600">Pending</th>
-                                <th className="text-right px-4 py-3 font-semibold text-slate-600">Remaining</th>
+                                <th className="text-left px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Employee</th>
+                                <th className="text-left px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Leave Type</th>
+                                <th className="text-left px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Fiscal Year</th>
+                                <th className="text-right px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Entitlement</th>
+                                <th className="text-right px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Used</th>
+                                <th className="text-right px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Pending</th>
+                                <th className="text-right px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Remaining</th>
                                 <th className="text-right px-4 py-3 font-semibold text-slate-600">Expiry</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filtered.map((b) => (
-                                <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-4 py-3 font-medium text-slate-800">
+                        <tbody>
+                            {filtered.map((b, idx) => (
+                                <tr key={b.id} className={cn("hover:bg-brand-50/60 transition-colors border-b border-slate-100", idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white')}>
+                                    <td className="px-4 py-3 font-medium text-slate-800 border-r border-slate-200/50">
                                         {b.employee ? `${b.employee.firstName} ${b.employee.lastName}` : '—'}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600">{b.leaveType}</td>
-                                    <td className="px-4 py-3 text-slate-600">{b.fiscalYear}</td>
-                                    <td className="px-4 py-3 text-right text-slate-800">{b.totalEntitlement}</td>
-                                    <td className="px-4 py-3 text-right text-amber-600">{b.usedDays}</td>
-                                    <td className="px-4 py-3 text-right text-orange-500">{b.pendingDays}</td>
-                                    <td className="px-4 py-3 text-right font-medium text-emerald-600">{b.remainingDays}</td>
+                                    <td className="px-4 py-3 text-slate-600 border-r border-slate-200/50">{b.leaveType}</td>
+                                    <td className="px-4 py-3 text-slate-600 border-r border-slate-200/50">{b.fiscalYear}</td>
+                                    <td className="px-4 py-3 text-right text-slate-800 border-r border-slate-200/50">{b.totalEntitlement}</td>
+                                    <td className="px-4 py-3 text-right text-amber-600 border-r border-slate-200/50">{b.usedDays}</td>
+                                    <td className="px-4 py-3 text-right text-orange-500 border-r border-slate-200/50">{b.pendingDays}</td>
+                                    <td className="px-4 py-3 text-right font-medium text-emerald-600 border-r border-slate-200/50">{b.remainingDays}</td>
                                     <td className="px-4 py-3 text-right text-slate-400">
                                         {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString() : '—'}
                                     </td>

@@ -38,27 +38,24 @@ const ALL_MODULES = [
   'dashboard', 'employees', 'payroll', 'attendance', 'payslips',
   'employee-deductions', 'bonus', 'overtime', 'acting', 'reports', 'data',
   'approval', 'workflow-builder', 'payroll-batch', 'config',
-  'currency', 'folders', 'payroll-periods',
 ];
 
 /** Roles that are allowed to see approval-related nav items. */
 const APPROVAL_ROLES = new Set([
-  'HR_OFFICER', 'HR_MANAGER', 'PAYROLL_OFFICER',
-  'FINANCE_MANAGER', 'FINANCE_OFFICER',
-  'DEPARTMENT_MANAGER', 'ADMIN',
+  'HR_GENERALIST', 'HR_CS_MANAGER', 'HR_CS_DIRECTOR',
+  'FINANCE_OFFICER', 'FINANCE_MANAGER',
+  'ADMIN',
 ]);
 
 /** Role aliases — maps common DB role names (from auth) to canonical keys used by APPROVAL_ROLES. */
 const ROLE_ALIASES: Record<string, string> = {
   'admin': 'ADMIN',
   'super admin': 'ADMIN',
-  'hr': 'HR_OFFICER',
-  'hr officer': 'HR_OFFICER',
-  'hr manager': 'HR_MANAGER',
-  'payroll officer': 'PAYROLL_OFFICER',
-  'finance manager': 'FINANCE_MANAGER',
+  'hr generalist': 'HR_GENERALIST',
+  'hr cs manager': 'HR_CS_MANAGER',
+  'hr cs director': 'HR_CS_DIRECTOR',
   'finance officer': 'FINANCE_OFFICER',
-  'department manager': 'DEPARTMENT_MANAGER',
+  'finance manager': 'FINANCE_MANAGER',
 };
 
 /** Resolve a role name (from auth) to a canonical module key. */
@@ -84,96 +81,81 @@ const navItems = [
   { id: 'workflow-builder', label: 'Workflow Builder', icon: Settings2, path: '/workflow-builder' },
   { id: 'payroll-batch', label: 'Payroll Batch', icon: Package, path: '/payroll-batch' },
   { id: 'config', label: 'Configuration', icon: Settings, path: '/config' },
-
-  { id: 'currency', label: 'Currency Rates', icon: PiggyBank, path: '/currency' },
-  { id: 'folders', label: 'Folders', icon: Database, path: '/folders' },
-  { id: 'payroll-periods', label: 'Payroll Periods', icon: CalendarDays, path: '/payroll-periods' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, isCollapsed, onLogout, className, userRole }) => {
   const roleKey = resolveRoleKey(userRole);
   const canSeeApproval = roleKey ? APPROVAL_ROLES.has(roleKey) : false;
 
+  const canSeeWorkflowBuilder = roleKey === 'ADMIN';
+
   // Show all nav items except approval-related ones for non-approval roles
-  const visibleItems = navItems.filter(
-    (item) =>
-      item.id === 'approval' || item.id === 'workflow-builder'
-        ? canSeeApproval
-        : true,
-  );
+  const visibleItems = navItems.filter((item) => {
+    if (item.id === 'approval') return canSeeApproval;
+    if (item.id === 'workflow-builder') return canSeeWorkflowBuilder;
+    return true;
+  });
 
   return (
     <div className={cn(
-      "h-screen bg-white/70 backdrop-blur-xl text-slate-800 flex flex-col transition-all duration-300 border-r border-slate-200/50 z-[60]",
+      "h-full flex flex-col transition-all duration-300 z-[60] relative overflow-hidden",
       isCollapsed ? "w-20" : "w-64",
       className
     )}>
-      <div className="p-6 border-b border-slate-100/50 bg-transparent">
+      <div className="p-8 pb-4">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 bg-white rounded-lg shadow-sm border border-slate-100 flex items-center justify-center p-1.5 flex-shrink-0">
-            <img
-              src="https://api.iconify.design/lucide:globe.svg?color=%23047857"
-              alt="Adiu Logo"
-              className="w-full h-full object-contain"
-            />
+          <div className="w-10 h-10 bg-brand-primary rounded-xl shadow-lg shadow-brand-900/20 flex items-center justify-center p-2 flex-shrink-0">
+            <Calculator className="w-full h-full text-white" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-xl font-black text-slate-900 leading-none tracking-tight truncate">Adiu</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1 truncate">Communication</span>
+              <span className="text-xl font-bold text-slate-900 leading-none tracking-tight truncate">Adiu</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1 truncate">Payroll Elite</span>
             </div>
           )}
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-3.5 custom-scrollbar overflow-x-visible">
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
         {visibleItems.map((item) => (
           <NavLink
             key={item.id}
             to={item.path}
             className={({ isActive }) => cn(
-              "sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group no-underline",
+              "sidebar-item w-full no-underline transition-all duration-200",
               isActive
-                ? "sidebar-item-active shadow-sm"
-                : "sidebar-item-inactive hover:bg-slate-50",
-              isCollapsed && "justify-center"
+                ? "sidebar-item-active"
+                : "sidebar-item-inactive hover:translate-x-1",
+              isCollapsed && "justify-center px-0"
             )}
+            title={isCollapsed ? item.label : undefined}
           >
-            {({ isActive }) => (
-              <>
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <item.icon className={cn(
-                    "w-5 h-5 shrink-0 transition-all",
-                    isActive ? "text-white" : "text-slate-400 group-hover:text-emerald-600"
-                  )} />
-                </motion.div>
-                {!isCollapsed && (
-                  <span className="text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis">{item.label}</span>
-                )}
-                {isActive && !isCollapsed && (
-                  <motion.span 
-                    layoutId="sidebar-active-indicator"
-                    className="absolute right-2 w-1.5 h-1.5 rounded-full bg-emerald-300" 
-                  />
-                )}
-              </>
+            <item.icon className={cn(
+              "w-5 h-5 shrink-0 transition-transform duration-200",
+              isCollapsed ? "group-hover:scale-110" : ""
+            )} />
+            {!isCollapsed && (
+              <span className="whitespace-nowrap overflow-hidden text-ellipsis">{item.label}</span>
             )}
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-200/50">
+      <div className="p-4 mt-auto">
+        {!isCollapsed && (
+          <div className="mb-4 p-4 rounded-2xl bg-brand-primary/5 border border-brand-primary/10">
+            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mb-1">Company</p>
+            <p className="text-sm font-bold text-slate-900 truncate">Kacha Digital Financial</p>
+          </div>
+        )}
         <button
           onClick={onLogout}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-slate-400 hover:text-rose-500 hover:bg-rose-50",
-            isCollapsed && "justify-center"
+            "w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-slate-400 hover:text-rose-500 hover:bg-rose-50 group",
+            isCollapsed && "justify-center px-0"
           )}
         >
-          <LogOut className="w-5 h-5 shrink-0" />
+          <LogOut className="w-5 h-5 shrink-0 transition-transform group-hover:-translate-x-1" />
           {!isCollapsed && <span className="text-sm font-bold">Logout</span>}
         </button>
       </div>

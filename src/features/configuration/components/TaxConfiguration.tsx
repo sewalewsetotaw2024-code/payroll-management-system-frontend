@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, BadgePercent, Calculator, Calendar } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { configurationActions } from '../store/configurationSlice';
-import { Modal, Input, Select, Button } from '../../../components/ui';
+import { Modal, Input, Button } from '../../../components/ui';
 import { DataRenderer } from '../../../components/core/renderers/DataRenderer';
 import { ConfigSection, ConfigEmptyState, ConfigModalFooter } from './shared';
 import { TaxView } from './TaxView';
@@ -23,21 +23,9 @@ const emptyForm = {
 export const TaxConfiguration: React.FC = () => {
   const dispatch = useAppDispatch();
   const { data: taxBrackets, loading, saving, error } = useAppSelector((s) => s.configuration.taxBrackets);
-  const { data: fiscalYears } = useAppSelector((s) => s.configuration.fiscalYears);
-
-  const fyOptions = useMemo(() => {
-    const sorted = [...fiscalYears].sort(
-      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-    );
-    return sorted.map((fy) => ({
-      value: fy.startDate.slice(0, 10),
-      label: fy.name,
-    }));
-  }, [fiscalYears]);
 
   const [localBrackets, setLocalBrackets] = useState<TaxBracket[]>([]);
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
-  const effectiveDateInitialized = useRef(false);
   const [globalExpiryDate, setGlobalExpiryDate] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editIndex, setEditIndex] = useState<number | null>(null);
@@ -57,15 +45,16 @@ export const TaxConfiguration: React.FC = () => {
     if (displayPage > maxPage) setDisplayPage(maxPage);
   }, [localBrackets.length, pageSize]);
 
+  // Sync the shared effective/expiry dates to all local brackets when the pickers change
   useEffect(() => {
-    if (fiscalYears.length > 0 && !effectiveDateInitialized.current) {
-      const sorted = [...fiscalYears].sort(
-        (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
-      );
-      setEffectiveDate(sorted[0].startDate.slice(0, 10));
-      effectiveDateInitialized.current = true;
-    }
-  }, [fiscalYears]);
+    setLocalBrackets((prev) =>
+      prev.map((b) => ({
+        ...b,
+        effectiveDate: effectiveDate as any,
+        expiryDate: globalExpiryDate || null,
+      })),
+    );
+  }, [effectiveDate, globalExpiryDate]);
 
   useEffect(() => {
     if (Array.isArray(taxBrackets)) {
@@ -77,7 +66,11 @@ export const TaxConfiguration: React.FC = () => {
         rate: Number(b.rate),
         deductionAmount: Number(b.deductionAmount),
       })));
-      // Pre-fill the global expiry date from existing bracket data
+      // Pre-fill effective/expiry dates from existing bracket data
+      const existingEffective = (taxBrackets as TaxBracket[]).find((b) => b.effectiveDate);
+      if (existingEffective?.effectiveDate) {
+        setEffectiveDate(existingEffective.effectiveDate.slice(0, 10));
+      }
       const existingExpiry = (taxBrackets as TaxBracket[]).find((b) => b.expiryDate);
       if (existingExpiry?.expiryDate) {
         setGlobalExpiryDate(existingExpiry.expiryDate.slice(0, 10));
@@ -220,32 +213,9 @@ export const TaxConfiguration: React.FC = () => {
       description="Progressive tax rates based on monthly income"
       showBadge={localBrackets.length > 0 && !loading}
       actionButton={
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Effective</span>
-              <Select
-                value={effectiveDate}
-                onChange={(e) => setEffectiveDate(e.target.value)}
-                options={fyOptions}
-              />
-            </label>
-            <label className="flex items-center gap-1.5 px-2 py-2 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Expiry</span>
-              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-              <input
-                type="date"
-                value={globalExpiryDate}
-                onChange={(e) => setGlobalExpiryDate(e.target.value)}
-                className="text-xs font-medium text-slate-600 bg-transparent border-none outline-none w-32"
-                placeholder="No expiry"
-              />
-            </label>
-          </div>
-          <Button onClick={openAdd} className="shadow shadow-emerald-200/50">
-            <Plus className="w-4 h-4" /> Add Bracket
-          </Button>
-        </div>
+        <Button onClick={openAdd} className="shadow shadow-brand-200/50">
+          <Plus className="w-4 h-4" /> Add Bracket
+        </Button>
       }
     >
       <DataRenderer
@@ -271,6 +241,31 @@ export const TaxConfiguration: React.FC = () => {
             onOpenEdit={openEdit}
             onRemove={removeBracket}
             onSave={handleSave}
+            dateFields={
+              <div className="flex flex-wrap items-center gap-4 pt-4 pb-2">
+                <label className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Effective Date</span>
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={effectiveDate}
+                    onChange={(e) => setEffectiveDate(e.target.value)}
+                    className="text-xs font-medium text-slate-600 bg-transparent border-none outline-none w-36"
+                  />
+                </label>
+                <label className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Expiry Date</span>
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={globalExpiryDate}
+                    onChange={(e) => setGlobalExpiryDate(e.target.value)}
+                    className="text-xs font-medium text-slate-600 bg-transparent border-none outline-none w-36"
+                    placeholder="No expiry"
+                  />
+                </label>
+              </div>
+            }
           />
         )}
       />

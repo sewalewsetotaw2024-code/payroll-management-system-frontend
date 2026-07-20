@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { cn } from '../../../lib/utils';
 import type { LeaveSyncLog } from '../types/leave.types';
 
 interface Props {
@@ -29,14 +30,14 @@ export const LeaveSyncPanel: React.FC<Props> = ({ syncing, lastResult, syncLogs,
                 <button
                     onClick={onSync}
                     disabled={syncing}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
                 >
                     <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                     {syncing ? 'Syncing...' : 'Sync from Employee Module'}
                 </button>
 
                 {lastResult && (
-                    <div className="mt-4 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div className="mt-4 p-4 bg-brand-50 rounded-lg border border-emerald-100">
                         <p className="text-sm font-medium text-emerald-800">Sync completed</p>
                         <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
                             <div>
@@ -65,20 +66,20 @@ export const LeaveSyncPanel: React.FC<Props> = ({ syncing, lastResult, syncLogs,
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Date</th>
-                                    <th className="text-right px-4 py-3 font-semibold text-slate-600">Records</th>
-                                    <th className="text-center px-4 py-3 font-semibold text-slate-600">Status</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Date</th>
+                                    <th className="text-right px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Records</th>
+                                    <th className="text-center px-4 py-3 font-semibold text-slate-600 border-r border-slate-200/50">Status</th>
                                     <th className="text-left px-4 py-3 font-semibold text-slate-600">Details</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {syncLogs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-3 text-slate-600">
+                            <tbody>
+                                {syncLogs.map((log, idx) => (
+                                    <tr key={log.id} className={cn("hover:bg-brand-50/60 transition-colors border-b border-slate-100", idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white')}>
+                                        <td className="px-4 py-3 text-slate-600 border-r border-slate-200/50">
                                             {new Date(log.syncedAt).toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-slate-800">{log.employeeCount}</td>
-                                        <td className="px-4 py-3 text-center">
+                                        <td className="px-4 py-3 text-right text-slate-800 border-r border-slate-200/50">{log.employeeCount}</td>
+                                        <td className="px-4 py-3 text-center border-r border-slate-200/50">
                                             {getStatusIcon(log.status)}
                                         </td>
                                         <td className="px-4 py-3 text-slate-500 max-w-xs truncate">

@@ -7,6 +7,7 @@ import { DataRenderer } from '../../../components/core/renderers/DataRenderer';
 import { ConfigSection, ConfigEmptyState, ConfigModalFooter } from './shared';
 import { DeductionsView } from './DeductionsView';
 import { toast } from '../../../components/ui/Toast';
+import { deductionCapApi } from '../api/configurationApi';
 import {
   emptyDeductionConfigForm,
   VALUE_RULE_OPTIONS,
@@ -98,7 +99,7 @@ const DeductionLabelCombobox = ({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           placeholder="Search or type new..."
-          className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-medium text-slate-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
+          className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-medium text-slate-900 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 ${
             error
               ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500'
               : 'border-slate-200 hover:border-slate-300'
@@ -119,7 +120,7 @@ const DeductionLabelCombobox = ({
                   onMouseDown={() => selectOption(label)}
                   className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                     value === label
-                      ? 'bg-emerald-50 text-emerald-700 font-bold'
+                      ? 'bg-brand-50 text-emerald-700 font-bold'
                       : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -132,7 +133,7 @@ const DeductionLabelCombobox = ({
             <button
               type="button"
               onMouseDown={commitCustom}
-              className="w-full text-left px-4 py-2.5 text-sm text-emerald-700 font-bold hover:bg-emerald-50 border-t border-slate-100 transition-colors"
+              className="w-full text-left px-4 py-2.5 text-sm text-emerald-700 font-bold hover:bg-brand-50 border-t border-slate-100 transition-colors"
             >
               Use &ldquo;{search.trim()}&rdquo; as new label
             </button>
@@ -163,6 +164,43 @@ export const DeductionsConfiguration: React.FC = () => {
   const [displayPage, setDisplayPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isFixedValue, setIsFixedValue] = useState(false);
+
+  // ─── Deduction Cap ─────────────────────────────────────────────────
+  const [capPercentage, setCapPercentage] = useState<number>(33.33);
+  const [capEditing, setCapEditing] = useState(false);
+  const [capDraft, setCapDraft] = useState<string>('33.33');
+  const [capSaving, setCapSaving] = useState(false);
+
+  useEffect(() => {
+    deductionCapApi.get().then((res) => {
+      const val = res.data?.data?.capPercentage;
+      if (val != null) {
+        setCapPercentage(val);
+        setCapDraft(val.toString());
+      }
+    }).catch(() => {
+      // default 33.33 is already set
+    });
+  }, []);
+
+  const handleSaveCap = async () => {
+    const parsed = parseFloat(capDraft);
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      toast.error('Cap must be between 0 and 100');
+      return;
+    }
+    setCapSaving(true);
+    try {
+      await deductionCapApi.update(parsed);
+      setCapPercentage(parsed);
+      setCapEditing(false);
+      toast.success(`Deduction cap set to ${parsed}%`);
+    } catch {
+      toast.error('Failed to save deduction cap');
+    } finally {
+      setCapSaving(false);
+    }
+  };
 
   const totalPages = Math.max(1, Math.ceil(localDeductions.length / pageSize));
   const paginatedDeductions = useMemo(
@@ -305,6 +343,67 @@ export const DeductionsConfiguration: React.FC = () => {
     isRefreshing: saving,
   };
 
+  const capCardContent = (
+    <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Deduction Cap</p>
+            <p className="text-xs text-slate-500">
+              Maximum total deductions allowed as a percentage of basic salary
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {capEditing ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500">
+                <input
+                  type="number"
+                  value={capDraft}
+                  onChange={(e) => setCapDraft(e.target.value)}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  className="w-20 px-3 py-1.5 text-sm font-semibold outline-none bg-transparent text-slate-900 text-center"
+                />
+                <span className="px-2 text-xs font-medium text-slate-500 border-l border-slate-200 py-1.5 bg-slate-50">%</span>
+              </div>
+              <button
+                onClick={handleSaveCap}
+                disabled={capSaving}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {capSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={() => { setCapEditing(false); setCapDraft(capPercentage.toString()); }}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="text-lg font-bold text-slate-900">{capPercentage}%</span>
+              <button
+                onClick={() => setCapEditing(true)}
+                className="px-3 py-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+              >
+                Edit
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <ConfigSection
       id="deductions"
@@ -323,7 +422,7 @@ export const DeductionsConfiguration: React.FC = () => {
       }
       showBadge={localDeductions.length > 0 && !loading}
       actionButton={
-        <Button onClick={openAdd} className="shadow shadow-emerald-200/50 whitespace-nowrap">
+        <Button onClick={openAdd} className="shadow shadow-brand-200/50 whitespace-nowrap">
           <Plus className="w-4 h-4" /> Add Deduction Type
         </Button>
       }
@@ -351,6 +450,7 @@ export const DeductionsConfiguration: React.FC = () => {
             onOpenEdit={openEdit}
             onRemove={removeDeduction}
             onSave={handleSave}
+            capCard={capCardContent}
           />
         )}
       />
@@ -499,7 +599,7 @@ export const DeductionsConfiguration: React.FC = () => {
               {form.valueRule === 'FIXED_AMOUNT' && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Fixed Amount <span className="text-rose-500">*</span></label>
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
+                  <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all overflow-hidden">
                     <span className="pl-3.5 pr-2 text-slate-500 font-medium text-sm border-r border-slate-200 py-2.5 bg-slate-50" />
                     <input
                       type="number"
@@ -516,7 +616,7 @@ export const DeductionsConfiguration: React.FC = () => {
               {form.valueRule === 'PERCENTAGE' && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Percent <span className="text-rose-500">*</span></label>
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all overflow-hidden">
+                  <div className="flex items-center border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all overflow-hidden">
                     <input
                       type="number"
                       value={form.percent ?? ''}
@@ -538,7 +638,7 @@ export const DeductionsConfiguration: React.FC = () => {
             <label className="block text-sm font-semibold text-slate-700 mb-2.5">Configuration Flags</label>
             <div className="flex gap-3">
               <label className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all select-none ${
-                form.isMandatory ? 'border-emerald-300 bg-emerald-50/80' : 'border-slate-200 bg-white hover:border-slate-300'
+                form.isMandatory ? 'border-brand-300 bg-brand-50/80' : 'border-slate-200 bg-white hover:border-slate-300'
               }">
                 <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
                   form.isMandatory

@@ -1,6 +1,6 @@
 import { tokenStorage } from "../../../lib/token";
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
+const BASE_URL = "/api/v1";
 
 /**
  * Downloads the Excel payment export for a run via fetch with auth header.

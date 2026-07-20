@@ -12,7 +12,7 @@ const statusBadge = (status: string) => {
     const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
     switch (status) {
         case 'APPROVED':
-            return cn(base, 'bg-emerald-100 text-emerald-700');
+            return cn(base, 'bg-brand-100 text-emerald-700');
         case 'PENDING':
             return cn(base, 'bg-amber-100 text-amber-700');
         case 'REJECTED':
@@ -48,7 +48,7 @@ export const LeaveApplicationsTable: React.FC<LeaveApplicationsTableProps> = ({
     if (loading) {
         return (
             <div className="flex items-center justify-center h-48 text-slate-400">
-                <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mr-3" />
+                <div className="animate-spin w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full mr-3" />
                 Loading applications...
             </div>
         );
@@ -68,14 +68,14 @@ export const LeaveApplicationsTable: React.FC<LeaveApplicationsTableProps> = ({
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-100">
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Employee</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-r border-slate-200/50">Employee</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Paid Leave Days</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filtered.map((a) => (
-                                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-4 py-3 font-medium text-slate-800">
+                        <tbody>
+                            {filtered.map((a, idx) => (
+                                <tr key={a.id} className={cn("hover:bg-brand-50/60 transition-colors border-b border-slate-100", idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white')}>
+                                    <td className="px-4 py-3 font-medium text-slate-800 border-r border-slate-200/50">
                                         {a.employee
                                             ? `${a.employee.firstName} ${a.employee.lastName}`
                                             : <span className="text-slate-400 text-xs">Unknown Employee</span>

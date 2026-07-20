@@ -6,9 +6,9 @@ export type FiscalStatus = 'DRAFT' | 'ACTIVE' | 'CLOSED';
 
 /**
  * Represents the status of a payroll period.
- * DRAFT - Not yet open; ACTIVE - Currently accepting entries; DONE - Finalized/closed.
+ * DRAFT - Not yet open; ACTIVE - Currently accepting entries; DONE - Finalized/closed; CLOSED - Permanently closed.
  */
-export type PayrollPeriodStatus = 'DRAFT' | 'ACTIVE' | 'DONE';
+export type PayrollPeriodStatus = 'DRAFT' | 'ACTIVE' | 'DONE' | 'CLOSED';
 
 
 // ─── Fiscal Year ───────────────────────────────────────────────

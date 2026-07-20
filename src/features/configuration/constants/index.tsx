@@ -34,7 +34,7 @@ import type {
  */
 export const FISCAL_STATUS_BADGE: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   DRAFT: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
-  ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  ACTIVE: { bg: 'bg-brand-50', text: 'text-emerald-700', border: 'border-brand-200', dot: 'bg-emerald-500' },
   CLOSED: { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' },
 };
 
@@ -75,7 +75,7 @@ export const STATUS_OPTIONS: { value: EmployeeDeductionStatus; label: string }[]
 
 /** Badge color tokens mapped by employee deduction status. */
 export const STATUS_BADGE: Record<EmployeeDeductionStatus, { bg: string; text: string; border: string; dot: string }> = {
-  ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  ACTIVE: { bg: 'bg-brand-50', text: 'text-emerald-700', border: 'border-brand-200', dot: 'bg-emerald-500' },
   PAUSED: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
   COMPLETED: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
   CANCELLED: { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' },
@@ -152,7 +152,7 @@ export const emptyAllowanceForm: { earningType: string; label: string; isTaxable
 export const CATEGORY_META: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string }> = {
   WEEKDAY_DAY: { label: 'Weekday Day OT', desc: 'Regular weekday overtime (daytime hours)', icon: <Clock className="w-4 h-4" />, color: 'text-amber-600 bg-amber-50' },
   WEEKDAY_NIGHT: { label: 'Weekday Night OT', desc: 'Nighttime overtime on regular weekdays', icon: <Clock className="w-4 h-4" />, color: 'text-indigo-600 bg-indigo-50' },
-  WEEKEND: { label: 'Weekend OT', desc: 'Overtime worked on weekends', icon: <Clock className="w-4 h-4" />, color: 'text-emerald-600 bg-emerald-50' },
+  WEEKEND: { label: 'Weekend OT', desc: 'Overtime worked on weekends', icon: <Clock className="w-4 h-4" />, color: 'text-emerald-600 bg-brand-50' },
   PUBLIC_HOLIDAY: { label: 'Public Holiday OT', desc: 'Overtime on public holidays', icon: <Clock className="w-4 h-4" />, color: 'text-rose-600 bg-rose-50' },
 };
 
@@ -184,7 +184,7 @@ export const getDefaultOvertimeRules = (): OvertimeRule[] => {
 /** Payroll batch status badge color map for DRAFT, ACTIVE, CLOSED, and ARCHIVED statuses. */
 export const BATCH_STATUS_BADGE: Record<string, { bg: string; text: string; border: string; dot: string }> = {
   DRAFT: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
-  ACTIVE: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  ACTIVE: { bg: 'bg-brand-50', text: 'text-emerald-700', border: 'border-brand-200', dot: 'bg-emerald-500' },
   CLOSED: { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' },
   ARCHIVED: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
 };

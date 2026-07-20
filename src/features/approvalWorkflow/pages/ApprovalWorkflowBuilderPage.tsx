@@ -18,6 +18,7 @@ import {
   Pencil,
   RefreshCw,
   LayoutList,
+  User,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { toast } from "../../../components/ui/Toast";
@@ -35,6 +36,17 @@ import {
   type DynamicRole,
 } from "../api/approvalWorkflowApi";
 import type { ApprovalWorkflowStep } from "../types/approvalWorkflow.types";
+import {
+  fetchRoleUsers,
+  fetchUnassignedEmployees,
+  assignUserToRole,
+  removeUserFromRole,
+  createRole,
+  updateRole,
+  deleteRole,
+  type RoleUser,
+  type UnassignedEmployee,
+} from "../api/approvalWorkflowApi";
 
 // ── Permission Labels ───────────────────────────────────────────────────────-
 
@@ -96,11 +108,11 @@ const STAGE_TYPE_OPTIONS = [
 
 /** Fallback roles used when the backend roles API is unavailable. */
 const FALLBACK_ROLES: DynamicRole[] = [
-  { id: 13, name: "HR Officer", permissions: null },
-  { id: 14, name: "HR Manager", permissions: null },
-  { id: 15, name: "Finance Officer", permissions: null },
-  { id: 16, name: "Finance Manager", permissions: null },
-  { id: 7, name: "HR", permissions: null },
+  { id: 13, name: "HR Generalist", permissions: null },
+  { id: 14, name: "HR CS Manager", permissions: null },
+  { id: 15, name: "HR CS Director", permissions: null },
+  { id: 16, name: "Finance Officer", permissions: null },
+  { id: 17, name: "Finance Manager", permissions: null },
   { id: 6, name: "Admin", permissions: null },
 ];
 
@@ -172,11 +184,11 @@ const PipelineVisualization: React.FC<PipelineVisualizationProps> = ({ steps, ro
   if (steps.length === 0) return null;
 
   const stageColors: Record<string, string> = {
-    PAYROLL_APPROVAL: "bg-blue-500",
-    PAYMENT_FILE: "bg-emerald-500",
-    ATTENDANCE: "bg-amber-500",
-    PAYROLL_DOCUMENT: "bg-violet-500",
-    PAYROLL_BATCH: "bg-slate-500",
+    PAYROLL_APPROVAL: "bg-emerald-500",
+    PAYMENT_FILE: "bg-emerald-600",
+    ATTENDANCE: "bg-emerald-400",
+    PAYROLL_DOCUMENT: "bg-emerald-700",
+    PAYROLL_BATCH: "bg-emerald-300",
   };
 
   const stageLabels: Record<string, string> = {
@@ -229,7 +241,7 @@ const PipelineVisualization: React.FC<PipelineVisualizationProps> = ({ steps, ro
                   </div>
                   <div className="flex items-center gap-1">
                     {step.isRequired ? (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-brand-100 text-emerald-700">
                         Required
                       </span>
                     ) : (
@@ -257,7 +269,7 @@ const PipelineVisualization: React.FC<PipelineVisualizationProps> = ({ steps, ro
 
           {/* Terminal node */}
           <div className="flex flex-col items-center gap-2 ml-2">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center border-2 border-emerald-200">
+            <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center border-2 border-brand-200">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="text-center max-w-[100px]">
@@ -330,7 +342,7 @@ function useValidationWarnings(steps: ApprovalWorkflowStep[], roles: DynamicRole
     );
     if (singleApproverSteps.length === steps.filter((s) => s.isRequired).length && steps.length > 1) {
       warnings.push({
-        type: "info",
+        type: "warning",
         message: "No step has an alternate approver. Consider adding alternate roles to prevent approval bottlenecks.",
       });
     }
@@ -397,7 +409,7 @@ const StepCard: React.FC<StepCardProps> = ({
               {stageTypeLabel(step.stageType)}
             </span>
             {step.isRequired ? (
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 flex items-center gap-1">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-100 text-emerald-700 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Required
               </span>
             ) : (
@@ -526,7 +538,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             <select
               value={stageType}
               onChange={(e) => setStageType(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
             >
               {STAGE_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -543,7 +555,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             <select
               value={requiredRoleId}
               onChange={(e) => setRequiredRoleId(Number(e.target.value))}
-              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
             >
               {roles.map((role) => (
                 <option key={role.id} value={role.id}>
@@ -564,7 +576,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                   e.target.value ? Number(e.target.value) : null,
                 )
               }
-              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
             >
               <option value="">None</option>
               {roles.filter((r) => r.id !== requiredRoleId).map((role) => (
@@ -581,7 +593,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               id="isRequired"
               checked={isRequired}
               onChange={(e) => setIsRequired(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-200"
+              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-brand-200"
             />
             <label
               htmlFor="isRequired"
@@ -596,7 +608,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               onClick={() =>
                 onSave({ stageType, requiredRoleId, isRequired, alternateRoleId })
               }
-              className="flex-1 px-4 py-2.5 text-xs font-bold rounded-xl text-white bg-[#047857] hover:bg-[#036246] shadow-lg shadow-emerald-900/10 transition-all flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2.5 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center justify-center gap-2"
             >
               <Save className="w-3.5 h-3.5" />
               Save Step
@@ -612,244 +624,393 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
       </div>
     </div>
   );
-};// ── Permission Editor Component ────────────────────────────────────────────
-
-interface PermissionEditorProps {
-  roles: DynamicRole[];
-  onRolesUpdated: (roles: DynamicRole[]) => void;
 }
 
-const PermissionEditor: React.FC<PermissionEditorProps> = ({
-  roles,
-  onRolesUpdated,
-}) => {
-  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(
-    roles.length > 0 ? roles[0].id : null,
-  );
-  const [localPerms, setLocalPerms] = useState<Record<string, boolean> | null>(
-    null,
-  );
-  const [savingPerm, setSavingPerm] = useState<string | null>(null);
+/** Modal for creating a new role. */
+const CreateRoleModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}> = ({ open, onClose, onCreated }) => {
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  // Build a fallback permissions object with all known keys set to false
-  const defaultPerms: Record<string, boolean> = {};
-  PERMISSION_GROUPS.forEach((g) =>
-    g.keys.forEach((k) => {
-      defaultPerms[k.key] = false;
-    }),
-  );
+  if (!open) return null;
 
-  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
-  const effectivePerms =
-    localPerms ?? selectedRole?.permissions ?? defaultPerms;
-
-  const handleToggle = async (key: string) => {
-    if (!selectedRole) return;
-
-    const newValue = !effectivePerms[key];
-    // Optimistic update
-    setLocalPerms((prev) => ({
-      ...(prev ?? selectedRole.permissions ?? {}),
-      [key]: newValue,
-    }));
-    setSavingPerm(key);
-
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
     try {
-      const updated = await updateRolePermissions(selectedRole.id, {
-        [key]: newValue,
-      });
-      if (updated) {
-        // Sync local state with server response
-        setLocalPerms(updated.permissions);
-        // Also update the roles list so other components reflect the change
-        onRolesUpdated(
-          roles.map((r) =>
-            r.id === selectedRole.id
-              ? { ...r, permissions: updated.permissions }
-              : r,
-          ),
-        );
-      }
-      toast.success(`${key.replace(/^can/, "").replace(/([A-Z])/g, " $1").trim()} → ${newValue ? "✅ Enabled" : "❌ Disabled"}`);
+      await createRole(name.trim());
+      toast.success(`Role "${name.trim()}" created`);
+      setName("");
+      onCreated();
+      onClose();
     } catch (err: any) {
-      // Revert optimistic update on failure
-      setLocalPerms(selectedRole.permissions ?? defaultPerms);
-      toast.error(extractErrorMessage(err, "Failed to update permission"));
+      toast.error(err.message || "Failed to create role");
     } finally {
-      setSavingPerm(null);
+      setCreating(false);
     }
   };
 
-  if (roles.length === 0) {
-    return (
-      <div className="text-center py-12 bg-white border border-slate-200 rounded-3xl">
-        <ShieldCheck className="w-12 h-12 mx-auto mb-3 text-slate-200" />
-        <p className="text-sm font-medium text-slate-400">No roles available</p>
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 border border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="font-extrabold text-slate-800 text-sm">Create Role</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-slate-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 block">
+            Role Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. HR Generalist"
+            className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={creating || !name.trim()}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-2 disabled:opacity-40"
+          >
+            {creating ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            Create Role
+          </button>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+};
+
+/** Modal for renaming an existing role. */
+const RenameRoleModal: React.FC<{
+  open: boolean;
+  role: DynamicRole | null;
+  onClose: () => void;
+  onRenamed: () => void;
+}> = ({ open, role, onClose, onRenamed }) => {
+  const [name, setName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
+  useEffect(() => {
+    if (role) setName(role.name);
+  }, [role]);
+
+  if (!open || !role) return null;
+
+  const handleRename = async () => {
+    if (!name.trim()) return;
+    setRenaming(true);
+    try {
+      await updateRole(role.id, { name: name.trim() });
+      toast.success(`Role renamed to "${name.trim()}"`);
+      onRenamed();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to rename role");
+    } finally {
+      setRenaming(false);
+    }
+  };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-      <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-transparent">
-        <div className="flex items-center justify-between gap-3">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 border border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="font-extrabold text-slate-800 text-sm">Rename Role</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-slate-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-6">
+          <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 block">
+            Role Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Role name"
+            className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleRename(); }}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleRename}
+            disabled={renaming || !name.trim()}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-2 disabled:opacity-40"
+          >
+            {renaming ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Pencil className="w-3.5 h-3.5" />
+            )}
+            Rename
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Modal for managing users of a specific role — assign & remove employees. */
+const RoleUsersModal: React.FC<{
+  open: boolean;
+  role: DynamicRole | null;
+  onClose: () => void;
+}> = ({ open, role, onClose }) => {
+  const [roleUsers, setRoleUsers] = useState<RoleUser[]>([]);
+  const [unassigned, setUnassigned] = useState<UnassignedEmployee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<number | null>(null);
+
+  const loadRoleUsers = useCallback(async (roleId: number) => {
+    setLoading(true);
+    try {
+      const users = await fetchRoleUsers(roleId);
+      setRoleUsers(users);
+    } catch {
+      setRoleUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadUnassigned = useCallback(async (roleId: number) => {
+    try {
+      // Pass the current role ID so employees already in OTHER roles still show up
+      const emps = await fetchUnassignedEmployees(roleId);
+      setUnassigned(emps);
+    } catch {
+      setUnassigned([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open && role) {
+      loadRoleUsers(role.id);
+      loadUnassigned(role.id);
+      setSelectedEmployeeId(null);
+      setRemovingUserId(null);
+    }
+  }, [open, role, loadRoleUsers, loadUnassigned]);
+
+  const handleAssign = async () => {
+    if (!role || !selectedEmployeeId) return;
+    setAssigning(true);
+    try {
+      await assignUserToRole(role.id, selectedEmployeeId);
+      toast.success(`User assigned to "${role.name}"`);
+      setSelectedEmployeeId(null);
+      await loadRoleUsers(role.id);
+      await loadUnassigned(role.id);
+    } catch (err: any) {
+      toast.error(extractErrorMessage(err, "Failed to assign user"));
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemove = async (userId: number) => {
+    if (!role) return;
+    setRemovingUserId(userId);
+    try {
+      await removeUserFromRole(role.id, userId);
+      toast.success("User removed from role");
+      await loadRoleUsers(role.id);
+      await loadUnassigned(role.id);
+    } catch (err: any) {
+      toast.error(extractErrorMessage(err, "Failed to remove user"));
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  if (!open || !role) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 border border-slate-200 max-h-[85vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
+              <User className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-800 uppercase tracking-wider text-sm">
-                Role Permissions
+              <h3 className="font-extrabold text-slate-800 text-sm">
+                Manage Users — {role.name}
               </h3>
               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5">
-                Each role's capabilities in the payroll pipeline
+                Assign or remove employees from this role
               </p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Admin Only
-          </span>
-        </div>
-      </div>
-
-      <div className="p-6">
-        {/* Role Summary Cards */}
-        <div className="mb-6">
-          <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 block">
-            Role Overview
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {roles.map((r) => {
-              const perms = r.permissions as Record<string, boolean> | null;
-              const totalKeys = PERMISSION_GROUPS.flatMap((g) => g.keys).length;
-              const enabledCount = perms
-                ? Object.entries(perms).filter(([, v]) => v === true).length
-                : 0;
-              const isSelected = r.id === selectedRoleId;
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => {
-                    setSelectedRoleId(r.id);
-                    setLocalPerms(null);
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl border text-left transition-all",
-                    isSelected
-                      ? "bg-indigo-50 border-indigo-200 shadow-sm"
-                      : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm",
-                  )}
-                >
-                  <p className="text-[11px] font-bold text-slate-800 truncate">
-                    {r.name}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span
-                      className={cn(
-                        "text-[10px] font-extrabold",
-                        enabledCount > totalKeys / 2
-                          ? "text-emerald-600"
-                          : "text-slate-400",
-                      )}
-                    >
-                      {enabledCount}/{totalKeys}
-                    </span>
-                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden max-w-[40px]">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          enabledCount === 0
-                            ? "bg-slate-200"
-                            : enabledCount > totalKeys / 2
-                              ? "bg-emerald-400"
-                              : "bg-amber-400",
-                        )}
-                        style={{
-                          width: `${(enabledCount / totalKeys) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 block">
-            Selected Role
-          </label>
-          <select
-            value={selectedRoleId ?? ""}
-            onChange={(e) => {
-              const id = e.target.value ? Number(e.target.value) : null;
-              setSelectedRoleId(id);
-              setLocalPerms(null); // reset local edits when switching roles
-            }}
-            className="w-full max-w-xs px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none"
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-slate-400"
           >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {selectedRole && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {PERMISSION_GROUPS.map((group) => {
-              const groupPerms = group.keys.filter((k) =>
-                k.key in effectivePerms,
-              );
-              if (groupPerms.length === 0) return null;
-
-              return (
-                <div
-                  key={group.label}
-                  className="p-4 bg-slate-50 rounded-2xl border border-slate-100"
-                >
-                  <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">
-                    {group.label}
-                  </h4>
-                  <div className="space-y-2">
-                    {groupPerms.map(({ key, label }) => (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between gap-2"
-                      >
-                        <span className="text-xs font-semibold text-slate-700">
-                          {label}
-                        </span>
-                        <button
-                          onClick={() => handleToggle(key)}
-                          disabled={savingPerm === key}
-                          className={cn(
-                            "relative w-10 h-5 rounded-full transition-all flex items-center flex-shrink-0",
-                            effectivePerms[key]
-                              ? "bg-emerald-500"
-                              : "bg-slate-300",
-                            savingPerm === key && "opacity-60",
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "block w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-all mx-0.5",
-                              effectivePerms[key]
-                                ? "translate-x-[18px]"
-                                : "translate-x-0",
-                            )}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+        {/* Body */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Current Users */}
+            <div>
+              <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <User className="w-3.5 h-3.5" />
+                Assigned Users ({roleUsers.length})
+              </h4>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
                 </div>
-              );
-            })}
+              ) : roleUsers.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                  <User className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-medium text-slate-400">No users assigned</p>
+                  <p className="text-[10px] text-slate-300 mt-1">
+                    Assign employees from the panel on the right
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {roleUsers.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-700 truncate">
+                            {u.employee
+                              ? `${u.employee.firstName} ${u.employee.lastName}`
+                              : `User #${u.id}`}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate">
+                            {u.employee?.externalId ?? u.email ?? ""}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemove(u.id)}
+                        disabled={removingUserId === u.id}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-rose-50 transition-all text-slate-400 hover:text-rose-500 disabled:opacity-40 flex-shrink-0"
+                        title="Remove from role"
+                      >
+                        {removingUserId === u.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Assign Employee */}
+            <div>
+              <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5" />
+                Assign Employee
+              </h4>
+              {unassigned.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-100">
+                  <User className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-medium text-slate-400">No unassigned employees</p>
+                  <p className="text-[10px] text-slate-300 mt-1">
+                    All employees already have a role
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <select
+                    value={selectedEmployeeId ?? ""}
+                    onChange={(e) =>
+                      setSelectedEmployeeId(e.target.value || null)
+                    }
+                    className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
+                  >
+                    <option value="">Select an employee…</option>
+                    {unassigned.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.firstName} {emp.lastName} ({emp.externalId || `#${emp.id}`})
+                        {emp.departmentName ? ` — ${emp.departmentName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAssign}
+                    disabled={assigning || !selectedEmployeeId}
+                    className="w-full px-4 py-2.5 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    {assigning ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
+                    Assign to Role
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -863,6 +1024,9 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
     null,
   );
   const [roles, setRoles] = useState<DynamicRole[]>(FALLBACK_ROLES);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(
+    roles.length > 0 ? roles[0].id : null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -874,6 +1038,106 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
 
   // Delete confirmation
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Role management states (hoisted from UserManagement)
+  const [modalRole, setModalRole] = useState<DynamicRole | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<DynamicRole | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DynamicRole | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // ── Permission Toggle State (inlined from PermissionEditor) ──
+  const [localPerms, setLocalPerms] = useState<Record<string, boolean> | null>(null);
+  const [savingPerm, setSavingPerm] = useState<string | null>(null);
+
+  // Reset localPerms when switching roles to prevent stale permission data
+  useEffect(() => {
+    setLocalPerms(null);
+    setSavingPerm(null);
+  }, [selectedRoleId]);
+
+  const defaultPerms: Record<string, boolean> = {};
+  PERMISSION_GROUPS.forEach((g) =>
+    g.keys.forEach((k) => { defaultPerms[k.key] = false; }),
+  );
+
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
+
+  const effectivePerms = {
+    ...defaultPerms,
+    ...(selectedRole?.permissions ?? {}),
+    ...(localPerms ?? {})
+  };
+
+  const handleToggle = async (key: string) => {
+    if (!selectedRole) return;
+    const newValue = !effectivePerms[key];
+    setLocalPerms((prev) => ({
+      ...(prev ?? selectedRole.permissions ?? {}),
+      [key]: newValue,
+    }));
+    setSavingPerm(key);
+    try {
+      const updated = await updateRolePermissions(selectedRole.id, {
+        [key]: newValue,
+      });
+      if (updated) {
+        setLocalPerms(updated.permissions);
+        setRoles(
+          roles.map((r) =>
+            r.id === selectedRole.id
+              ? { ...r, permissions: updated.permissions }
+              : r,
+          ),
+        );
+      }
+      toast.success(`${key.replace(/^can/, "").replace(/([A-Z])/g, " $1").trim()} → ${newValue ? "Enabled" : "Disabled"}`);
+    } catch (err: any) {
+      setLocalPerms(selectedRole.permissions ?? defaultPerms);
+      toast.error(err.message || "Failed to update permission");
+    } finally {
+      setSavingPerm(null);
+    }
+  };
+
+  // ── Role Users State ──
+  const [roleUsers, setRoleUsers] = useState<RoleUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<number | null>(null);
+
+  const loadRoleUsers = useCallback(async (roleId: number) => {
+    setUsersLoading(true);
+    try {
+      const users = await fetchRoleUsers(roleId);
+      setRoleUsers(users);
+    } catch {
+      setRoleUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedRoleId) {
+      loadRoleUsers(selectedRoleId);
+      setRoleUsers([]);
+    } else {
+      setRoleUsers([]);
+    }
+  }, [selectedRoleId, loadRoleUsers]);
+
+  const handleRemoveUser = async (userId: number) => {
+    setRemovingUserId(userId);
+    try {
+      await removeUserFromRole(selectedRoleId!, userId);
+      toast.success("User removed from role");
+      await loadRoleUsers(selectedRoleId!);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove user");
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
 
   // Inline name editing
   const [editingName, setEditingName] = useState(false);
@@ -924,6 +1188,21 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
       setRoles(fetched);
     }
   }, []);
+
+  const handleDeleted = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteRole(deleteTarget.id);
+      toast.success(`Role "${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
+      loadRoles();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete role");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const loadWorkflows = useCallback(async () => {
     setLoading(true);
@@ -1185,25 +1464,30 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
     <ErrorBoundary>
     <div className="space-y-8 pb-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Approval Workflow Builder
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Configure approval steps, roles, and requirements
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Dirty state indicator */}
-          {dirtyCount > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 flex items-center gap-1 animate-pulse">
-              <AlertCircle className="w-3 h-3" /> Unsaved
-            </span>
-          )}
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Admin Only
-          </span>
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-brand-800 rounded-2xl p-6 sm:p-8 text-white">
+        <div className="absolute -top-1/2 -right-10 w-72 h-72 rounded-full bg-white/5" />
+        <div className="absolute -bottom-1/2 right-20 w-48 h-48 rounded-full bg-white/3" />
+        <div className="relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
+                Approval Workflow Builder
+              </h1>
+              <p className="text-sm text-emerald-100/80 max-w-2xl">
+                Configure approval steps, roles, and requirements
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {dirtyCount > 0 && (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white flex items-center gap-1 animate-pulse">
+                  <AlertCircle className="w-3 h-3" /> Unsaved
+                </span>
+              )}
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 text-white flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Admin Only
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1258,7 +1542,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
                       if (e.key === "Enter") handleSaveName();
                       if (e.key === "Escape") handleCancelEditName();
                     }}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 outline-none"
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
                     autoFocus
                     placeholder="Workflow name"
                   />
@@ -1299,7 +1583,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
                   "px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2",
                   selectedWorkflow.isActive
                     ? "text-rose-600 border border-rose-200 hover:bg-rose-50"
-                    : "text-emerald-600 border border-emerald-200 hover:bg-emerald-50",
+                    : "text-emerald-600 border border-brand-200 hover:bg-brand-50",
                 )}
               >
                 {selectedWorkflow.isActive ? (
@@ -1317,7 +1601,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
               <button
                 onClick={handleSaveWorkflow}
                 disabled={saving || dirtyCount === 0}
-                className="px-4 py-2.5 text-xs font-bold rounded-xl text-white bg-[#047857] hover:bg-[#036246] shadow-lg shadow-emerald-900/10 transition-all flex items-center gap-2 disabled:opacity-40"
+                className="px-4 py-2.5 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-2 disabled:opacity-40"
               >
                 {saving ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1375,6 +1659,248 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
         </div>
       )}
 
+      {/* Left Panel — Roles & Right Panel (placeholder) */}
+      {selectedWorkflow && (
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Panel — Roles */}
+          <div className="w-full lg:w-[340px] flex-shrink-0">
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden sticky top-0 self-start max-h-[calc(100vh-12rem)] flex flex-col">
+              {/* Header */}
+              <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-brand-50/50 to-transparent">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-emerald-600" />
+                    <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                      Roles
+                    </h3>
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 text-emerald-700">
+                      {roles.length}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setCreateOpen(true)}
+                    className="px-3 py-1.5 text-[10px] font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Create Role
+                  </button>
+                </div>
+              </div>
+
+              {/* Role Cards */}
+              <div className="p-4 overflow-y-auto flex-1 space-y-2">
+                {roles.map((r) => (
+                  <div
+                    key={r.id}
+                    onClick={() => setSelectedRoleId(r.id)}
+                    className={cn(
+                      "relative group p-3 rounded-xl border transition-all cursor-pointer",
+                      selectedRoleId === r.id
+                        ? "border-brand-300 bg-brand-50/50 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/30",
+                    )}
+                  >
+                    {/* Hover actions: rename & delete */}
+                    <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRenameTarget(r); }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 shadow-sm hover:bg-brand-50 hover:border-brand-300 transition-all text-slate-400 hover:text-emerald-600"
+                        title="Rename role"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(r); }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center bg-white border border-slate-200 shadow-sm hover:bg-rose-50 hover:border-rose-300 transition-all text-slate-400 hover:text-rose-500"
+                        title="Delete role"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ShieldCheck className={cn(
+                          "w-4 h-4 flex-shrink-0",
+                          selectedRoleId === r.id ? "text-emerald-600" : "text-slate-400",
+                        )} />
+                        <p className={cn(
+                          "text-sm font-bold truncate",
+                          selectedRoleId === r.id ? "text-emerald-800" : "text-slate-700",
+                        )}>
+                          {r.name}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setModalRole(r); }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-brand-100 transition-all text-slate-400 hover:text-emerald-600"
+                          title="Manage users"
+                        >
+                          <User className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel — Permissions + Users */}
+          <div className="flex-1 min-w-0">
+            {!selectedRole ? (
+              <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-12 text-center">
+                <ShieldCheck className="w-12 h-12 mx-auto mb-3 text-slate-200" />
+                <p className="text-sm font-medium text-slate-400">Select a role to view its permissions and members</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Permissions Section */}
+                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-brand-50/50 to-transparent">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
+                          Permissions — {selectedRole.name}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                          Toggle capabilities for this role
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {PERMISSION_GROUPS.map((group) => (
+                      <div key={group.label}>
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2.5">
+                          {group.label}
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {group.keys.map((perm) => (
+                            <button
+                              key={perm.key}
+                              onClick={() => handleToggle(perm.key)}
+                              disabled={savingPerm === perm.key}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-bold",
+                                effectivePerms[perm.key]
+                                  ? "bg-brand-50 border-brand-200 text-emerald-700 hover:bg-brand-100"
+                                  : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300",
+                              )}
+                            >
+                              {savingPerm === perm.key ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                              ) : (
+                                <div className={cn(
+                                  "w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
+                                  effectivePerms[perm.key]
+                                    ? "bg-emerald-500 border-brand-500"
+                                    : "border-slate-300",
+                                )}>
+                                  {effectivePerms[perm.key] && (
+                                    <CheckCircle2 className="w-3 h-3 text-white" />
+                                  )}
+                                </div>
+                              )}
+                              {perm.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Users Section */}
+                <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-brand-50/50 to-transparent">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
+                          <User className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
+                            Users ({roleUsers.length})
+                          </h3>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Employees assigned to this role
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setModalRole(selectedRole)}
+                        className="px-3 py-1.5 text-[10px] font-bold rounded-xl text-emerald-600 border border-brand-200 hover:bg-brand-50 transition-all flex items-center gap-1.5"
+                      >
+                        <User className="w-3 h-3" />
+                        Assign Employee
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    {usersLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                      </div>
+                    ) : roleUsers.length === 0 ? (
+                      <div className="text-center py-8">
+                        <User className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+                        <p className="text-sm font-medium text-slate-400">No users assigned</p>
+                        <button
+                          onClick={() => setModalRole(selectedRole)}
+                          className="mt-3 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-all"
+                        >
+                          + Assign an employee
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {roleUsers.map((ru) => (
+                          <div
+                            key={ru.id}
+                            className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-all"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 text-emerald-500" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-slate-700 truncate">
+                                  {ru.employee ? `${ru.employee.firstName} ${ru.employee.lastName}` : `User #${ru.id}`}
+                                </p>
+                                <p className="text-[10px] text-slate-400 truncate">
+                                  ID: {ru.employee?.externalId || `#${ru.id}`}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveUser(ru.id)}
+                              disabled={removingUserId === ru.id}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-rose-50 transition-all text-slate-400 hover:text-rose-500 disabled:opacity-40 flex-shrink-0"
+                              title="Remove user"
+                            >
+                              {removingUserId === ru.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <X className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Steps List */}
       {selectedWorkflow && (
         <div className="space-y-4">
@@ -1399,7 +1925,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
               )}
               <button
                 onClick={handleAddStep}
-                className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-[#047857] hover:bg-[#036246] shadow-lg shadow-emerald-900/10 transition-all flex items-center gap-2"
+                className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Step
@@ -1438,11 +1964,6 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
             </div>
           )}
         </div>
-      )}
-
-      {/* Role Permissions Editor */}
-      {selectedWorkflow && (
-        <PermissionEditor roles={roles} onRolesUpdated={setRoles} />
       )}
 
       {/* No workflow selected */}
@@ -1524,6 +2045,73 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
                 className="px-4 py-2.5 text-xs font-bold rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role modals (hoisted from UserManagement) */}
+      <RoleUsersModal
+        open={!!modalRole}
+        role={modalRole}
+        onClose={() => setModalRole(null)}
+      />
+
+      <CreateRoleModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => loadRoles()}
+      />
+
+      <RenameRoleModal
+        open={!!renameTarget}
+        role={renameTarget}
+        onClose={() => setRenameTarget(null)}
+        onRenamed={() => loadRoles()}
+      />
+
+      {/* Delete Role confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => !deleting && setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm">Delete Role</h3>
+                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5">
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-1">
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong>?
+            </p>
+            <p className="text-[11px] text-slate-400 mb-6">
+              Users assigned to this role will be unassigned. If this role is used in any workflow step, deletion will be blocked.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-bold rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleted}
+                disabled={deleting}
+                className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-900/10 transition-all flex items-center gap-2 disabled:opacity-40"
+              >
+                {deleting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Delete
               </button>
             </div>
           </div>

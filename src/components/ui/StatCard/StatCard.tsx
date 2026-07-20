@@ -17,7 +17,7 @@ interface StatCardProps {
 const variantBorderMap = {
   default: 'border-slate-200',
   primary: 'border-indigo-200',
-  success: 'border-emerald-200',
+  success: 'border-brand-200',
   warning: 'border-amber-200',
 };
 
@@ -31,7 +31,7 @@ const variantAccentMap = {
 const iconContainerMap = {
   default: 'bg-slate-100 text-slate-600',
   primary: 'bg-indigo-50 text-indigo-600',
-  success: 'bg-emerald-50 text-emerald-600',
+  success: 'bg-brand-50 text-emerald-600',
   warning: 'bg-amber-50 text-amber-600',
 };
 

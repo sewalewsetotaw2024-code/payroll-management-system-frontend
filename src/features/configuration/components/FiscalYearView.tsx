@@ -43,8 +43,8 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
   return (
     <div className="space-y-6">
       {activeYear && (
-        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-6 py-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+        <div className="bg-brand-50 border-2 border-brand-200 rounded-2xl px-6 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center text-emerald-600 shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
@@ -55,7 +55,7 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
               {new Date(activeYear.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' })} — {new Date(activeYear.endDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-100 text-emerald-700 text-xs font-bold uppercase tracking-wider shrink-0">
             <Unlock className="w-3.5 h-3.5" />
             Active
           </span>
@@ -71,13 +71,13 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
               <div
                 key={fy.id}
                 className={`flex items-center justify-between px-8 py-5 transition-all group ${
-                  isActive ? 'bg-emerald-50/30 ring-1 ring-inset ring-emerald-200/50' : 'hover:bg-slate-50/30'
+                  isActive ? 'bg-brand-50/30 ring-1 ring-inset ring-brand-200/50' : 'hover:bg-slate-50/30'
                 }`}
               >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
                     isActive
-                      ? 'bg-emerald-100 text-emerald-600 border-emerald-200'
+                      ? 'bg-brand-100 text-emerald-600 border-brand-200'
                       : 'bg-slate-100 text-slate-400 border-slate-200'
                   }`}>
                     <Calendar className="w-6 h-6" />
@@ -86,7 +86,7 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-slate-900 tracking-tight">{fy.name}</h4>
                       {isActive ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-100 text-emerald-700 border border-brand-200">
                           <Unlock className="w-3 h-3" />
                           Active
                         </span>
@@ -109,7 +109,7 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0 shrink-0">
                   <button
                     onClick={() => onOpenEdit(fy)}
-                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                    className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-brand-50 rounded-xl transition-colors"
                     title={isActive ? 'Edit active fiscal year' : 'Edit fiscal year'}
                   >
                     <Pencil className="w-4 h-4" />
@@ -126,7 +126,7 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
                   {isDraft && (
                     <button
                       onClick={() => fy.id && onActivate(fy.id)}
-                      className="flex items-center gap-2 px-3 py-2 text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 bg-emerald-50/50 rounded-xl transition-all"
+                      className="flex items-center gap-2 px-3 py-2 text-emerald-600 hover:text-white hover:bg-emerald-600 border border-brand-200 bg-brand-50/50 rounded-xl transition-all"
                       title="Activate fiscal year"
                     >
                       <PlayCircle className="w-4 h-4" />
@@ -159,7 +159,7 @@ export const FiscalYearView: React.FC<FiscalYearViewProps> = ({
           pageSize={pageSize}
           onPageSizeChange={onPageSizeChange}
         />
-        <Button onClick={onSync} disabled={loading} className="px-10 shadow shadow-emerald-200/50">
+        <Button onClick={onSync} disabled={loading} className="px-10 shadow shadow-brand-200/50">
           <Save className="w-4 h-4 mr-2" /> Sync Configuration
         </Button>
       </div>

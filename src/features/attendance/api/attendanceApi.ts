@@ -13,10 +13,8 @@ import type {
  * Axios instance configured for the Attendance API base path.
  * Automatically attaches the Bearer token from tokenStorage on every request.
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
-
 const attendanceAxios = axios.create({
-    baseURL: `${API_BASE_URL}/attendance`,
+    baseURL: '/api/v1/attendance',
 });
 
 attendanceAxios.interceptors.request.use((config) => {
@@ -126,6 +124,19 @@ export const attendanceApi = {
     getImportById: async (importId: string): Promise<ImportDetail> => {
         const response = await attendanceAxios.get(`/imports/${importId}`);
         return response.data.data as ImportDetail;
+    },
+
+    /**
+     * Fetches per-employee attendance data for an import, returning a flat
+     * array of employee-level rows with fields like employeeName, externalId,
+     * regularHours, overtimeHours, absentDays, paidLeaveDays, and actualDays.
+     *
+     * @param importId - The unique identifier of the import.
+     * @returns Promise resolving to an array of per-employee attendance rows.
+     */
+    getImportEmployees: async (importId: string): Promise<any[]> => {
+        const response = await attendanceAxios.get(`/imports/${importId}/employees`);
+        return (response.data.data as any[]) ?? [];
     },
 
     /**

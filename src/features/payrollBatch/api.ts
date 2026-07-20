@@ -75,3 +75,20 @@ export async function archiveBatch(batchId: string): Promise<PayrollBatch> {
   );
   return data.data;
 }
+
+export async function deleteBatch(batchId: string): Promise<void> {
+  await axiosInstance.delete(`/payroll-batch/${batchId}`);
+}
+
+export async function removeBatchEmployee(batchEmployeeId: string): Promise<void> {
+  await axiosInstance.delete(`/payroll-batch/employees/${batchEmployeeId}`);
+}
+
+export async function moveBatchEmployee(
+  batchEmployeeId: string,
+  targetBatchId: string,
+): Promise<void> {
+  await axiosInstance.put(`/payroll-batch/employees/${batchEmployeeId}/move`, {
+    targetBatchId,
+  });
+}

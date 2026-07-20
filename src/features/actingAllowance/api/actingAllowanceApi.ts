@@ -3,6 +3,7 @@
  * =========================================
  *
  * Provides methods for rules CRUD and assignments CRUD + preview.
+ * Supports 3 calculation methods: PERCENTAGE, FIXED_AMOUNT, RULE_FIXED_AMOUNT.
  * All methods unwrap the `{ success, data }` envelope.
  *
  * @module actingAllowanceApi
@@ -10,8 +11,6 @@
 
 import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
 import type {
     ActingAllowanceRule,
     ActingAssignment,
@@ -19,11 +18,12 @@ import type {
     CreateAssignmentPayload,
     PreviewPayload,
     Tier,
+    CalculationMethod,
 } from '../types/actingAllowance.types';
 
 /** Axios instance with auth interceptor. */
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: '/api/v1',
 });
 
 axiosInstance.interceptors.request.use((config) => {
@@ -54,7 +54,7 @@ export const actingAllowanceApi = {
     },
 
     createRule: async (data: {
-        calculationMethod?: 'AMOUNT' | 'PERCENTAGE';
+        calculationMethod?: CalculationMethod;
         fixedAmount?: number | null;
         basis?: string;
         tiers?: Tier[];
@@ -66,7 +66,7 @@ export const actingAllowanceApi = {
     },
 
     updateRule: async (id: string, data: Partial<{
-        calculationMethod: 'AMOUNT' | 'PERCENTAGE';
+        calculationMethod: CalculationMethod;
         fixedAmount: number | null;
         basis: string;
         tiers: Tier[];

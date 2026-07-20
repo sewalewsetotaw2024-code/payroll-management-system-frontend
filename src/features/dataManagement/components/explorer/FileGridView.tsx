@@ -44,7 +44,7 @@ const typeLabel = (refId: string): string => {
  */
 const typeColor = (refId: string): string => {
   const map: Record<string, string> = {
-    EMPLOYEE: 'bg-emerald-100 text-emerald-700',
+    EMPLOYEE: 'bg-brand-100 text-emerald-700',
     ATTENDANCE: 'bg-blue-100 text-blue-700',
     ADJUSTMENT: 'bg-amber-100 text-amber-700',
   };
@@ -290,9 +290,9 @@ const FileCard: React.FC<FileCardProps> = ({
       className={cn(
         'group relative bg-white border rounded-xl p-3 flex flex-col gap-2 transition-all cursor-pointer select-none',
         isSelected
-          ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30'
+          ? 'border-brand-500 ring-2 ring-emerald-500/20 bg-brand-50/30'
           : dragOverFolderId === file.id
-            ? 'border-emerald-400 bg-emerald-50/20'
+            ? 'border-brand-400 bg-brand-50/20'
             : 'border-slate-100 hover:border-slate-200 hover:shadow-sm',
       )}
       draggable
@@ -518,7 +518,7 @@ export const FileGridView: React.FC<FileGridViewProps> = ({
             handleDrop(e, null);
           }}
         >
-          <div className="absolute inset-0 bg-emerald-500/5 border-2 border-dashed border-emerald-400/40 rounded-xl m-2 flex items-center justify-center">
+          <div className="absolute inset-0 bg-emerald-500/5 border-2 border-dashed border-brand-400/40 rounded-xl m-2 flex items-center justify-center">
             <p className="text-xs font-semibold text-emerald-600 bg-white px-3 py-1.5 rounded-lg shadow-sm">
               Drop here to move to current folder
             </p>

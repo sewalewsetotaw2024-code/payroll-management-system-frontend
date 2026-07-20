@@ -1,0 +1,304 @@
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  AlertCircle,
+  RefreshCw,
+  Loader2,
+  Clock,
+  Info,
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { payslipApi } from '../api/payslipApi';
+import type {
+  PayslipDetail as PayslipDetailType,
+  GenerationStatus,
+} from '../types/payslip.types';
+import { PayslipDetail } from '../components/PayslipDetail';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EmployeePayslipDetailPage
+// Fetches payslip detail for a period and renders a status-specific view:
+//   • NOT_READY  → "Payslip not yet available"
+//   • GENERATING → Pulsing spinner + auto-polling every 5 s
+//   • COMPLETED  → Full payslip detail with print/download
+//   • FAILED     → Error message + Retry button
+// ─────────────────────────────────────────────────────────────────────────────
+
+const POLL_INTERVAL = 5000;
+
+export const EmployeePayslipDetailPage: React.FC = () => {
+  const { periodId, employeeId: pathEmployeeId } = useParams<{ periodId: string; employeeId: string }>();
+  const [searchParams] = useSearchParams();
+  // Support both path param (new) and query param (legacy bookmarks)
+  const employeeId = pathEmployeeId ?? searchParams.get('employeeId') ?? undefined;
+  const navigate = useNavigate();
+
+  const [payslipDetail, setPayslipDetail] = useState<PayslipDetailType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatus | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Data fetching ────────────────────────────────────────────────────────
+
+  const fetchDetail = useCallback(async () => {
+    if (!periodId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await payslipApi.getMyPayslipDetail(periodId, employeeId);
+      const detail = response.data.data;
+      setPayslipDetail(detail);
+      setGenerationStatus(detail.generationStatus);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          (err instanceof Error ? err.message : 'Failed to load payslip detail'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [periodId, employeeId]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  // ── Auto-polling while GENERATING ────────────────────────────────────────
+  // Follows the same pattern as useAttendanceNotifications: setInterval +
+  // useRef for cleanup, silent failure on poll errors.
+
+  useEffect(() => {
+    if (generationStatus !== 'GENERATING') {
+      // Not generating — ensure any stale interval is cleared
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    intervalRef.current = setInterval(async () => {
+      if (!periodId) return;
+      try {
+        const response = await payslipApi.getMyPayslipDetail(periodId, employeeId);
+        const detail = response.data.data;
+        const newStatus = detail.generationStatus;
+
+        setPayslipDetail(detail);
+        setGenerationStatus(newStatus);
+
+        // Auto-stop polling once generation completes / fails
+        if (newStatus !== 'GENERATING' && intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      } catch {
+        // Silently fail — polling should not disrupt the UI
+      }
+    }, POLL_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [generationStatus, periodId]);
+
+  // ── Retry handler (FAILED → re-trigger batch generation) ─────────────────
+
+  const handleRetry = async () => {
+    if (!payslipDetail?.payrollRunId) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      await payslipApi.batchGeneratePayslipPdfs(payslipDetail.payrollRunId);
+      // Optimistically switch to GENERATING — polling will confirm
+      setGenerationStatus('GENERATING');
+    } catch (err: any) {
+      setRetryError(
+        err?.response?.data?.message ||
+          (err instanceof Error ? err.message : 'Failed to retry generation'),
+      );
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  // ── Status-based views ───────────────────────────────────────────────────
+
+  // Loading skeleton (initial fetch)
+  const LoadingSkeleton = (
+    <div className="bg-white/75 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-8 shadow-sm">
+      <div className="space-y-4">
+        <div className="h-6 bg-slate-100 animate-pulse rounded-lg w-1/3" />
+        <div className="h-4 bg-slate-100 animate-pulse rounded-lg w-1/2" />
+        <div className="h-px bg-slate-100 my-6" />
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex justify-between">
+            <div className="h-4 bg-slate-100 animate-pulse rounded-lg w-1/4" />
+            <div className="h-4 bg-slate-100 animate-pulse rounded-lg w-1/6" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // NOT_READY — payslip record does not exist yet
+  const NotReadyView = (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col items-center justify-center py-20 text-center bg-white/75 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm"
+    >
+      <div className="w-20 h-20 rounded-2xl bg-brand-50 flex items-center justify-center mb-5">
+        <Info className="w-10 h-10 text-emerald-500" />
+      </div>
+      <h3 className="text-xl font-bold text-slate-900 mb-2">
+        Payslip Not Yet Available
+      </h3>
+      <p className="text-sm text-slate-500 max-w-xs">
+        Your payslip for this period has not been generated yet. Please check back
+        later.
+      </p>
+    </motion.div>
+  );
+
+  // GENERATING — PDF is being produced; poll until done
+  const GeneratingView = (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col items-center justify-center py-20 text-center bg-white/75 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm"
+    >
+      <div className="w-20 h-20 rounded-2xl bg-amber-50 flex items-center justify-center mb-5 animate-pulse">
+        <Loader2 className="w-10 h-10 text-amber-500 animate-spin" />
+      </div>
+      <h3 className="text-xl font-bold text-slate-900 mb-2">
+        Generating Payslip…
+      </h3>
+      <p className="text-sm text-slate-500 max-w-xs">
+        Your payslip is being generated. This may take a moment. The page will
+        update automatically.
+      </p>
+      <div className="flex items-center gap-2 mt-6 text-xs text-slate-400">
+        <Clock className="w-3.5 h-3.5" />
+        <span>Checking every 5 seconds…</span>
+      </div>
+    </motion.div>
+  );
+
+  // FAILED — generation errored; show message + retry
+  const FailedView = (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col items-center justify-center py-20 text-center bg-white/75 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm"
+    >
+      <div className="w-20 h-20 rounded-2xl bg-rose-50 flex items-center justify-center mb-5">
+        <AlertCircle className="w-10 h-10 text-rose-500" />
+      </div>
+      <h3 className="text-xl font-bold text-slate-900 mb-2">
+        Payslip Generation Failed
+      </h3>
+      <p className="text-sm text-slate-500 mb-2 max-w-sm">
+        {payslipDetail?.errorMessage ||
+          'An error occurred while generating your payslip.'}
+      </p>
+      {retryError && (
+        <p className="text-sm text-rose-600 mb-4 max-w-sm font-medium">
+          {retryError}
+        </p>
+      )}
+      <button
+        onClick={handleRetry}
+        disabled={retrying}
+        className="inline-flex items-center gap-2.5 px-7 py-3.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-900/20 active:scale-95 mt-4"
+      >
+        {retrying ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <RefreshCw className="w-4 h-4" />
+        )}
+        {retrying ? 'Retrying…' : 'Retry Generation'}
+      </button>
+    </motion.div>
+  );
+
+  // ── Render logic ─────────────────────────────────────────────────────────
+
+  const renderContent = () => {
+    if (loading) return LoadingSkeleton;
+
+    // Fetch-level error (before any status was resolved)
+    if (error && !generationStatus) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white/75 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center mb-4">
+            <AlertCircle className="w-7 h-7 text-rose-500" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            Failed to load payslip
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 max-w-sm">{error}</p>
+          <button
+            onClick={fetchDetail}
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-brand-800 transition-colors shadow-lg"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    if (!payslipDetail) return null;
+
+    // Status-based rendering
+    switch (generationStatus) {
+      case 'NOT_READY':
+        return NotReadyView;
+      case 'GENERATING':
+        return GeneratingView;
+      case 'FAILED':
+        return FailedView;
+      case 'COMPLETED':
+      default:
+        return <PayslipDetail data={payslipDetail} />;
+    }
+  };
+
+  return (
+    <div className="max-w-[1600px] mx-auto space-y-6 pb-20 px-4 md:px-5">
+      {/* Green Gradient Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-brand-800 rounded-2xl p-6 sm:p-8 text-white">
+        <div className="absolute -top-1/2 -right-10 w-72 h-72 rounded-full bg-white/5" />
+        <div className="absolute -bottom-1/2 right-20 w-48 h-48 rounded-full bg-white/3" />
+
+        <div className="relative z-10">
+          <button
+            onClick={() => navigate(`/payslips/${periodId}`)}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 border border-white/20 rounded-lg hover:bg-white/10 transition-colors cursor-pointer mb-4"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Employees
+          </button>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
+            {payslipDetail?.employeeName ? `Payslip — ${payslipDetail.employeeName}` : 'Payslip Details'}
+          </h1>
+          <p className="text-sm text-emerald-100/80 max-w-2xl">
+            {payslipDetail?.periodName ?? 'View payslip, download the PDF, or check generation status.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Main content */}
+      {renderContent()}
+    </div>
+  );
+};

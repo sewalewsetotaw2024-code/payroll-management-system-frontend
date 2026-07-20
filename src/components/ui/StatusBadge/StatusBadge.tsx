@@ -7,7 +7,7 @@ interface StatusBadgeProps {
 }
 
 /** Color tokens shared across status categories */
-const BADGE_SUCCESS = 'bg-emerald-50 text-emerald-700';
+const BADGE_SUCCESS = 'bg-brand-50 text-emerald-700';
 const BADGE_WARNING = 'bg-amber-50 text-amber-700';
 const BADGE_DANGER = 'bg-rose-50 text-rose-700';
 const BADGE_NEUTRAL = 'bg-slate-100 text-slate-600';

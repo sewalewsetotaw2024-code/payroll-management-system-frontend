@@ -19,11 +19,9 @@ import type {
   SystemCurrency,
 } from '../types/configuration.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1';
-
 // Axios for integration/sync endpoints (base: /api/v1/integrations)
 const integrationAxios = axios.create({
-  baseURL: `${API_BASE_URL}/integrations`,
+  baseURL: '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -70,22 +68,11 @@ export interface PayrollEmployee {
 /** Backward-compatible alias for PayrollEmployee. */
 export type Employee = PayrollEmployee;
 
-const employeeAxios = axios.create({
-  baseURL: `${API_BASE_URL}/employees`,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-employeeAxios.interceptors.request.use((config) => {
-  const token = tokenStorage.getToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
 /** API endpoints for fetching payroll employee data. */
 export const employeeApi = {
   getAll: (params?: { search?: string; status?: string; page?: number; limit?: number }) =>
-    employeeAxios.get('/', { params }),
-  getById: (id: string) => employeeAxios.get(`/${id}`),
+    axiosInstance.get('/employees', { params }),
+  getById: (id: string) => axiosInstance.get(`/employees/${id}`),
 };
 
 // ─── Sync & Integration ───────────────────────────────────────────────
@@ -291,4 +278,11 @@ export const employeeDeductionApi = {
     assignments?: Array<{ employeeId: string; amount?: number | null; percent?: number | null }>;
     assignAllEmployees?: boolean;
   }) => axiosInstance.post('/employee-deductions/bulk-assign', data),
+};
+
+// ─── Deduction Cap ──────────────────────────────────────────
+/** API endpoints for fetching and updating the company-wide deduction cap percentage. */
+export const deductionCapApi = {
+  get: () => axiosInstance.get('/configuration/deduction-cap'),
+  update: (value: number) => axiosInstance.put('/configuration/deduction-cap', { value }),
 };

@@ -249,7 +249,7 @@ export const PayrollPeriodConfiguration: React.FC = () => {
           id="btn-add-payroll-period"
           onClick={openAdd}
           disabled={saving || (periods as PayrollPeriod[]).length >= 12}
-          className="shadow shadow-emerald-200/50"
+          className="shadow shadow-brand-200/50"
         >
           <Plus className="w-4 h-4" /> Add Period
         </Button>
@@ -376,7 +376,7 @@ export const PayrollPeriodConfiguration: React.FC = () => {
           />
           {/* Duration preview */}
           {(days > 0 || hours > 0) && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 space-y-2">
+            <div className="bg-brand-50 border border-brand-200 rounded-2xl px-4 py-3 space-y-2">
               <div className="flex items-center justify-between text-xs text-emerald-700 font-medium">
                 <span>Calendar Duration:</span>
                 <span className="font-black">{days} days</span>
@@ -418,7 +418,7 @@ export const PayrollPeriodConfiguration: React.FC = () => {
         }
       >
         <div className="flex items-start gap-4">
-          <div className={`p-2 rounded-full shrink-0 ${currentlyOpenPeriod ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+          <div className={`p-2 rounded-full shrink-0 ${currentlyOpenPeriod ? 'bg-amber-100' : 'bg-brand-100'}`}>
             <AlertTriangle className={`w-5 h-5 ${currentlyOpenPeriod ? 'text-amber-600' : 'text-emerald-600'}`} />
           </div>
           <div className="space-y-2">

@@ -110,7 +110,7 @@ export const PayslipNotificationSettingsView: React.FC<PayslipNotificationSettin
               description="Send payslip notifications via SMS"
               checked={smsNotifications}
               onChange={onSmsToggle}
-              accent="bg-emerald-50 text-emerald-600"
+              accent="bg-brand-50 text-emerald-600"
             />
             <ChannelCard
               icon={<Smartphone className="w-4 h-4" />}
@@ -176,7 +176,7 @@ export const PayslipNotificationSettingsView: React.FC<PayslipNotificationSettin
               <select
                 onChange={(e) => { if (e.target.value) onAddTrigger(e.target.value); e.target.value = ''; }}
                 value=""
-                className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-200"
               >
                 <option value="">Add trigger…</option>
                 {availableTriggers.map((opt) => (

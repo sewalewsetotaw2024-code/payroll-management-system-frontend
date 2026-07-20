@@ -119,17 +119,19 @@ export interface ApprovalWorkflowStep {
 
 /** Legacy role enum — kept for backward compatibility with fallback code.
  *  New roles added in the DB will use their name as the key (uppercased with underscores). */
-export type UserRole = 'HR_OFFICER' | 'HR_MANAGER' | 'PAYROLL_OFFICER' | 'FINANCE_MANAGER' | 'FINANCE_OFFICER' | 'DEPARTMENT_MANAGER' | 'ADMIN';
+export type UserRole = 'HR_GENERALIST' | 'HR_CS_MANAGER' | 'HR_CS_DIRECTOR' | 'PAYROLL_OFFICER' | 'FINANCE_MANAGER' | 'FINANCE_OFFICER' | 'DEPARTMENT_MANAGER' | 'ADMIN';
 
 /** Fallback labels for known roles when the API is unavailable. */
 export const ROLE_LABELS: Record<string, string> = {
-  HR_OFFICER: 'HR Officer',
-  HR_MANAGER: 'HR Manager',
+  HR_GENERALIST: 'HR Generalist',
+  HR_CS_MANAGER: 'HR CS Manager',
+  HR_CS_DIRECTOR: 'HR CS Director',
   PAYROLL_OFFICER: 'Payroll Officer',
   FINANCE_MANAGER: 'Finance Manager',
   FINANCE_OFFICER: 'Finance Officer',
   DEPARTMENT_MANAGER: 'Department Manager',
   ADMIN: 'Admin',
+  HR: 'HR',
 };
 
 export interface RolePermissions {
@@ -157,12 +159,12 @@ export interface RolePermissions {
 /** Default/fallback permission matrix when the API is unavailable.
  *  Dynamically-fetched permissions from the backend will override these. */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
-  HR_OFFICER: {
+  HR_GENERALIST: {
     canActivateImport: true,
     canCalculateOt: true,
     canCalculateSummary: true,
     canApproveImport: true,
-    canRunPayroll: false,
+    canRunPayroll: true,
     canSyncLeave: true,
     canReRunEmployee: true,
     canSubmitForApproval: true,
@@ -173,8 +175,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     canApprovePayment: false,
     canRejectPayment: false,
     canViewEmployeeDetail: true,
-    canApproveAttendance: false,
-    canRejectAttendance: false,
+    canApproveAttendance: true,
+    canRejectAttendance: true,
   },
   PAYROLL_OFFICER: {
     canActivateImport: false,
@@ -243,16 +245,35 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, RolePermissions> = {
     canReRunEmployee: false,
     canSubmitForApproval: false,
     canSubmitPayroll: false,
-    canApproveRun: true,
-    canRejectRun: true,
+    canApproveRun: false,
+    canRejectRun: false,
     canSubmitPaymentFile: true,
-    canApprovePayment: false,
-    canRejectPayment: false,
+    canApprovePayment: true,
+    canRejectPayment: true,
     canViewEmployeeDetail: true,
     canApproveAttendance: false,
     canRejectAttendance: false,
   },
-  HR_MANAGER: {
+  HR_CS_MANAGER: {
+    canActivateImport: true,
+    canCalculateOt: true,
+    canCalculateSummary: true,
+    canApproveImport: true,
+    canRunPayroll: true,
+    canSyncLeave: true,
+    canReRunEmployee: true,
+    canSubmitForApproval: true,   // fallback when no HR Generalist exists
+    canSubmitPayroll: true,
+    canApproveRun: true,
+    canRejectRun: true,
+    canSubmitPaymentFile: false,
+    canApprovePayment: false,
+    canRejectPayment: false,
+    canViewEmployeeDetail: true,
+    canApproveAttendance: true,
+    canRejectAttendance: true,
+  },
+  HR_CS_DIRECTOR: {
     canActivateImport: false,
     canCalculateOt: false,
     canCalculateSummary: false,

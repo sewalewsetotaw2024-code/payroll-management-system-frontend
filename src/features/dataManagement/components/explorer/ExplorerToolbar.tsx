@@ -86,12 +86,12 @@ export const ExplorerToolbar: React.FC<ExplorerToolbarProps> = ({
               if (e.key === 'Escape') onCancelCreateFolder();
             }}
             placeholder={folderPlaceholder}
-            className="w-36 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            className="w-36 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
             autoFocus
           />
           <button
             onClick={onCreateFolder}
-            className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-emerald-600 hover:bg-brand-50 transition-colors cursor-pointer"
             aria-label="Confirm create folder"
           >
             <Check className="w-4 h-4" />
@@ -173,7 +173,7 @@ export const ExplorerToolbar: React.FC<ExplorerToolbarProps> = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search files..."
-          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
           aria-label="Search files"
         />
       </div>

@@ -20,22 +20,24 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, trend, isUp, icon, color }) => {
   return (
-    <div className="glass-card p-6 flex flex-col gap-4">
+    <div className="glass-card p-6 flex flex-col gap-4 group hover:-translate-y-1 transition-all duration-300">
       <div className="flex items-center justify-between">
-        <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-700">
+        <div className="w-12 h-12 bg-brand-primary/10 rounded-2xl flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform duration-300">
           {icon}
         </div>
         <div className={cn(
-          "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
-          isUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+          "flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full ring-1",
+          isUp 
+            ? "bg-brand-50 text-emerald-700 ring-emerald-500/20" 
+            : "bg-rose-50 text-rose-700 ring-rose-500/20"
         )}>
-          {isUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          {isUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
           {trend}
         </div>
       </div>
       <div>
-        <p className="text-sm text-slate-500 font-medium">{title}</p>
-        <h4 className={cn("text-2xl font-bold mt-1", color || "text-slate-900")}>{value}</h4>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+        <h4 className={cn("text-2xl font-bold mt-1 tracking-tight font-mono", color || "text-slate-900")}>{value}</h4>
       </div>
     </div>
   );

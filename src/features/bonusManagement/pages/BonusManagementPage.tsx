@@ -115,7 +115,7 @@ const EligibilityStep = () => (
         <RuleRow label="Tenure" operator="Is at least" value="12 Months" />
         <RuleRow label="Department" operator="InCLUDES" value="All Departments" />
         <div className="pt-4 flex justify-center">
-          <button className="text-emerald-700 font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-50 px-4 py-2 rounded-full transition-colors">
+          <button className="text-emerald-700 font-bold text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-brand-50 px-4 py-2 rounded-full transition-colors">
             <Plus className="w-4 h-4" /> Add Or Filter
           </button>
         </div>
@@ -151,9 +151,9 @@ const TaxConfigStep = () => (
     <div className="glass-card p-8">
       <h3 className="font-bold text-slate-900 mb-8">Bonus Taxation Strategy</h3>
       <div className="space-y-8">
-        <div className="flex items-center justify-between p-6 rounded-2xl border border-slate-100 bg-white shadow-sm hover:border-emerald-500 hover:ring-4 hover:ring-emerald-500/10 transition-all cursor-pointer">
+        <div className="flex items-center justify-between p-6 rounded-2xl border border-slate-100 bg-white shadow-sm hover:border-brand-500 hover:ring-4 hover:ring-brand-500/10 transition-all cursor-pointer">
           <div className="flex gap-4">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-brand-100 text-emerald-700 rounded-2xl flex items-center justify-center">
               <Scale className="w-6 h-6" />
             </div>
             <div>
@@ -186,7 +186,7 @@ const TaxConfigStep = () => (
 const GenerationStep = () => (
   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
     <div className="glass-card p-12 text-center flex flex-col items-center">
-      <div className="w-20 h-20 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mb-6">
+      <div className="w-20 h-20 bg-brand-100 text-emerald-700 rounded-full flex items-center justify-center mb-6">
         <Zap className="w-10 h-10" />
       </div>
       <h3 className="text-xl font-bold text-slate-900 mb-2">Ready to Generate Bonus Batch?</h3>

@@ -41,7 +41,7 @@ export const ConfigSection: React.FC<ConfigSectionProps> = ({
           <p className="text-sm text-slate-500 mt-1">{description}</p>
         </div>
         {showBadge && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider shrink-0 border border-emerald-100/50 self-start sm:self-auto">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider shrink-0 border border-emerald-100/50 self-start sm:self-auto">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {badgeText}
           </span>

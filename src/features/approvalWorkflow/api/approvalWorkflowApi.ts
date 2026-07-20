@@ -9,11 +9,10 @@ import type {
 
 // Timeout ensures requests don't hang indefinitely when the backend is unavailable.
 const API_TIMEOUT = 10000; // 10 seconds
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://payroll-management-system-backend-d2y9.onrender.com/api/v1";
 
-const attendanceAxios = axios.create({ baseURL: `${API_BASE_URL}/attendance`, timeout: API_TIMEOUT });
-const payrollAxios = axios.create({ baseURL: `${API_BASE_URL}/payroll`, timeout: API_TIMEOUT });
-const approvalAxios = axios.create({ baseURL: `${API_BASE_URL}/approval`, timeout: API_TIMEOUT });
+const attendanceAxios = axios.create({ baseURL: "/api/v1/attendance", timeout: API_TIMEOUT });
+const payrollAxios = axios.create({ baseURL: "/api/v1/payroll", timeout: API_TIMEOUT });
+const approvalAxios = axios.create({ baseURL: "/api/v1/approval", timeout: API_TIMEOUT });
 
 [attendanceAxios, payrollAxios, approvalAxios].forEach((instance) => {
   instance.interceptors.request.use((config) => {
@@ -260,7 +259,7 @@ export function computePipelineFlags(
 
 // ── Dynamic Roles API ───────────────────────────────────────────────────────
 
-const rolesAxios = axios.create({ baseURL: `${API_BASE_URL}/roles`, timeout: API_TIMEOUT });
+const rolesAxios = axios.create({ baseURL: "/api/v1/roles", timeout: API_TIMEOUT });
 rolesAxios.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -271,6 +270,59 @@ export interface DynamicRole {
   id: number;
   name: string;
   permissions: Record<string, boolean> | null;
+}
+
+/**
+ * Create a new role.
+ */
+export async function createRole(name: string): Promise<DynamicRole | null> {
+  try {
+    const res = await rolesAxios.post("/", { name });
+    return res.data?.data || null;
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to create role";
+    throw new Error(message);
+  }
+}
+
+/**
+ * Rename a role.
+ */
+export async function updateRole(
+  roleId: number,
+  data: { name: string },
+): Promise<{ id: number; name: string } | null> {
+  try {
+    const res = await rolesAxios.patch(`/${roleId}`, data);
+    return res.data?.data || null;
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to update role";
+    throw new Error(message);
+  }
+}
+
+/**
+ * Delete a role.
+ */
+export async function deleteRole(roleId: number): Promise<void> {
+  try {
+    await rolesAxios.delete(`/${roleId}`);
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to delete role";
+    throw new Error(message);
+  }
 }
 
 /**
@@ -336,6 +388,98 @@ export async function updateRolePermissions(
   }
 }
 
+// ── User-to-Role Assignment API ───────────────────────────────────────
+
+export interface RoleUser {
+  id: number;
+  email: string | null;
+  status: string;
+  roleId: number;
+  employee: {
+    id: number;
+    externalId: string | null;
+    firstName: string;
+    lastName: string;
+  } | null;
+  role?: { id: number; name: string } | null;
+}
+
+export interface UnassignedEmployee {
+  id: number;
+  externalId: string | null;
+  firstName: string;
+  lastName: string;
+  departmentName?: string;
+}
+
+/**
+ * Fetch all users assigned to a specific role.
+ */
+export async function fetchRoleUsers(roleId: number): Promise<RoleUser[]> {
+  try {
+    const res = await rolesAxios.get(`/${roleId}/users`);
+    return res.data?.data || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch employees that can be assigned to a role.
+ * @param excludeRoleId — optional. When set, returns employees NOT already in this role.
+ *   Without it, returns only employees with no role at all.
+ */
+export async function fetchUnassignedEmployees(
+  excludeRoleId?: number,
+): Promise<UnassignedEmployee[]> {
+  try {
+    const params = excludeRoleId != null ? { excludeRoleId } : {};
+    const res = await rolesAxios.get("/employees/unassigned", { params });
+    return res.data?.data || [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Assign an employee to a role (upserts their AppUser record).
+ */
+export async function assignUserToRole(
+  roleId: number,
+  employeeId: string,
+): Promise<RoleUser | null> {
+  try {
+    const res = await rolesAxios.post(`/${roleId}/users`, { employeeId });
+    return res.data?.data || null;
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to assign user to role";
+    throw new Error(message);
+  }
+}
+
+/**
+ * Remove a user from their role by setting roleId to null.
+ */
+export async function removeUserFromRole(
+  roleId: number,
+  userId: number,
+): Promise<void> {
+  try {
+    await rolesAxios.delete(`/${roleId}/users/${userId}`);
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to remove user from role";
+    throw new Error(message);
+  }
+}
+
 // ── Approval Workflow API ────────────────────────────────────────────────────
 
 export interface ApprovalWorkflowConfig {
@@ -348,11 +492,13 @@ export interface ApprovalWorkflowConfig {
   updatedAt?: string;
   steps: {
     id: string;
-    stageType: string;
+    stageType: 'PAYROLL_APPROVAL' | 'PAYMENT_FILE' | 'ATTENDANCE' | 'PAYROLL_BATCH' | 'PAYROLL_DOCUMENT';
     stepOrder: number;
     requiredRoleId: number;
     isRequired: boolean;
     requiredRole: { id: number; name: string };
+    alternateRoleId?: number | null;
+    alternateRoleName?: string;
   }[];
 }
 

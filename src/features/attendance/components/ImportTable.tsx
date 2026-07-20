@@ -119,10 +119,10 @@ export const ImportTable: React.FC<ImportTableProps> = ({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200/60 bg-white/40">
-            <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px] tracking-wider">
+            <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px] tracking-wider border-r border-slate-200/50">
               Period
             </th>
-            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider">
+            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider border-r border-slate-200/50">
               <button
                 onClick={() => handleSort("totalEmployees")}
                 className="inline-flex items-center gap-1 hover:text-slate-600 transition-colors"
@@ -132,7 +132,7 @@ export const ImportTable: React.FC<ImportTableProps> = ({
                 <SortIcon field="totalEmployees" />
               </button>
             </th>
-            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider">
+            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider border-r border-slate-200/50">
               <button
                 onClick={() => handleSort("totalRecords")}
                 className="inline-flex items-center gap-1 hover:text-slate-600 transition-colors"
@@ -142,10 +142,10 @@ export const ImportTable: React.FC<ImportTableProps> = ({
                 <SortIcon field="totalRecords" />
               </button>
             </th>
-            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider">
+            <th className="px-4 py-3 text-center font-bold text-slate-400 uppercase text-[10px] tracking-wider border-r border-slate-200/50">
               Status
             </th>
-            <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px] tracking-wider">
+            <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px] tracking-wider border-r border-slate-200/50">
               <button
                 onClick={() => handleSort("importedAt")}
                 className="inline-flex items-center gap-1 hover:text-slate-600 transition-colors"
@@ -161,7 +161,7 @@ export const ImportTable: React.FC<ImportTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {visibleImports.map((imp) => {
+          {visibleImports.map((imp, idx) => {
             const isSelected = imp.id === selectedImportId;
             return (
               <tr
@@ -170,10 +170,11 @@ export const ImportTable: React.FC<ImportTableProps> = ({
                 className={cn(
                   "border-b border-slate-100 cursor-pointer transition-colors",
                   imp.isActive
-                    ? "bg-emerald-50/60 hover:bg-emerald-50"
+                    ? "bg-brand-50/60 hover:bg-brand-50"
                     : isSelected
                       ? "bg-blue-50/40 hover:bg-blue-50/60"
-                      : "hover:bg-slate-50/60"
+                      : idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                  "hover:bg-brand-50/60 transition-colors"
                 )}
               >
                 <td className="px-4 py-3">
@@ -195,7 +196,7 @@ export const ImportTable: React.FC<ImportTableProps> = ({
                 <td className="px-4 py-3 text-center">
                   <div className="flex items-center justify-center gap-1.5">
                     {imp.isActive && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-100 text-emerald-700 border border-brand-200">
                         <Zap className="w-2.5 h-2.5" /> ACTIVE
                       </span>
                     )}
@@ -225,7 +226,7 @@ export const ImportTable: React.FC<ImportTableProps> = ({
                         "text-[10px] font-bold px-2.5 py-1 rounded-md transition-all",
                         imp.isActive
                           ? "bg-slate-200 text-slate-600 hover:bg-slate-300"
-                          : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "bg-brand-100 text-emerald-700 hover:bg-emerald-200"
                       )}
                     >
                       {imp.isActive ? "Deactivate" : "Activate"}

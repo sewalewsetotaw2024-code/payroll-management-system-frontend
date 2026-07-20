@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from '../../../components/ui/Toast';
+import { cn } from '../../../lib/utils';
 import { dataManagementApi } from '../api/dataManagementApi';
 import {
   FIELD_MAP,
@@ -340,8 +341,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   }}
                   className={`p-6 rounded-xl border-2 text-left transition-all cursor-pointer ${
                     selectedType === type.value
-                      ? 'border-emerald-400 bg-emerald-50/50'
-                      : 'border-slate-200 hover:border-emerald-200 hover:bg-slate-50'
+                      ? 'border-brand-400 bg-brand-50/50'
+                      : 'border-slate-200 hover:border-brand-200 hover:bg-slate-50'
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-xl ${type.color} bg-opacity-10 flex items-center justify-center mb-4`}>
@@ -402,16 +403,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50">
-                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">File Column</th>
-                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">Sample Data</th>
+                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase border-r border-slate-200/50">File Column</th>
+                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase border-r border-slate-200/50">Sample Data</th>
                         <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">Map To</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                       {columns.map((col, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 font-medium text-slate-700">{col.header}</td>
-                          <td className="px-4 py-2.5 text-slate-400 text-xs max-w-[200px] truncate">
+                        <tr key={i} className={cn("border-b border-slate-100 transition-colors", i % 2 === 0 ? 'bg-slate-50/40' : 'bg-white', "hover:bg-brand-50/60")}>
+                          <td className="px-4 py-2.5 font-medium text-slate-700 border-r border-slate-200/50">{col.header}</td>
+                          <td className="px-4 py-2.5 text-slate-400 text-xs max-w-[200px] truncate border-r border-slate-200/50">
                             {col.sample.filter(Boolean).join(', ') || '(empty)'}
                           </td>
                           <td className="px-4 py-2.5">
@@ -449,20 +450,20 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50">
-                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">#</th>
+                        <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase border-r border-slate-200/50">#</th>
                         {columns.filter((c) => c.mappedField && c.mappedField !== '_skip').map((col) => (
-                          <th key={col.index} className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">
+                          <th key={col.index} className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap border-r border-slate-200/50">
                             {col.mappedField}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                       {parsedFile.rows.slice(0, 5).map((row, ri) => (
-                        <tr key={ri} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-2 text-xs text-slate-400 font-mono">{ri + 1}</td>
-                          {columns.filter((c) => c.mappedField && c.mappedField !== '_skip').map((col) => (
-                            <td key={col.index} className="px-4 py-2 text-slate-700 max-w-[150px] truncate">
+                        <tr key={ri} className={cn("border-b border-slate-100 transition-colors", ri % 2 === 0 ? 'bg-slate-50/40' : 'bg-white', "hover:bg-brand-50/60")}>
+                          <td className="px-4 py-2 text-xs text-slate-400 font-mono border-r border-slate-200/50">{ri + 1}</td>
+                          {columns.filter((c) => c.mappedField && c.mappedField !== '_skip').map((col, ci, arr) => (
+                            <td key={col.index} className={cn("px-4 py-2 text-slate-700 max-w-[150px] truncate", ci < arr.length - 1 ? 'border-r border-slate-200/50' : '')}>
                               {String(row[col.header] ?? '') || <span className="text-slate-300">—</span>}
                             </td>
                           ))}
@@ -486,7 +487,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           {step === 'done' && result && (
             <div className="space-y-4">
               <div className="flex flex-col items-center py-8">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-brand-100 flex items-center justify-center mb-4">
                   <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                 </div>
                 <p className="text-xl font-bold text-slate-900">Import Complete</p>
@@ -498,7 +499,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <p className="text-2xl font-black text-slate-900">{result.totalRows}</p>
                   <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Total Rows</p>
                 </div>
-                <div className="p-4 bg-emerald-50 rounded-xl text-center">
+                <div className="p-4 bg-brand-50 rounded-xl text-center">
                   <p className="text-2xl font-black text-emerald-600">{result.created}</p>
                   <p className="text-[10px] font-bold text-emerald-500 uppercase mt-1">Created</p>
                 </div>

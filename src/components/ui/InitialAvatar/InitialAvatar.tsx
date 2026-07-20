@@ -17,7 +17,7 @@ const sizeMap = {
 };
 
 const variantMap = {
-  emerald: 'bg-gradient-to-br from-emerald-500 to-emerald-600',
+  emerald: 'bg-gradient-to-br from-brand-500 to-brand-600',
   indigo: 'bg-gradient-to-br from-indigo-500 to-purple-500',
   amber: 'bg-gradient-to-br from-amber-500 to-orange-500',
   slate: 'bg-gradient-to-br from-slate-400 to-slate-500',

@@ -1,3 +1,10 @@
+export interface PeriodOption {
+  id: string;
+  name: string | null;
+  startDate: string;
+  endDate: string;
+}
+
 export interface PayrollBatch {
   id: string;
   name: string;

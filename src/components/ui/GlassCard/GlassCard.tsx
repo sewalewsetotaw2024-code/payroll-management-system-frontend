@@ -41,10 +41,9 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       role={Component === 'div' && onClick ? 'button' : undefined}
       tabIndex={Component === 'div' && onClick ? 0 : undefined}
       className={cn(
-        'bg-white/80 backdrop-blur-lg border border-slate-200 shadow-sm transition-colors duration-200',
+        'glass rounded-3xl transition-all duration-300',
         paddingMap[padding],
-        isInteractive && 'hover:border-slate-300 hover:shadow-md cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2',
-        'rounded-xl',
+        isInteractive && 'hover:bg-white/90 hover:shadow-xl hover:-translate-y-0.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary/20 focus-visible:outline-none',
         className,
       )}
     >

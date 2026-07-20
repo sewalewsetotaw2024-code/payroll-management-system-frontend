@@ -61,7 +61,7 @@ export const EmployeeAttendanceDetail: React.FC = () => {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full" />
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full" />
       <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">Analyzing Performance Data...</p>
     </div>
   );
@@ -80,126 +80,115 @@ export const EmployeeAttendanceDetail: React.FC = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="max-w-7xl mx-auto space-y-10 pb-20 relative">
       {/* Premium Glass Header */}
-      <GlassCard>
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-4">
+      <div className="glass rounded-[3rem] p-10 bg-white/40 border-white shadow-2xl backdrop-blur-md">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+          <div className="space-y-6">
             <button 
               onClick={() => navigate(`/attendance${importId ? `?importId=${importId}` : ""}`)}
-              className="group flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition-colors"
+              className="group flex items-center gap-3 text-slate-400 hover:text-brand-primary transition-all active:scale-95"
             >
-              <div className="w-7 h-7 rounded-lg bg-white/60 border border-slate-200 flex items-center justify-center group-hover:border-emerald-200 group-hover:bg-emerald-50 transition-all">
-                <ArrowLeft className="w-4 h-4" />
+              <div className="w-10 h-10 rounded-2xl glass border-white flex items-center justify-center group-hover:bg-white transition-all shadow-sm">
+                <ArrowLeft className="w-5 h-5" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest">Back to Attendance</span>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em]">Personnel Overview</span>
             </button>
             
-            <div className="flex items-center gap-4">
-              <InitialAvatar
-                firstName={employeeName?.split(' ')[0] ?? ''}
-                lastName={employeeName?.split(' ').slice(1).join(' ') ?? ''}
-                size="xl"
-                variant="emerald"
-              />
+            <div className="flex items-center gap-6">
+              <div className="relative group">
+                <div className="absolute inset-0 bg-brand-primary rounded-[2rem] blur-xl opacity-0 group-hover:opacity-20 transition-opacity" />
+                <InitialAvatar
+                  firstName={employeeName?.split(' ')[0] ?? ''}
+                  lastName={employeeName?.split(' ').slice(1).join(' ') ?? ''}
+                  size="xl"
+                  variant="emerald"
+                  className="rounded-[2rem] shadow-xl relative z-10 ring-4 ring-white"
+                />
+              </div>
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-                    {employeeName || `Employee ${employeeId}`}
+                <div className="flex items-center gap-4 mb-2">
+                  <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
+                    {employeeName || "Identifying..."}
                   </h1>
-                  <StatusBadge status="Present" />
+                  <span className="px-3 py-1 rounded-xl bg-brand-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
+                    Verified Present
+                  </span>
                 </div>
-                <p className="text-sm text-slate-400 font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Intelligence Report &middot; <span className="text-slate-900 font-bold">{detail.periodLabel || "Current Sync"}</span>
-                </p>
+                <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-brand-primary" />
+                    <span>{detail.periodLabel || "Active Cycle"}</span>
+                  </div>
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                  <span className="text-slate-900">Biometric Intel Report</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex gap-3 shrink-0">
-            <button className="px-5 py-2.5 bg-white/60 backdrop-blur-sm border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-white/80 transition-all flex items-center gap-2 shadow-sm active:scale-95 cursor-pointer">
-              <Inbox className="w-4 h-4" /> Export Report
-            </button>
-            <button className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 active:scale-95 cursor-pointer">
-              <ShieldCheck className="w-4 h-4" /> Validate Hours
-            </button>
+          <div className="flex gap-4 shrink-0">
+            <Button variant="secondary" className="px-8 shadow-lg border-white">
+              <Inbox className="w-4 h-4" /> Export Intel
+            </Button>
+            <Button className="px-8 shadow-brand-900/20">
+              <ShieldCheck className="w-4 h-4" /> Finalize Record
+            </Button>
           </div>
         </div>
-      </GlassCard>
+      </div>
 
-      {/* Dynamic Stats - Glass Cards */}
+      {/* Dynamic Stats - Bento Grid */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <GlassCard>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Utilization</p>
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-blue-600" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: 'Cycle Utilization', value: formatHourValue(summary.regularHours), unit: 'h', icon: Clock, color: 'text-blue-500', desc: 'Regular Hours' },
+            { label: 'Cumulative Delay', value: summary.lateMinutes, unit: 'm', icon: AlertTriangle, color: summary.lateMinutes > 60 ? 'text-red-500' : 'text-amber-500', desc: 'Lateness Log' },
+            { label: 'Overtime Engine', value: formatHourValue(Number(summary.normalOtHours) + Number(summary.weekendOtHours)), unit: 'h', icon: TrendingUp, color: 'text-indigo-500', desc: 'Total OT Ingest' },
+            { label: 'Presence Matrix', value: detail.attendanceRecords?.filter((r) => r.employeeId === employeeId && !r.isAbsent).length ?? 0, unit: '', icon: CheckCircle2, color: 'text-brand-primary', desc: 'Active Days' },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="glass rounded-[2rem] p-8 shadow-xl border-white group hover:-translate-y-1 transition-all duration-300 flex flex-col gap-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className={cn("w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center ring-1 ring-slate-100 group-hover:scale-110 transition-transform", stat.color)}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{stat.label}</span>
               </div>
-            </div>
-            <p className="text-3xl font-black text-slate-900 tracking-tight tabular-nums">{formatHourValue(summary.regularHours)}<span className="text-sm font-bold text-slate-400 ml-1">h</span></p>
-            <p className="text-[11px] text-slate-400 mt-1">Regular Hours</p>
-          </GlassCard>
-
-          <GlassCard>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Lateness</p>
-              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <div>
+                <p className="text-3xl font-black text-slate-900 tracking-tight font-mono tabular-nums">
+                  {stat.value}<span className="text-sm font-bold text-slate-400 ml-1">{stat.unit}</span>
+                </p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{stat.desc}</p>
               </div>
-            </div>
-            <p className={cn("text-3xl font-black tracking-tight tabular-nums", summary.lateMinutes > 60 ? "text-red-600" : "text-slate-900")}>
-              {summary.lateMinutes}<span className="text-sm font-bold text-slate-400 ml-1">m</span>
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">Total Delay</p>
-          </GlassCard>
-
-          <GlassCard>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Overtime</p>
-              <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-indigo-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-slate-900 tracking-tight tabular-nums">
-              {formatHourValue(Number(summary.normalOtHours) + Number(summary.weekendOtHours))}<span className="text-sm font-bold text-slate-400 ml-1">h</span>
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">Total OT</p>
-          </GlassCard>
-
-          <GlassCard>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Attendance</p>
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-slate-900 tracking-tight tabular-nums">
-              {detail.attendanceRecords?.filter((r) => r.employeeId === employeeId && !r.isAbsent).length ?? 0}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">Days Present</p>
-          </GlassCard>
+            </motion.div>
+          ))}
         </div>
       )}
 
-      {/* Two-column layout: Heatmap + Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Two-column layout: Heatmap + Metrics */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Heatmap Card */}
-        <GlassCard padding="lg" className="lg:col-span-2">
+        <div className="lg:col-span-8 glass rounded-[3rem] p-10 shadow-2xl border-white bg-white/40">
           <AttendanceHeatmap
             employeeId={employeeId!}
             importId={importId!}
             employeeName={employeeName}
           />
-        </GlassCard>
+        </div>
 
         {/* Right column */}
-        <div className="flex flex-col gap-6">
+        <div className="lg:col-span-4 flex flex-col gap-8">
           {/* Work Metrics - Dark glass card */}
-          <GlassCard padding="lg" className="bg-slate-900/95 backdrop-blur-xl border-slate-700 text-white">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-white/60 mb-6">Work Metrics</h3>
-            <div className="space-y-4">
+          <div className="glass-dark rounded-[3.5rem] p-10 shadow-2xl text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-8 border-b border-white/10 pb-4">Cycle Performance Matrix</h3>
+            <div className="space-y-6">
               {SUMMARY_FIELDS.map((field, idx) => {
                 const modelField = SUMMARY_FIELD_MAP[field] as string;
                 const val = modelField ? (summary as any)[modelField] as number : 0;
@@ -211,25 +200,33 @@ export const EmployeeAttendanceDetail: React.FC = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.05 }}
                     key={field} 
-                    className="flex items-center justify-between py-2 border-b border-white/10 last:border-0"
+                    className="flex items-center justify-between group/item"
                   >
-                    <span className="text-xs font-bold text-white/60">{field}</span>
-                    <span className={cn("text-sm font-black tracking-tight", val > 0 && field.includes("Absence") ? "text-red-400" : "text-white")}>
-                      {formatHourValue(val)} {field.includes("Minutes") ? "m" : "h"}
-                    </span>
+                    <span className="text-xs font-bold text-white/50 group-hover/item:text-white transition-colors">{field}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn("text-lg font-black tracking-tight font-mono", val > 0 && field.includes("Absence") ? "text-rose-400" : "text-white")}>
+                        {formatHourValue(val)}
+                      </span>
+                      <span className="text-[10px] font-black text-white/30 uppercase">{field.includes("Minutes") ? "m" : "h"}</span>
+                    </div>
                   </motion.div>
                 );
               })}
             </div>
-          </GlassCard>
+          </div>
 
           {/* Summary Verdict */}
-          <GlassCard padding="lg" className="bg-emerald-50/80 border-emerald-200">
-            <h3 className="text-sm font-bold text-emerald-900 uppercase tracking-widest mb-4">Summary Verdict</h3>
-            <p className="text-emerald-800/70 text-sm leading-relaxed font-medium">
-              Attendance records for this cycle show a <span className="font-bold text-emerald-900">{(Number(summary?.regularHours || 0) / 160 * 100).toFixed(0)}%</span> shift compliance. No critical discrepancies detected in biometric logs.
+          <div className="glass bg-brand-50 rounded-[3rem] p-8 border-white shadow-xl group">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform">
+                <CheckCircle2 className="w-5 h-5 text-brand-primary" />
+              </div>
+              <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.2em]">Compliance Verdict</h3>
+            </div>
+            <p className="text-emerald-900/70 text-sm leading-relaxed font-medium">
+              Employee attendance for the current processing window indicates a <span className="font-black text-emerald-900">{(Number(summary?.regularHours || 0) / 160 * 100).toFixed(0)}%</span> adherence to assigned shifts. Biometric verification logs are within standard deviation.
             </p>
-          </GlassCard>
+          </div>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ import type { OvertimeRule } from '../types/configuration.types';
 const CATEGORY_META: Record<string, { label: string; desc: string; icon: React.ReactNode; color: string; accent: string }> = {
   WEEKDAY_DAY: { label: 'Weekday Day OT', desc: 'Regular weekday daytime overtime', icon: <Sun className="w-4 h-4" />, color: 'text-amber-600 bg-amber-50', accent: 'border-l-amber-400' },
   WEEKDAY_NIGHT: { label: 'Weekday Night OT', desc: 'Nighttime overtime on weekdays', icon: <Moon className="w-4 h-4" />, color: 'text-indigo-600 bg-indigo-50', accent: 'border-l-indigo-400' },
-  WEEKEND: { label: 'Weekend OT', desc: 'Overtime worked on weekends', icon: <CalendarDays className="w-4 h-4" />, color: 'text-emerald-600 bg-emerald-50', accent: 'border-l-emerald-400' },
+  WEEKEND: { label: 'Weekend OT', desc: 'Overtime worked on weekends', icon: <CalendarDays className="w-4 h-4" />, color: 'text-emerald-600 bg-brand-50', accent: 'border-l-emerald-400' },
   PUBLIC_HOLIDAY: { label: 'Public Holiday OT', desc: 'Overtime on public holidays', icon: <Building2 className="w-4 h-4" />, color: 'text-rose-600 bg-rose-50', accent: 'border-l-rose-400' },
 };
 
@@ -83,7 +83,7 @@ export const OvertimeView: React.FC<OvertimeViewProps> = ({
               key={rule.id || `rule-${i}`}
               className={`bg-white border rounded-xl shadow-sm transition-all ${
                 isEditing
-                  ? 'border-emerald-300 shadow-md ring-1 ring-emerald-200'
+                  ? 'border-brand-300 shadow-md ring-1 ring-brand-200'
                   : 'border-slate-200 hover:shadow-md hover:border-slate-300'
               } ${meta.accent}`}
             >
@@ -113,8 +113,8 @@ export const OvertimeView: React.FC<OvertimeViewProps> = ({
                               step="0.25"
                               min="1"
                               max="10"
-                              className={`w-16 px-1.5 py-1 text-sm font-bold tabular-nums text-emerald-700 bg-emerald-50 border rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 ${
-                                editError ? 'border-rose-300 ring-1 ring-rose-200' : 'border-emerald-300'
+                              className={`w-16 px-1.5 py-1 text-sm font-bold tabular-nums text-emerald-700 bg-brand-50 border rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 ${
+                                editError ? 'border-rose-300 ring-1 ring-rose-200' : 'border-brand-300'
                               }`}
                               aria-label="Overtime multiplier"
                             />
@@ -126,7 +126,7 @@ export const OvertimeView: React.FC<OvertimeViewProps> = ({
                           </div>
                           <button
                             onClick={() => confirmEdit(i)}
-                            className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                            className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-brand-50 rounded-lg transition-all"
                             aria-label="Save"
                             title="Save"
                           >
@@ -143,12 +143,12 @@ export const OvertimeView: React.FC<OvertimeViewProps> = ({
                         </>
                       ) : (
                         <>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold tabular-nums text-sm leading-tight">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-brand-50 text-emerald-700 font-bold tabular-nums text-sm leading-tight">
                             {rule.rate}<span className="text-[10px] ml-0.5 text-emerald-500">&times;</span>
                           </span>
                           <button
                             onClick={() => startEditing(i)}
-                            className="p-1.5 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                            className="p-1.5 text-slate-300 hover:text-emerald-600 hover:bg-brand-50 rounded-lg transition-all"
                             aria-label={`Edit ${meta.label}`}
                             title={`Edit ${meta.label}`}
                           >

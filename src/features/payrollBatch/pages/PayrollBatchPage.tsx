@@ -1,22 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, AlertCircle, CalendarRange, Users, Layers, ChevronDown } from 'lucide-react';
-import { GlassCard, Skeleton } from '../../../components/ui';
+import { AlertCircle, Plus } from 'lucide-react';
+import { GlassCard } from '../../../components/ui';
 import { payrollPeriodApi } from '../../configuration/api/configurationApi';
 import { usePayrollBatches } from '../hooks/usePayrollBatches';
-import { BatchGenerator } from '../components/BatchGenerator';
+import { StatsGrid } from '../components/StatsGrid';
+import { PeriodSummaryCard } from '../components/PeriodSummaryCard';
+import { GenerateBatchesModal } from '../components/GenerateBatchesModal';
 import { BatchCardGrid } from '../components/BatchCardGrid';
-
-interface PeriodOption {
-  id: string;
-  name: string | null;
-  startDate: string;
-  endDate: string;
-}
+import { BatchDetailView } from '../components/BatchDetailView';
+import type { PayrollBatch, PeriodOption } from '../types';
 
 export const PayrollBatchPage: React.FC = () => {
   const [periods, setPeriods] = useState<PeriodOption[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null);
   const [periodsLoading, setPeriodsLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<PayrollBatch | null>(null);
 
   // Fetch all payroll periods
   useEffect(() => {
@@ -53,153 +52,161 @@ export const PayrollBatchPage: React.FC = () => {
     refetch: refetchBatches,
   } = usePayrollBatches(selectedPeriodId);
 
-  const [batches, setBatches] = useState(rawBatches);
+  const [batches, setBatches] = useState<PayrollBatch[]>([]);
   useEffect(() => { setBatches(rawBatches); }, [rawBatches]);
 
   const handleGenerate = useCallback(async (periodId: string, batchSize: number) => {
     await generate(periodId, batchSize);
+    setModalOpen(false);
   }, [generate]);
 
   const handleBatchRenamed = useCallback((id: string, name: string) => {
     setBatches((prev) => prev.map((b) => b.id === id ? { ...b, name } : b));
+    if (selectedBatch?.id === id) setSelectedBatch((prev) => prev ? { ...prev, name } : null);
+    refetchBatches();
+  }, [refetchBatches, selectedBatch]);
+
+  const handleBatchStatusChanged = useCallback((id: string, status: PayrollBatch['status']) => {
+    setBatches((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
+    if (selectedBatch?.id === id) setSelectedBatch((prev) => prev ? { ...prev, status } : null);
+  }, [selectedBatch]);
+
+  const handleBatchDeleted = useCallback((id: string) => {
+    setBatches((prev) => prev.filter((b) => b.id !== id));
+    if (selectedBatch?.id === id) setSelectedBatch(null);
+    refetchBatches();
+  }, [refetchBatches, selectedBatch]);
+
+  const handleBatchClick = useCallback((batch: PayrollBatch) => {
+    setSelectedBatch(batch);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleBackToList = useCallback(() => {
+    setSelectedBatch(null);
     refetchBatches();
   }, [refetchBatches]);
 
-  const handleBatchStatusChanged = useCallback((id: string, status: string) => {
-    setBatches((prev) => prev.map((b) => b.id === id ? { ...b, status: status as any } : b));
-  }, []);
-
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+
+  // Calculate stats
+  const activeBatches = batches.filter((b) => b.status === 'ACTIVE').length;
+  const totalEmployees = batches.reduce((sum, b) => sum + b._count.employees, 0);
+  const employeesInBatches = totalEmployees;
+  const unassigned = 0; // This would come from a separate API call in production
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 pb-20 px-4 md:px-5">
-      {/* ── Page Header ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs text-slate-400 font-medium mb-1">
-            Home &rsaquo; Payroll &rsaquo; Batch
+      {/* ── Green Gradient Header ─────────────────────────────── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800 rounded-2xl p-6 sm:p-8 text-white">
+        {/* Decorative circles */}
+        <div className="absolute -top-1/2 -right-10 w-72 h-72 rounded-full bg-white/5" />
+        <div className="absolute -bottom-1/2 right-20 w-48 h-48 rounded-full bg-white/3" />
+
+        <div className="relative z-10">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
+            Payroll Batch
+          </h1>
+          <p className="text-sm text-emerald-100/80 max-w-2xl">
+            Generate employee batches for payroll processing. Configure batch size, assign employees to groups, and track batch approval status across the fiscal year.
           </p>
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Payroll Batch</h1>
-              <p className="text-sm text-slate-400 font-medium">
-                Generate and manage employee batch allocations
-              </p>
-            </div>
+          <div className="flex flex-wrap gap-3 mt-5">
+            <button
+              onClick={() => setModalOpen(true)}
+              disabled={!selectedPeriodId}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-emerald-700 bg-white rounded-lg hover:bg-brand-50 transition-all cursor-pointer shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" />
+              Generate Batches
+            </button>
           </div>
         </div>
-
-        {/* Custom glass period selector */}
-        {periodsLoading ? (
-          <Skeleton className="h-11 w-72 rounded-lg" />
-        ) : (
-          <div className="relative">
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-              Payroll Period
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <CalendarRange className="w-4 h-4 text-slate-400" />
-              </div>
-              <select
-                value={selectedPeriodId ?? ''}
-                onChange={(e) => {
-                  setSelectedPeriodId(e.target.value || null);
-                  setBatchPage(1);
-                }}
-                className="w-full min-w-[240px] appearance-none rounded-lg bg-white/70 backdrop-blur-lg border border-slate-200 pl-9 pr-10 py-2.5 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 cursor-pointer transition-shadow hover:shadow-sm"
-              >
-                <option value="">— Select Period —</option>
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name ?? `${new Date(p.startDate).toLocaleDateString()} — ${new Date(p.endDate).toLocaleDateString()}`}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* ── Two-Column Layout: Generator + Summary ────────────── */}
-      {selectedPeriodId && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <BatchGenerator
-            payrollPeriodId={selectedPeriodId}
-            onGenerate={handleGenerate}
-            generating={generating}
-          />
+      {/* ── Stats Grid ─────────────────────────────────────────── */}
+      <StatsGrid
+        activeBatches={activeBatches}
+        totalEmployees={totalEmployees}
+        employeesInBatches={employeesInBatches}
+        unassigned={unassigned}
+      />
 
-          {/* Period Summary */}
-          <GlassCard className="relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 to-purple-500" />
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/20">
-                <Layers className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Period Summary</h3>
-                <p className="text-xs text-slate-400 font-medium">
-                  {selectedPeriod?.name ?? 'Current period'}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-5">
-              <div className="bg-white/40 backdrop-blur-sm rounded-lg p-4 border border-slate-200/60">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                    <Users className="w-4 h-4 text-indigo-600" />
-                  </div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Employees</p>
-                </div>
-                <p className="text-2xl font-black text-slate-900 tabular-nums">
-                  {batches.reduce((sum, b) => sum + b._count.employees, 0)}
-                </p>
-              </div>
-              <div className="bg-white/40 backdrop-blur-sm rounded-lg p-4 border border-slate-200/60">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <Layers className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Batches</p>
-                </div>
-                <p className="text-2xl font-black text-slate-900 tabular-nums">{totalItems}</p>
-              </div>
-            </div>
-          </GlassCard>
-        </div>
-      )}
-
-      {!selectedPeriodId && !periodsLoading && (
-        <GlassCard className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-4 h-4 text-amber-500" />
-          </div>
-          <p className="text-sm font-medium text-amber-700">
-            Select a payroll period to manage batches
-          </p>
-        </GlassCard>
-      )}
-
-      {/* ── Batch Cards Grid ────────────────────────────────────── */}
-      {selectedPeriodId && (
-        <BatchCardGrid
-          batches={batches}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          page={batchPage}
-          onPageChange={setBatchPage}
-          loading={batchesLoading}
-          onBatchRenamed={handleBatchRenamed}
+      {/* ── Conditional: Detail View or List View ─────────────── */}
+      {selectedBatch ? (
+        /* Batch Detail View */
+        <BatchDetailView
+          batch={selectedBatch}
+          periodName={selectedPeriod?.name ?? 'Unknown Period'}
+          periodRange={selectedPeriod
+            ? `${new Date(selectedPeriod.startDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })} — ${new Date(selectedPeriod.endDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}`
+            : ''}
+          onBack={handleBackToList}
+          onBatchDeleted={handleBatchDeleted}
           onStatusChanged={handleBatchStatusChanged}
         />
+      ) : (
+        <>
+          {/* ── Period Summary ──────────────────────────────────── */}
+          <PeriodSummaryCard
+            periods={periods}
+            selectedPeriodId={selectedPeriodId}
+            onPeriodChange={(id) => {
+              setSelectedPeriodId(id);
+              setBatchPage(1);
+              setSelectedBatch(null);
+            }}
+            totalEmployees={totalEmployees}
+            batchCount={totalItems}
+            batchSize={50}
+          />
+
+          {/* ── Batch Cards Grid ────────────────────────────────── */}
+          {selectedPeriodId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  Batch Groups
+                  <span className="text-xs font-medium text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                    {totalItems}
+                  </span>
+                </h3>
+              </div>
+
+              <BatchCardGrid
+                batches={batches}
+                loading={batchesLoading}
+                onBatchClick={handleBatchClick}
+                onBatchRenamed={handleBatchRenamed}
+                onStatusChanged={handleBatchStatusChanged}
+                onBatchDeleted={handleBatchDeleted}
+              />
+            </div>
+          )}
+
+          {/* ── No Period Selected State ────────────────────────── */}
+          {!selectedPeriodId && !periodsLoading && (
+            <GlassCard className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+              </div>
+              <p className="text-sm font-medium text-amber-700">
+                Select a payroll period to manage batches
+              </p>
+            </GlassCard>
+          )}
+        </>
       )}
+
+      {/* ── Generate Batches Modal ─────────────────────────────── */}
+      <GenerateBatchesModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        periods={periods}
+        selectedPeriodId={selectedPeriodId}
+        onPeriodChange={setSelectedPeriodId}
+        onGenerate={handleGenerate}
+        generating={generating}
+      />
     </div>
   );
 };

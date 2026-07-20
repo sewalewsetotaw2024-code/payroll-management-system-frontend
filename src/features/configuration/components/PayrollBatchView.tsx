@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Plus, ArrowUpCircle, CheckCircle2, Archive, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui';
+import { cn } from '../../../lib/utils';
 import { ConfigSaveButton } from './shared/ConfigSaveButton';
 import { BATCH_STATUS_BADGE } from '../constants';
 import type { PayrollBatch, BatchStatus } from '../types/configuration.types';
@@ -51,13 +52,13 @@ export const PayrollBatchView: React.FC<PayrollBatchViewProps> = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4">Batch Type</th>
-              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4">Description</th>
-              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4">Status</th>
+              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4 border-r border-slate-200/50">Batch Type</th>
+              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4 border-r border-slate-200/50">Description</th>
+              <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4 border-r border-slate-200/50">Status</th>
               <th className="text-right text-[10px] font-black text-slate-400 uppercase tracking-widest px-6 py-4">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {batches.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-12 text-center text-sm text-slate-400">
@@ -65,11 +66,15 @@ export const PayrollBatchView: React.FC<PayrollBatchViewProps> = ({
                 </td>
               </tr>
             ) : (
-              batches.map((batch) => {
+              batches.map((batch, idx) => {
                 const badge = BATCH_STATUS_BADGE[batch.status || 'DRAFT'] || BATCH_STATUS_BADGE.DRAFT;
                 return (
-                  <tr key={batch.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={batch.id} className={cn(
+                    "border-b border-slate-100",
+                    idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                    "hover:bg-brand-50/60 transition-colors",
+                  )}>
+                    <td className="px-6 py-4 border-r border-slate-200/50">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
                           <Package className="w-4 h-4" />
@@ -77,8 +82,8 @@ export const PayrollBatchView: React.FC<PayrollBatchViewProps> = ({
                         <span className="font-bold text-slate-900">{batch.batchType}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-500">{batch.description || '—'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-slate-500 border-r border-slate-200/50">{batch.description || '—'}</td>
+                    <td className="px-6 py-4 border-r border-slate-200/50">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${badge.bg} ${badge.text} ${badge.border}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
                         {statusLabels[batch.status || 'DRAFT']}
@@ -90,7 +95,7 @@ export const PayrollBatchView: React.FC<PayrollBatchViewProps> = ({
                           <button
                             onClick={() => onActivate(batch.id!)}
                             disabled={saving}
-                            className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600 transition-colors"
+                            className="p-2 hover:bg-brand-50 rounded-lg text-emerald-600 transition-colors"
                             title="Activate"
                           >
                             <ArrowUpCircle className="w-4 h-4" />

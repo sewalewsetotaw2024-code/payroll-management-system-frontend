@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Bell, 
   CheckCircle2, 
@@ -9,7 +9,8 @@ import {
   Trash2,
   Check,
   MoreVertical,
-  Filter
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,8 +19,10 @@ import {
   notificationActions,
   selectAllNotifications,
   selectUnreadCount,
+  selectNotificationsLoading,
+  selectNotificationsError,
 } from '../store/notificationSlice';
-import type { AppNotification } from '../store/notificationSlice';
+import type { Notification } from '../../../api/notifications';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,7 +38,7 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function getTypeIcon(type: AppNotification['type']) {
+function getTypeIcon(type: Notification['type']) {
   switch (type) {
     case 'success': return <CheckCircle2 className="w-6 h-6" />;
     case 'urgent': return <AlertCircle className="w-6 h-6" />;
@@ -52,10 +55,18 @@ export const NotificationsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const notifications = useAppSelector(selectAllNotifications);
   const unreadCount = useAppSelector(selectUnreadCount);
+  const loading = useAppSelector(selectNotificationsLoading);
+  const error = useAppSelector(selectNotificationsError);
 
   const [filter, setFilter] = useState<FilterType>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    dispatch(notificationActions.fetchNotificationsRequest());
+    dispatch(notificationActions.fetchUnreadCountRequest());
+  }, [dispatch]);
 
   const categories = useMemo(
     () => ['All', ...new Set(notifications.map(n => n.category))],
@@ -63,7 +74,7 @@ export const NotificationsPage: React.FC = () => {
   );
 
   const filteredNotifications = useMemo(
-    () => notifications.filter(notification => {
+    () => notifications.filter((notification: Notification) => {
       let statusMatch = true;
       if (filter === 'Unread') statusMatch = !notification.read;
       else if (filter === 'Urgent') statusMatch = notification.type === 'urgent';
@@ -76,6 +87,10 @@ export const NotificationsPage: React.FC = () => {
   const handleMarkAllAsRead = () => dispatch(notificationActions.markAllAsRead());
   const handleMarkAsRead = (id: string) => dispatch(notificationActions.markAsRead(id));
   const handleDelete = (id: string) => dispatch(notificationActions.removeNotification(id));
+  const handleRefresh = () => {
+    dispatch(notificationActions.fetchNotificationsRequest());
+    dispatch(notificationActions.fetchUnreadCountRequest());
+  };
 
   return (
     <div className="space-y-8 pb-10 max-w-5xl mx-auto">
@@ -89,6 +104,13 @@ export const NotificationsPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button 
+            onClick={handleRefresh}
+            disabled={loading}
+            className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
+          </button>
+          <button 
             onClick={handleMarkAllAsRead}
             className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm active:scale-95"
           >
@@ -101,7 +123,7 @@ export const NotificationsPage: React.FC = () => {
               className={cn(
                 "px-4 py-2 text-sm font-bold border rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95",
                 categoryFilter !== 'All' 
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                  ? "bg-brand-50 border-brand-200 text-emerald-700" 
                   : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
               )}
             >
@@ -121,7 +143,7 @@ export const NotificationsPage: React.FC = () => {
                       }}
                       className={cn(
                         "w-full px-4 py-2 text-left text-sm font-bold transition-colors",
-                        categoryFilter === cat ? "text-emerald-700 bg-emerald-50" : "text-slate-600 hover:bg-slate-50"
+                        categoryFilter === cat ? "text-emerald-700 bg-brand-50" : "text-slate-600 hover:bg-slate-50"
                       )}
                     >
                       {cat}
@@ -149,7 +171,7 @@ export const NotificationsPage: React.FC = () => {
           >
             {tab}
             {tab === 'Unread' && unreadCount > 0 && (
-               <span className="ml-2 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] rounded-full">
+               <span className="ml-2 px-1.5 py-0.5 bg-brand-100 text-emerald-700 text-[10px] rounded-full">
                  {unreadCount}
                </span>
             )}
@@ -159,8 +181,18 @@ export const NotificationsPage: React.FC = () => {
 
       {/* Notifications List */}
       <div className="space-y-4">
+        {error && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm">
+            Failed to load notifications: {error}
+          </div>
+        )}
         <AnimatePresence mode="popLayout">
-          {filteredNotifications.length > 0 ? (
+          {loading ? (
+            <div className="py-20 text-center space-y-4">
+              <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-slate-500 font-medium">Loading notifications...</p>
+            </div>
+          ) : filteredNotifications.length > 0 ? (
             filteredNotifications.map((notification) => (
               <motion.div
                 key={notification.id}
@@ -172,13 +204,13 @@ export const NotificationsPage: React.FC = () => {
                 onClick={() => handleMarkAsRead(notification.id)}
                 className={cn(
                   "p-6 rounded-3xl border transition-all flex items-start gap-5 relative group cursor-pointer bg-white",
-                  notification.read ? "border-slate-100" : "border-emerald-100 bg-emerald-50/10 shadow-sm",
+                  notification.read ? "border-slate-100" : "border-emerald-100 bg-brand-50/10 shadow-sm",
                   !notification.read && "after:content-[''] after:absolute after:left-0 after:top-1/2 after:-translate-y-1/2 after:w-1 after:h-12 after:bg-emerald-500 after:rounded-r-full"
                 )}
               >
                 <div className={cn(
                   "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
-                  notification.type === 'success' ? "bg-emerald-100 text-emerald-600" :
+                  notification.type === 'success' ? "bg-brand-100 text-emerald-600" :
                   notification.type === 'urgent' ? "bg-rose-100 text-rose-600" :
                   notification.type === 'warning' ? "bg-amber-100 text-amber-600" :
                   "bg-blue-100 text-blue-600"
@@ -250,7 +282,7 @@ export const NotificationsPage: React.FC = () => {
       </div>
 
       {/* Quick Settings */}
-      <div className="p-8 bg-[#047857] rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 mt-12 relative overflow-hidden shadow-2xl shadow-emerald-900/40">
+      <div className="p-8 bg-primary rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 mt-12 relative overflow-hidden shadow-2xl shadow-brand-900/40">
         <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 blur-[100px] rounded-full"></div>
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center text-white shadow-inner">
@@ -261,7 +293,7 @@ export const NotificationsPage: React.FC = () => {
             <p className="text-emerald-100 text-sm mt-1 opacity-90 leading-snug">Configure your email and system alert preferences</p>
           </div>
         </div>
-        <button className="px-8 py-3 bg-white text-[#047857] font-bold rounded-2xl hover:bg-emerald-50 transition-all active:scale-95 shadow-lg shadow-black/5 whitespace-nowrap">
+        <button className="px-8 py-3 bg-white text-primary font-bold rounded-2xl hover:bg-brand-50 transition-all active:scale-95 shadow-lg shadow-black/5 whitespace-nowrap">
            Manage Alerts
         </button>
       </div>

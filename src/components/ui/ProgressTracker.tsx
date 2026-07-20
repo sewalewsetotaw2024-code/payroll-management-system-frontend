@@ -29,7 +29,7 @@ export const ProgressTracker: React.FC<ProgressTrackerProps> = ({ steps, classNa
                 className={cn(
                   "w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all text-xs font-bold",
                   step.status === 'completed' && "bg-emerald-500 text-white",
-                  step.status === 'active' && "bg-emerald-100 text-emerald-700 border-2 border-emerald-500",
+                  step.status === 'active' && "bg-brand-100 text-emerald-700 border-2 border-brand-500",
                   step.status === 'pending' && "bg-slate-100 text-slate-400 border border-slate-200",
                 )}
               >

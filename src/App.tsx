@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { useAppDispatch, useAppSelector } from './store/hooks';
@@ -6,24 +6,44 @@ import { authActions } from './features/auth';
 import { Login } from './features/auth';
 import { tokenStorage } from './lib/token';
 import { ToastProvider } from './components/ui/Toast';
-import { Dashboard } from './features/dashboard';
-import { Configuration } from './features/configuration';
-import { EmployeeDeductionManagement } from './features/configuration/components/EmployeeDeductionManagement';
-import { DeductionEmployeesPage } from './features/configuration/components/DeductionEmployeesPage';
-import { Employees } from './features/employees';
-import { PayrollProcessing } from './features/payrollProcessing';
-import { BonusManagement } from './features/bonusManagement';
-import { Payslips } from './features/payslips';
-import { Overtime, EmployeeAttendanceDetail as OvertimeEmployeeDetail } from './features/overtime';
-import { AttendancePage, EmployeeAttendanceDetail as AttendanceEmployeeDetail } from './features/attendance';
-import LeavePage from './features/leave/pages/LeaveApprovalPage';
-import { ActingAllowance } from './features/actingAllowance';
-import { ComplianceReport } from './features/complianceReport';
-import { DataManagement } from './features/dataManagement';
-import { ApprovalWorkflow, ApprovalWorkflowBuilderPage, EmployeeAttendanceStatsPage, PayrollEmployeeStatsPage } from './features/approvalWorkflow';
 import { ApprovalRouteGuard } from './components/auth/ApprovalRouteGuard';
-import { Notifications } from './features/notifications';
-import { PayrollBatchPage, BatchEmployeeListPage } from './features/payrollBatch';
+import { AdminRouteGuard } from './components/auth/AdminRouteGuard';
+
+const Dashboard = lazy(() => import('./features/dashboard').then((m) => ({ default: m.Dashboard })));
+const Configuration = lazy(() => import('./features/configuration').then((m) => ({ default: m.Configuration })));
+const EmployeeDeductionManagement = lazy(() => import('./features/configuration/components/EmployeeDeductionManagement').then((m) => ({ default: m.EmployeeDeductionManagement })));
+const DeductionEmployeesPage = lazy(() => import('./features/configuration/components/DeductionEmployeesPage').then((m) => ({ default: m.DeductionEmployeesPage })));
+const Employees = lazy(() => import('./features/employees').then((m) => ({ default: m.Employees })));
+const PayrollProcessing = lazy(() => import('./features/payrollProcessing').then((m) => ({ default: m.PayrollProcessing })));
+const BonusManagement = lazy(() => import('./features/bonusManagement').then((m) => ({ default: m.BonusManagement })));
+const Payslips = lazy(() => import('./features/payslips').then((m) => ({ default: m.Payslips })));
+const EmployeePayslipDetailPage = lazy(() => import('./features/payslips').then((m) => ({ default: m.EmployeePayslipDetailPage })));
+const PeriodPayslipsPage = lazy(() => import('./features/payslips').then((m) => ({ default: m.PeriodPayslipsPage })));
+const Overtime = lazy(() => import('./features/overtime').then((m) => ({ default: m.Overtime })));
+const AttendancePage = lazy(() => import('./features/attendance').then((m) => ({ default: m.AttendancePage })));
+const AttendanceEmployeeDetail = lazy(() => import('./features/attendance').then((m) => ({ default: m.EmployeeAttendanceDetail })));
+const LeavePage = lazy(() => import('./features/leave/pages/LeaveApprovalPage').then((m) => ({ default: m.default })));
+const ActingAllowance = lazy(() => import('./features/actingAllowance').then((m) => ({ default: m.ActingAllowance })));
+const ComplianceReport = lazy(() => import('./features/complianceReport').then((m) => ({ default: m.ComplianceReport })));
+const PayslipTemplateListPage = lazy(() => import('./features/payslipTemplates/pages/PayslipTemplateListPage').then((m) => ({ default: m.PayslipTemplateListPage })));
+const DataManagement = lazy(() => import('./features/dataManagement').then((m) => ({ default: m.DataManagement })));
+const ApprovalWorkflow = lazy(() => import('./features/approvalWorkflow').then((m) => ({ default: m.ApprovalWorkflow })));
+const ApprovalWorkflowBuilderPage = lazy(() => import('./features/approvalWorkflow').then((m) => ({ default: m.ApprovalWorkflowBuilderPage })));
+const EmployeeAttendanceStatsPage = lazy(() => import('./features/approvalWorkflow').then((m) => ({ default: m.EmployeeAttendanceStatsPage })));
+const PayrollEmployeeStatsPage = lazy(() => import('./features/approvalWorkflow').then((m) => ({ default: m.PayrollEmployeeStatsPage })));
+const Notifications = lazy(() => import('./features/notifications').then((m) => ({ default: m.Notifications })));
+const PayrollBatchPage = lazy(() => import('./features/payrollBatch').then((m) => ({ default: m.PayrollBatchPage })));
+const BatchEmployeeListPage = lazy(() => import('./features/payrollBatch').then((m) => ({ default: m.BatchEmployeeListPage })));
+const PeriodEmployeesPage = lazy(() => import('./features/payrollProcessing').then((m) => ({ default: m.PeriodEmployeesPage })));
+
+const loadingFallback = (
+  <div className="flex min-h-screen items-center justify-center bg-slate-50">
+    <div className="flex flex-col items-center gap-3">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      <p className="text-sm font-medium text-slate-600">Loading module…</p>
+    </div>
+  </div>
+);
 
 export default function App() {
   const dispatch = useAppDispatch();
@@ -58,51 +78,56 @@ export default function App() {
   return (
     <ToastProvider>
       <DashboardLayout onLogout={handleLogout}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/config" element={<Configuration />} />
-          <Route path="/employee-deductions/:configId" element={<DeductionEmployeesPage />} />
-          <Route path="/employee-deductions" element={<EmployeeDeductionManagement />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/payroll" element={<PayrollProcessing />} />
-          <Route path="/payslips" element={<Payslips />} />
-          <Route path="/bonus" element={<BonusManagement />} />
-          <Route path="/overtime" element={<Overtime />} />
-          <Route path="/overtime/:employeeId" element={<OvertimeEmployeeDetail />} />
+        <Suspense fallback={loadingFallback}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/config" element={<Configuration />} />
+            <Route path="/employee-deductions/:configId" element={<DeductionEmployeesPage />} />
+            <Route path="/employee-deductions" element={<EmployeeDeductionManagement />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/payroll" element={<PayrollProcessing />} />
+            <Route path="/payroll/:periodId/employees" element={<PeriodEmployeesPage />} />
+            <Route path="/payslips" element={<Payslips />} />
+            <Route path="/payslips/:periodId" element={<PeriodPayslipsPage />} />
+            <Route path="/payslips/:periodId/employees/:employeeId" element={<EmployeePayslipDetailPage />} />
+            <Route path="/payslip-templates" element={<PayslipTemplateListPage />} />
+            <Route path="/bonus" element={<BonusManagement />} />
+            <Route path="/overtime" element={<Overtime />} />
 
-          <Route path="/attendance" element={<AttendancePage />} />
-          <Route path="/attendance/:employeeId" element={<AttendanceEmployeeDetail />} />
-          <Route path="/leave" element={<LeavePage />} />
+            <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/attendance/:employeeId" element={<AttendanceEmployeeDetail />} />
+            <Route path="/leave" element={<LeavePage />} />
 
-          <Route path="/acting" element={<ActingAllowance />} />
-          <Route path="/reports" element={<ComplianceReport />} />
-          <Route path="/data" element={<DataManagement />} />
-          <Route path="/payroll-batch" element={<PayrollBatchPage />} />
-          <Route path="/payroll-batch/:batchId" element={<BatchEmployeeListPage />} />
-          <Route path="/approval" element={
-            <ApprovalRouteGuard>
-              <ApprovalWorkflow />
-            </ApprovalRouteGuard>
-          } />
-          <Route path="/workflow-builder" element={
-            <ApprovalRouteGuard>
-              <ApprovalWorkflowBuilderPage />
-            </ApprovalRouteGuard>
-          } />
-          <Route path="/approval/attendance-stats" element={
-            <ApprovalRouteGuard>
-              <EmployeeAttendanceStatsPage />
-            </ApprovalRouteGuard>
-          } />
-          <Route path="/approval/payroll-stats" element={
-            <ApprovalRouteGuard>
-              <PayrollEmployeeStatsPage />
-            </ApprovalRouteGuard>
-          } />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+            <Route path="/acting" element={<ActingAllowance />} />
+            <Route path="/reports" element={<ComplianceReport />} />
+            <Route path="/data" element={<DataManagement />} />
+            <Route path="/payroll-batch" element={<PayrollBatchPage />} />
+            <Route path="/payroll-batch/:batchId" element={<BatchEmployeeListPage />} />
+            <Route path="/approval" element={
+              <ApprovalRouteGuard>
+                <ApprovalWorkflow />
+              </ApprovalRouteGuard>
+            } />
+            <Route path="/workflow-builder" element={
+              <AdminRouteGuard>
+                <ApprovalWorkflowBuilderPage />
+              </AdminRouteGuard>
+            } />
+            <Route path="/approval/attendance-stats" element={
+              <ApprovalRouteGuard>
+                <EmployeeAttendanceStatsPage />
+              </ApprovalRouteGuard>
+            } />
+            <Route path="/approval/payroll-stats" element={
+              <ApprovalRouteGuard>
+                <PayrollEmployeeStatsPage />
+              </ApprovalRouteGuard>
+            } />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Suspense>
       </DashboardLayout>
     </ToastProvider>
   );

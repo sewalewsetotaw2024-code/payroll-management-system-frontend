@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { DollarSign, Pencil, Trash2, Plus, ChevronDown, ChevronUp, RefreshCw, User } from 'lucide-react';
 import { Button } from '../../../components/ui';
+import { cn } from '../../../lib/utils';
 import type { CurrencyRate } from '../types/configuration.types';
 
 interface CurrencyConfigurationViewProps {
@@ -46,16 +47,16 @@ export const CurrencyConfigurationView: React.FC<CurrencyConfigurationViewProps>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="w-10 px-2" />
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">From</th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">To</th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Rate</th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Source</th>
-                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Effective Date</th>
+                <th className="w-10 px-2 border-r border-slate-200/50" />
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">From</th>
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">To</th>
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Rate</th>
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Source</th>
+                <th className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4 border-r border-slate-200/50">Effective Date</th>
                 <th className="text-right text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 py-4">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {rates.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-400">
@@ -63,14 +64,18 @@ export const CurrencyConfigurationView: React.FC<CurrencyConfigurationViewProps>
                   </td>
                 </tr>
               ) : (
-                rates.map((rate) => {
+                rates.map((rate, idx) => {
                   const isExpanded = expandedId === rate.id;
                   const sourceMeta = SOURCE_LABELS[rate.source] ?? { label: rate.source, color: 'bg-slate-50 text-slate-600' };
 
                   return (
                     <React.Fragment key={rate.id}>
-                      <tr className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-2 py-4">
+                      <tr className={cn(
+                        "border-b border-slate-100",
+                        idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                        "hover:bg-brand-50/60 transition-colors",
+                      )}>
+                        <td className="px-2 py-4 border-r border-slate-200/50">
                           <button
                             onClick={() => setExpandedId(isExpanded ? null : rate.id!)}
                             className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
@@ -82,9 +87,9 @@ export const CurrencyConfigurationView: React.FC<CurrencyConfigurationViewProps>
                             )}
                           </button>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                            <div className="p-2 bg-brand-50 rounded-lg text-emerald-600">
                               <DollarSign className="w-4 h-4" />
                             </div>
                             <span className="font-bold text-slate-900">
@@ -92,13 +97,13 @@ export const CurrencyConfigurationView: React.FC<CurrencyConfigurationViewProps>
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-4 font-bold text-slate-900">
+                        <td className="px-4 py-4 font-bold text-slate-900 border-r border-slate-200/50">
                           {rate.toCurrency?.code ?? rate.toCurrencyId}
                         </td>
-                        <td className="px-4 py-4 font-mono font-bold text-slate-900">
+                        <td className="px-4 py-4 font-mono font-bold text-slate-900 border-r border-slate-200/50">
                           {Number(rate.rate).toFixed(6)}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 border-r border-slate-200/50">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${sourceMeta.color}`}>
                             {rate.source === 'AUTO_FETCH' ? (
                               <RefreshCw className="w-3 h-3" />
@@ -108,7 +113,7 @@ export const CurrencyConfigurationView: React.FC<CurrencyConfigurationViewProps>
                             {sourceMeta.label}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-slate-500">
+                        <td className="px-4 py-4 text-slate-500 border-r border-slate-200/50">
                           {new Date(rate.effectiveDate).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-4">

@@ -39,7 +39,7 @@ export const Select: React.FC<SelectProps> = ({
           className={cn(
             'w-full px-4 py-2.5 bg-white border rounded-xl text-sm font-medium text-slate-900 appearance-none cursor-pointer',
             'transition-all duration-150',
-            'focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500',
+            'focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500',
             error
               ? 'border-rose-300 focus:ring-rose-500/20 focus:border-rose-500'
               : 'border-slate-200 hover:border-slate-300',

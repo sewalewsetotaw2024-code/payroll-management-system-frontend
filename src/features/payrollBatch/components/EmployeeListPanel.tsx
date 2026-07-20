@@ -83,7 +83,7 @@ export const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search by name or code…"
-              className="w-full pl-9 pr-3 py-2 text-sm bg-white/60 backdrop-blur-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-shadow hover:shadow-sm"
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white/60 backdrop-blur-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 transition-shadow hover:shadow-sm"
             />
           </div>
         </div>
@@ -114,28 +114,28 @@ export const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
             <table className="w-full">
               <thead className="sticky top-0 bg-slate-50/80 backdrop-blur-sm z-10">
                 <tr>
-                  <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code</th>
-                  <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Name</th>
-                  <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</th>
+                  <th className="border-r border-slate-200/50 text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code</th>
+                  <th className="border-r border-slate-200/50 text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Name</th>
+                  <th className="border-r border-slate-200/50 text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Department</th>
                   <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Position</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/60">
+              <tbody>
                 {employees.map((item, idx) => (
                   <tr
                     key={item.id}
                     className={cn(
-                      'transition-colors',
-                      idx % 2 === 0 ? 'bg-white/20' : 'bg-white/5',
-                      'hover:bg-slate-50/60',
+                      'border-b border-slate-100 transition-colors',
+                      idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white',
+                      'hover:bg-brand-50/60',
                     )}
                   >
-                    <td className="px-5 py-3">
+                    <td className="border-r border-slate-200/50 px-5 py-3">
                       <span className="text-sm font-mono text-slate-500 bg-white/40 backdrop-blur-sm px-2 py-0.5 rounded border border-slate-200/60">
                         {item.employee.externalId}
                       </span>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="border-r border-slate-200/50 px-5 py-3">
                       <div className="flex items-center gap-3">
                         <InitialAvatar
                           firstName={item.employee.firstName ?? '?'}
@@ -147,7 +147,7 @@ export const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
                         </span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-sm text-slate-500">
+                    <td className="border-r border-slate-200/50 px-5 py-3 text-sm text-slate-500">
                       {item.employee.department?.name ?? '—'}
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-500">
@@ -187,7 +187,7 @@ export const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
                       className={cn(
                         'min-w-[30px] h-7 rounded-md text-xs font-bold transition-all cursor-pointer',
                         p === page
-                          ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                          ? 'bg-emerald-500 text-white shadow-sm shadow-brand-500/20'
                           : 'text-slate-500 hover:bg-white/60 hover:border-slate-200 border border-transparent',
                       )}
                     >

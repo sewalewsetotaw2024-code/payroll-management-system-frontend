@@ -43,8 +43,8 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
     <div className="space-y-6">
       {/* Active period banner */}
       {activePeriod && (
-        <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-6 py-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+        <div className="bg-brand-50 border-2 border-brand-200 rounded-2xl px-6 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center text-emerald-600 shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
@@ -59,7 +59,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
               )}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-100 text-emerald-700 text-xs font-bold uppercase tracking-wider shrink-0">
             <Unlock className="w-3.5 h-3.5" />
             Open
           </span>
@@ -81,7 +81,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
               <div key={period.id} className="group overflow-hidden">
                 <div
                   className={`flex items-center justify-between px-8 py-5 transition-all cursor-pointer ${
-                    isActive ? 'bg-emerald-50/30' : 'hover:bg-slate-50/30'
+                    isActive ? 'bg-brand-50/30' : 'hover:bg-slate-50/30'
                   } ${isExpanded ? 'bg-slate-50/50' : ''}`}
                   onClick={() => toggleExpand(period.id)}
                 >
@@ -89,7 +89,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
                     <div
                       className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
                         isActive
-                          ? 'bg-emerald-100 text-emerald-600 border-emerald-200'
+                          ? 'bg-brand-100 text-emerald-600 border-brand-200'
                           : isClosed
                           ? 'bg-slate-100 text-slate-300 border-slate-200'
                           : 'bg-slate-100 text-slate-400 border-slate-200'
@@ -103,7 +103,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
                           {period.name || 'Unnamed Period'}
                         </h4>
                         {isActive && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-100 text-emerald-700 border border-brand-200">
                             <Unlock className="w-3 h-3" />
                             Open
                           </span>
@@ -140,7 +140,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
                         {isDraft && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onOpenEdit(period); }}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-brand-50 rounded-xl transition-colors"
                             title="Edit period"
                           >
                             <Pencil className="w-4 h-4" />
@@ -149,7 +149,7 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
                         {isDraft && (
                           <button
                             onClick={(e) => { e.stopPropagation(); period.id && onOpenPeriod(period.id); }}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-100 bg-emerald-50/50 rounded-xl transition-all"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-100 bg-brand-50/50 rounded-xl transition-all"
                             title="Open period"
                           >
                             <Unlock className="w-3.5 h-3.5" />
@@ -222,13 +222,13 @@ export const PayrollPeriodView: React.FC<PayrollPeriodViewProps> = ({
                       {/* Column 3: Workload Capacity */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-emerald-500">
-                          <div className="p-2 bg-emerald-50 rounded-lg shadow-sm border border-emerald-100">
+                          <div className="p-2 bg-brand-50 rounded-lg shadow-sm border border-emerald-100">
                             <CheckCircle2 className="w-5 h-5" />
                           </div>
                           <span className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">Productive Capacity</span>
                         </div>
                         <div className="space-y-3">
-                          <div className="flex flex-col gap-2 bg-gradient-to-br from-white to-emerald-50/30 p-6 rounded-2xl border border-emerald-200 shadow-sm transition-transform hover:scale-[1.02]">
+                          <div className="flex flex-col gap-2 bg-gradient-to-br from-white to-brand-50/30 p-6 rounded-2xl border border-brand-200 shadow-sm transition-transform hover:scale-[1.02]">
                             <span className="text-[11px] text-emerald-600 font-black uppercase tracking-widest">Total Monthly Capacity</span>
                             <span className="text-3xl font-black text-emerald-700">
                               {Number(period.defaultMonthlyWorkdays || 0) * Number(period.dailyWorkingHours || 0) || '—'}{' '}

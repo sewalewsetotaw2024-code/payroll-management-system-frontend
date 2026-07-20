@@ -166,7 +166,7 @@ export const FiscalYearConfiguration: React.FC = () => {
       description="Manage payroll fiscal year periods"
       showBadge={fiscalYears.length > 0 && !loading}
       actionButton={
-        <Button onClick={openAdd} className="shadow shadow-emerald-200/50">
+        <Button onClick={openAdd} className="shadow shadow-brand-200/50">
           <Plus className="w-4 h-4" /> Add Fiscal Year
         </Button>
       }
@@ -283,7 +283,7 @@ export const FiscalYearConfiguration: React.FC = () => {
         }
       >
         <div className="flex items-start gap-4">
-          <div className={`p-2 rounded-full shrink-0 ${activeYear ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+          <div className={`p-2 rounded-full shrink-0 ${activeYear ? 'bg-amber-100' : 'bg-brand-100'}`}>
             <AlertTriangle className={`w-5 h-5 ${activeYear ? 'text-amber-600' : 'text-emerald-600'}`} />
           </div>
           <div className="space-y-2">
