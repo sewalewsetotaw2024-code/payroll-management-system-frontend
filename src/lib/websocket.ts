@@ -33,6 +33,13 @@ class WebSocketService {
       return;
     }
 
+    const token = tokenStorage.getToken();
+    if (!token) {
+      console.debug('[WebSocket] No auth token available; delaying connect');
+      this.scheduleReconnect();
+      return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const apiUrl = import.meta.env.VITE_API_URL;
     const wsUrl = import.meta.env.VITE_WS_URL;
