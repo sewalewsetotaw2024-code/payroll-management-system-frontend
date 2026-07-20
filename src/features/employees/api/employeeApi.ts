@@ -4,7 +4,7 @@ import { tokenStorage } from '../../../lib/token';
 // Axios for employee API (from payroll backend - synced data)
 // Base: /api/v1/configurations (proxied to port 3000)
 const payrollAxios = axios.create({
-  baseURL: '/api/v1/configurations',
+  baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/configurations`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -16,7 +16,7 @@ payrollAxios.interceptors.request.use((config) => {
 
 // Axios for integration/sync endpoints
 const integrationAxios = axios.create({
-  baseURL: '/api/v1/integrations',
+  baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/integrations`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -158,7 +158,7 @@ export const exportEmployees = async (search?: string, status?: string): Promise
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     const queryString = params.toString();
-    const url = `/api/v1/configurations/employees/export${queryString ? `?${queryString}` : ''}`;
+    const url = `${import.meta.env.VITE_API_URL || '/api/v1'}/configurations/employees/export${queryString ? `?${queryString}` : ''}`;
 
     const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},

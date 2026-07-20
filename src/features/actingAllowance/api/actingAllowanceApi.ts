@@ -23,7 +23,7 @@ import type {
 
 /** Axios instance with auth interceptor. */
 const axiosInstance = axios.create({
-    baseURL: '/api/v1',
+    baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}`,
 });
 
 axiosInstance.interceptors.request.use((config) => {
