@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FileText, Loader2, Download, XCircle } from 'lucide-react';
+import { FileText, Loader2, Download, XCircle, CheckCircle2 } from 'lucide-react';
+import { cn } from '../../../lib/utils';
 import { payslipApi } from '../../payslips/api/payslipApi';
 import type { BatchGenerateResult } from '../../payslipTemplates/types/payslipTemplate.types';
 
@@ -12,6 +13,7 @@ export const BatchGenerateButton: React.FC<Props> = ({ payrollRunId, onComplete 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BatchGenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [generated, setGenerated] = useState(false);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -30,11 +32,25 @@ export const BatchGenerateButton: React.FC<Props> = ({ payrollRunId, onComplete 
     <>
       <button
         onClick={handleGenerate}
-        disabled={loading}
-        className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-brand-700 transition-colors disabled:opacity-50 text-sm font-bold"
+        disabled={loading || generated}
+        title={generated ? 'Payslips have already been generated for this run' : undefined}
+        className={cn(
+          "flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95 border-2",
+          generated
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed shadow-none"
+            : loading
+              ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed shadow-none"
+              : "bg-primary text-white border-brand-800/30 hover:bg-brand-700",
+        )}
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-        {loading ? 'Generating...' : 'Generate Payslips'}
+        {loading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : generated ? (
+          <CheckCircle2 className="w-4 h-4" />
+        ) : (
+          <FileText className="w-4 h-4" />
+        )}
+        {loading ? 'Generating...' : generated ? 'Payslips Generated' : 'Generate Payslips'}
       </button>
 
       {error && (
@@ -87,7 +103,7 @@ export const BatchGenerateButton: React.FC<Props> = ({ payrollRunId, onComplete 
             </div>
 
             <button
-              onClick={() => { setResult(null); onComplete?.(); }}
+              onClick={() => { setResult(null); setGenerated(true); onComplete?.(); }}
               className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors"
             >
               Done

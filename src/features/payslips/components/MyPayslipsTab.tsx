@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react';
 import { payslipApi } from '../api/payslipApi';
 import { useNavigate } from 'react-router-dom';
+import { slugify } from '../../../lib/utils';
 import type { MyPeriodsResponse } from '../types/payslip.types';
 import { PeriodAccordion } from './PeriodAccordion';
 
@@ -28,8 +29,9 @@ export const MyPayslipsTab: React.FC = () => {
     fetchPeriods();
   }, [fetchPeriods]);
 
-  const handleSelectPeriod = useCallback((periodId: string) => {
-    navigate(`/payslips/${periodId}`);
+  const handleSelectPeriod = useCallback((periodId: string, periodName: string) => {
+    const slug = slugify(periodName || periodId);
+    navigate(`/payslips/${slug}`);
   }, [navigate]);
 
   if (loading) {

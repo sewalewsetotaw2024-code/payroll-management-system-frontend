@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { 
   Calculator, 
@@ -7,7 +7,9 @@ import {
   Loader2, 
   ChevronRight,
   RefreshCw,
-  BadgeCheck
+  BadgeCheck,
+  Users,
+  Send,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { ActionButton } from "./ActionButton";
@@ -21,6 +23,8 @@ interface PayrollStageProps {
   onRefresh: () => void;
   onApprove: () => void;
   onReject: (reason: string) => void;
+  onSubmit?: () => void;
+  submitting?: boolean;
   onViewStats?: () => void;
 }
 
@@ -31,10 +35,26 @@ export const PayrollStage: React.FC<PayrollStageProps> = ({
   isApprover,
   onRefresh,
   onApprove,
+  onReject,
+  onSubmit,
+  submitting = false,
   onViewStats,
 }) => {
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
   const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtInt = (n: number) => n.toLocaleString();
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case "NONE": return "Awaiting";
+      case "PENDING": return "In Review";
+      case "APPROVED": return "Approved";
+      case "REJECTED": return "Returned";
+      default: return s;
+    }
+  };
 
   return (
     <div className="flow-card overflow-hidden">
@@ -55,7 +75,7 @@ export const PayrollStage: React.FC<PayrollStageProps> = ({
                 approvalStatus === "PENDING" ? "bg-amber-100 text-amber-700 border-amber-200" :
                 "bg-slate-100 text-slate-500 border-slate-200"
               )}>
-                {approvalStatus}
+                {statusLabel(approvalStatus)}
               </span>
               <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">• Stage 2</span>
             </div>
@@ -76,13 +96,13 @@ export const PayrollStage: React.FC<PayrollStageProps> = ({
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
              <Loader2 className="w-10 h-10 text-brand-primary animate-spin" />
-             <p className="text-sm font-bold text-slate-400">Processing calculations...</p>
+              <p className="text-sm font-bold text-slate-400">Loading payroll data...</p>
           </div>
         ) : !data ? (
           <div className="text-center py-24 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
              <TrendingUp className="w-10 h-10 text-slate-300 mx-auto mb-4" />
-             <p className="text-sm font-bold text-slate-600">Pending Calculation</p>
-             <p className="text-xs text-slate-400 mt-2 font-medium">Payroll results will appear here once Stage 1 is verified.</p>
+              <p className="text-sm font-bold text-slate-600">Awaiting Payroll Run</p>
+              <p className="text-xs text-slate-400 mt-2 font-medium">Payroll results will appear here once attendance is approved.</p>
           </div>
         ) : (
           <>
@@ -90,7 +110,7 @@ export const PayrollStage: React.FC<PayrollStageProps> = ({
               {/* Left Column: Key Totals */}
               <div className="space-y-10">
                 <div className="space-y-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Total Gross Expenditure</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Total Gross</span>
                   <div className="flex items-baseline gap-2 text-brand-accent">
                     <span className="text-sm font-bold opacity-60">ETB</span>
                     <span className="text-4xl font-bold mono-value tracking-tighter">{fmt(data.totalGross)}</span>
@@ -150,36 +170,85 @@ export const PayrollStage: React.FC<PayrollStageProps> = ({
                 className="w-full py-3 px-6 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-white hover:border-brand-primary/30 transition-all flex items-center justify-center gap-2 group"
               >
                 <Users className="w-4 h-4 text-slate-400 group-hover:text-brand-primary" />
-                View Individual Employee Stats
+                View Employee Details
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-all" />
               </button>
             )}
 
             {/* Footer */}
-            <div className="pt-8 border-t border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
-                   <BadgeCheck className="w-4 h-4" />
+            <div className="pt-8 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400">
+                     <BadgeCheck className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <p className="text-sm font-bold text-slate-900 leading-none">
+                      {fmtInt(data.employeeCount)} Employees Verified
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      Working Days: {(data as any).monthlyWorkdays ?? "—"}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <p className="text-sm font-bold text-slate-900 leading-none">
-                    Verified for {fmtInt(data.employeeCount)} Employees
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    Confirmed Working Days: {data.monthlyWorkdays}
-                  </p>
-                </div>
+
+                {isApprover && approvalStatus === "PENDING" ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowRejectForm(!showRejectForm)}
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all"
+                    >
+                      Return for Changes
+                    </button>
+                    <button onClick={onApprove} className="btn-primary px-8 active:scale-95">
+                      Approve
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : approvalStatus === "NONE" && onSubmit ? (
+                  <button
+                    onClick={onSubmit}
+                    disabled={submitting}
+                    className={cn(
+                      "inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 shadow-xl border-2 border-brand-800/30",
+                      submitting
+                        ? "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
+                        : "bg-brand-primary text-white hover:bg-brand-dark shadow-brand-900/20",
+                    )}
+                  >
+                    {submitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    {submitting ? "Submitting..." : "Authorize Run"}
+                  </button>
+                ) : approvalStatus === "APPROVED" && (
+                  <div className="flex items-center gap-2 text-brand-primary">
+                     <BadgeCheck className="w-5 h-5" />
+                     <span className="text-[10px] font-bold uppercase tracking-widest">Approved</span>
+                  </div>
+                )}
               </div>
 
-              {isApprover && approvalStatus === "PENDING" ? (
-                <button onClick={onApprove} className="btn-primary px-8 active:scale-95">
-                  Confirm Totals
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : approvalStatus === "APPROVED" && (
-                <div className="flex items-center gap-2 text-brand-primary">
-                   <BadgeCheck className="w-5 h-5" />
-                   <span className="text-[10px] font-bold uppercase tracking-widest">Calculations Confirmed</span>
+              {showRejectForm && (
+                <div className="mt-6 p-6 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-4">
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Reason for return..."
+                    className="w-full h-24 p-4 rounded-xl border border-rose-200 bg-white text-sm focus-ring outline-hidden transition-all"
+                    autoFocus
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => { onReject(rejectReason); setRejectReason(""); setShowRejectForm(false); }}
+                      disabled={!rejectReason.trim()}
+                      className="px-6 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-all disabled:opacity-50 border-2 border-rose-600/30"
+                    >
+                      Confirm Return
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

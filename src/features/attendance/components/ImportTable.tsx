@@ -24,14 +24,14 @@ interface ImportTableProps {
  * Sortable, paginated table of attendance imports.
  * - Active import always pinned to the top row
  * - Remaining imports sorted by importedAt descending (most recent first)
- * - Default page size: 5
+ * - Default page size: 10
  */
 export const ImportTable: React.FC<ImportTableProps> = ({
   imports,
   selectedImportId,
   onSelectImport,
   onToggleActive,
-  pageSize: initialPageSize = 5,
+  pageSize: initialPageSize = 10,
 }) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);

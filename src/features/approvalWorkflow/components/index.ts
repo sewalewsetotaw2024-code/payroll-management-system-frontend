@@ -4,6 +4,7 @@ export { FlagList } from "./FlagList";
 export { ActionButton } from "./ActionButton";
 export { ApprovalHistoryTimeline } from "./ApprovalHistoryTimeline";
 export { PipelineTimeline } from "./PipelineTimeline";
+export type { TimelineStage } from "./PipelineTimeline";
 export { AttendanceStage } from "./AttendanceStage";
 export { PayrollStage } from "./PayrollStage";
 export { PaymentStage } from "./PaymentStage";

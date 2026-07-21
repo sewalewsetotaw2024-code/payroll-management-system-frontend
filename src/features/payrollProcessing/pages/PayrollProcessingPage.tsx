@@ -11,6 +11,7 @@ import { payrollRunApi, type PayrollRun } from "../api/payrollProcessingApi";
 import { fiscalYearApi, payrollPeriodApi } from "../../configuration/api/configurationApi";
 import type { FiscalYear, PayrollPeriod } from "../../configuration/types/configuration.types";
 import { PayrollProcessingTab } from "../components/PayrollProcessingTab";
+import { attendanceApi } from "../../attendance/api/attendanceApi";
 
 /** Current status of the payroll processing workflow. */
 type ProcessingStatus = "idle" | "processing" | "success" | "error";
@@ -28,6 +29,8 @@ export const PayrollProcessingPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>("idle");
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [attendanceApproved, setAttendanceApproved] = useState(false);
+  const [paymentApproved, setPaymentApproved] = useState(false);
 
   // ── Data fetching ──────────────────────────────────────
 
@@ -35,10 +38,11 @@ export const PayrollProcessingPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [fyRes, ppRes, runsRes] = await Promise.all([
+      const [fyRes, ppRes, runsRes, imports] = await Promise.all([
         fiscalYearApi.getAll(),
         payrollPeriodApi.getAll(),
         payrollRunApi.getRuns({ limit: 100, _t: Date.now() }),
+        attendanceApi.listImports(),
       ]);
       const fetchedFYs: FiscalYear[] = fyRes.data?.data || [];
       const fetchedPPs: PayrollPeriod[] = ppRes.data?.data || [];
@@ -54,6 +58,16 @@ export const PayrollProcessingPage: React.FC = () => {
 
       setPayrollPeriods(fetchedPPs);
       setRuns(fetchedRuns);
+
+      // Check attendance approval — at least one active import must be APPROVED
+      const activeImport = imports.find((imp) => imp.isActive);
+      setAttendanceApproved(activeImport?.status === "APPROVED");
+
+      // Check payment approval — at least one run must be APPROVED or DONE
+      const hasApprovedPayment = fetchedRuns.some(
+        (r) => r.status === "APPROVED" || r.status === "DONE",
+      );
+      setPaymentApproved(hasApprovedPayment);
     } catch (err: any) {
       setError(
         err?.response?.data?.message || err?.message || "Failed to load data",
@@ -221,6 +235,8 @@ export const PayrollProcessingPage: React.FC = () => {
               processingStatus={processingStatus}
               processingError={processingError}
               onProcessPeriod={handleProcessPeriod}
+              attendanceApproved={attendanceApproved}
+              paymentApproved={paymentApproved}
             />
           </div>
         </>

@@ -6,6 +6,7 @@ import {
   Search,
   Users,
   AlertCircle,
+  CheckCircle,
   X,
   Pencil,
   ChevronLeft,
@@ -14,7 +15,7 @@ import {
 import { Modal, Input, Select, Button } from "../../../components/ui";
 import { ConfigModalFooter } from "./shared";
 import { toast } from "../../../components/ui/Toast";
-import { cn } from "../../../lib/utils";
+import { cn, slugify } from "../../../lib/utils";
 import {
   CALCULATION_TYPE_OPTIONS,
   STATUS_OPTIONS,
@@ -49,8 +50,31 @@ interface Employee {
  * Supports bulk assignment, individual editing, and cancellation of per-employee deductions.
  */
 export const DeductionEmployeesPage: React.FC = () => {
-  const { configId } = useParams<{ configId: string }>();
+  const { configSlug } = useParams<{ configSlug: string }>();
   const navigate = useNavigate();
+
+  const [resolvedConfigId, setResolvedConfigId] = useState<string | null>(null);
+
+  // ─── Resolve configSlug → configId ───────────────────────────────────────
+  useEffect(() => {
+    if (!configSlug) return;
+    let cancelled = false;
+
+    deductionApi.getAll({ page: 1, limit: 1000 }).then((res) => {
+      if (cancelled) return;
+      const allConfigs = res.data?.data ?? [];
+      const matched = allConfigs.find((c: any) => c.label && slugify(c.label) === configSlug);
+      if (matched?.id) {
+        setResolvedConfigId(matched.id);
+      } else {
+        setConfigLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setConfigLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [configSlug]);
 
   // ─── Deduction Config ────────────────────────────────────────
   const [config, setConfig] = useState<DeductionConfig | null>(null);
@@ -123,27 +147,27 @@ export const DeductionEmployeesPage: React.FC = () => {
 
   // ─── Load Config ─────────────────────────────────────────────
   useEffect(() => {
-    if (!configId) return;
+    if (!resolvedConfigId) return;
     setConfigLoading(true);
     deductionApi
-      .getById(configId)
+      .getById(resolvedConfigId)
       .then((response) => {
         const body = response.data as any;
         setConfig(body?.data || body || null);
       })
       .catch(() => toast.error("Failed to load deduction config"))
       .finally(() => setConfigLoading(false));
-  }, [configId]);
+  }, [resolvedConfigId]);
 
   // ─── Load Assigned Employees (server-side search/status/pagination) ──
   useEffect(() => {
-    if (!configId) return;
+    if (!resolvedConfigId) return;
     setAssignedLoading(true);
     employeeDeductionApi
       .getAll({
         page,
         limit: pageSize,
-        deductionItemId: configId,
+        deductionItemId: resolvedConfigId ?? undefined,
         ...(debouncedSearch.trim() && { search: debouncedSearch }),
         ...(statusFilter && { status: statusFilter }),
       })
@@ -162,7 +186,7 @@ export const DeductionEmployeesPage: React.FC = () => {
         setAssignedDeductions([]);
       })
       .finally(() => setAssignedLoading(false));
-  }, [configId, page, pageSize, debouncedSearch, statusFilter, refetchKey]);
+  }, [resolvedConfigId, page, pageSize, debouncedSearch, statusFilter, refetchKey]);
 
   // ─── Refetch helper (used by callbacks that need to reload) ──
   const refetch = () => {
@@ -370,7 +394,7 @@ export const DeductionEmployeesPage: React.FC = () => {
     setEditSaving(true);
     try {
       await employeeDeductionApi.update(editDeduction.id, {
-        deductionItemId: configId,
+        deductionItemId: resolvedConfigId ?? undefined,
         status: editForm.status as EmployeeDeductionStatus,
         label: editForm.label,
         amount: editForm.amount,
@@ -394,7 +418,7 @@ export const DeductionEmployeesPage: React.FC = () => {
     if (!deleteConfirm) return;
     try {
       await employeeDeductionApi.delete(deleteConfirm, {
-        deductionItemId: configId,
+        deductionItemId: resolvedConfigId ?? undefined,
       });
       toast.success("Deduction cancelled successfully");
       setDeleteConfirm(null);
@@ -491,7 +515,7 @@ export const DeductionEmployeesPage: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Registry Code</span>
-                  <span className="text-sm font-bold text-slate-900 truncate tracking-tight">{configId?.slice(0, 12)}...</span>
+                  <span className="text-sm font-bold text-slate-900 truncate tracking-tight">{resolvedConfigId?.slice(0, 12)}...</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Calculation Model</span>

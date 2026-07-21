@@ -25,7 +25,7 @@ export function useAttendanceNotifications(): UseAttendanceNotificationsReturn {
   const fetchNotifications = useCallback(async () => {
     try {
       const token = tokenStorage.getToken();
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/notifications?unreadOnly=true`, {
+      const response = await fetch('/api/v1/notifications?unreadOnly=true', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -47,7 +47,7 @@ export function useAttendanceNotifications(): UseAttendanceNotificationsReturn {
   const markAsRead = useCallback(async (id: string) => {
     try {
       const token = tokenStorage.getToken();
-      await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/notifications/${id}/read`, {
+      await fetch(`/api/v1/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -62,7 +62,7 @@ export function useAttendanceNotifications(): UseAttendanceNotificationsReturn {
   const markAllAsRead = useCallback(async () => {
     try {
       const token = tokenStorage.getToken();
-      await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/notifications/read-all`, {
+      await fetch('/api/v1/notifications/read-all', {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });

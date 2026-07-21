@@ -110,8 +110,8 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
             {/* Header */}
             <div className="sticky top-0 glass-dark border-b border-white/10 px-8 py-6 flex items-center justify-between z-10 backdrop-blur-3xl">
               <div>
-                <h2 className="text-xl font-black text-white tracking-tight">Calculation Ledger</h2>
-                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mt-1">Real-time breakdown engine</p>
+                <h2 className="text-xl font-black text-white tracking-tight">Employee Breakdown</h2>
+                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mt-1">Detailed calculation view</p>
               </div>
               <button
                 onClick={onClose}
@@ -127,7 +127,7 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
               {loading && (
                 <div className="flex flex-col items-center justify-center py-24 gap-6">
                   <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
-                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Querying Matrix...</p>
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Loading Breakdown...</p>
                 </div>
               )}
 

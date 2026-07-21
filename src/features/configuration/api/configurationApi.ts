@@ -21,7 +21,7 @@ import type {
 
 // Axios for integration/sync endpoints (base: /api/v1/integrations)
 const integrationAxios = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/integrations`,
+  baseURL: '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 

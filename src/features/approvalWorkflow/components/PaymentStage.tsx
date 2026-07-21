@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "motion/react";
 import { 
   Banknote, 
@@ -18,6 +18,9 @@ interface PaymentStageProps {
   approvalStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
   isApprover: boolean;
   onApprove: () => void;
+  onReject: (reason: string) => void;
+  onSubmit?: () => void;
+  submitting?: boolean;
   onDownloadExcel: () => void;
   onDownloadCsv: () => void;
 }
@@ -28,10 +31,26 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
   approvalStatus,
   isApprover,
   onApprove,
+  onReject,
+  onSubmit,
+  submitting = false,
   onDownloadExcel,
   onDownloadCsv,
 }) => {
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
   const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case "NONE": return "Awaiting";
+      case "PENDING": return "In Review";
+      case "APPROVED": return "Approved";
+      case "REJECTED": return "Returned";
+      default: return s;
+    }
+  };
 
   return (
     <div className="flow-card overflow-hidden">
@@ -52,7 +71,7 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
                 approvalStatus === "PENDING" ? "bg-amber-100 text-amber-700 border-amber-200" :
                 "bg-slate-100 text-slate-500 border-slate-200"
               )}>
-                {approvalStatus}
+                {statusLabel(approvalStatus)}
               </span>
               <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">• Final Stage</span>
             </div>
@@ -64,7 +83,7 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
         {loading ? (
           <div className="py-20 flex flex-col items-center gap-5">
              <Loader2 className="w-10 h-10 text-brand-primary animate-spin" />
-             <p className="text-sm font-bold text-slate-400">Finalizing disbursement file...</p>
+              <p className="text-sm font-bold text-slate-400">Loading payment data...</p>
           </div>
         ) : !data ? (
           <div className="py-20 flex items-start gap-6">
@@ -72,8 +91,8 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
                 <Lock className="w-7 h-7 text-slate-300" />
              </div>
              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-700 tracking-tight">Stage Locked</h3>
-                <p className="text-sm text-slate-400 font-medium max-w-sm leading-relaxed">Disbursement controls are restricted until the payroll calculation is authorized in Stage 2.</p>
+                <h3 className="text-lg font-bold text-slate-700 tracking-tight">Awaiting Payroll Approval</h3>
+                <p className="text-sm text-slate-400 font-medium max-w-sm leading-relaxed">Payment authorization will be available once the payroll run is approved in Stage 2.</p>
              </div>
           </div>
         ) : (
@@ -90,12 +109,12 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
                 
                 <div className="pt-8 mt-8 border-t border-white/10 grid grid-cols-2 gap-4 text-left">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1">Recipients</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1">Employees</p>
                     <p className="text-sm font-bold">{data.employeeCount} Staff</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-1">Status</p>
-                    <p className="text-sm font-bold">Active Run</p>
+                    <p className="text-sm font-bold">Ready</p>
                   </div>
                 </div>
               </div>
@@ -109,8 +128,8 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
                         <CheckCircle2 className="w-7 h-7" />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-900 leading-tight">Payment Authorized</p>
-                        <p className="text-xs text-slate-500 font-medium mt-1">Disbursement files are generated and ready.</p>
+                        <p className="text-sm font-bold text-slate-900 leading-tight">Payment Approved</p>
+                        <p className="text-xs text-slate-500 font-medium mt-1">Disbursement files are ready for download.</p>
                       </div>
                    </div>
 
@@ -120,30 +139,83 @@ export const PaymentStage: React.FC<PaymentStageProps> = ({
                         className="flex items-center justify-center gap-2 p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-primary hover:bg-brand-light/20 transition-all text-slate-600 font-bold text-xs"
                       >
                         <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                        Excel Format
+                        Download Excel
                       </button>
                       <button 
                         onClick={onDownloadCsv}
                         className="flex items-center justify-center gap-2 p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-primary hover:bg-brand-light/20 transition-all text-slate-600 font-bold text-xs"
                       >
                         <FileDown className="w-4 h-4 text-slate-400" />
-                        CSV Format
+                        Download CSV
                       </button>
                    </div>
                 </div>
               ) : isApprover && approvalStatus === "PENDING" ? (
-                <button 
-                  onClick={onApprove}
-                  className="w-full py-5 rounded-2xl bg-brand-primary text-white font-bold text-lg shadow-lg shadow-brand-500/20 flex items-center justify-center gap-3 hover:bg-brand-accent transition-all active:scale-95 border-2 border-brand-800/30"
+                <div className="space-y-4">
+                  <button 
+                    onClick={onApprove}
+                    className="w-full py-5 rounded-2xl bg-brand-primary text-white font-bold text-lg shadow-lg shadow-brand-500/20 flex items-center justify-center gap-3 hover:bg-brand-accent transition-all active:scale-95 border-2 border-brand-800/30"
+                  >
+                    <Send className="w-6 h-6" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setShowRejectForm(!showRejectForm)}
+                    className="w-full py-3 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all border border-rose-200"
+                  >
+                    Return for Changes
+                  </button>
+                </div>
+              ) : approvalStatus === "NONE" && onSubmit ? (
+                <button
+                  onClick={onSubmit}
+                  disabled={submitting}
+                  className={cn(
+                    "w-full py-5 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-3 transition-all active:scale-95 border-2 border-brand-800/30",
+                    submitting
+                      ? "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none border-slate-200"
+                      : "bg-brand-primary text-white hover:bg-brand-accent shadow-brand-500/20",
+                  )}
                 >
-                  <Send className="w-6 h-6" />
-                  Final Disbursement
+                  {submitting ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <Send className="w-6 h-6" />
+                  )}
+                  {submitting ? "Submitting..." : "Authorize Payment"}
                 </button>
               ) : (
                 <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 border-dashed text-center">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    Awaiting Stage 2 Completion
+                    Awaiting Payroll Approval
                   </p>
+                </div>
+              )}
+
+              {showRejectForm && (
+                <div className="mt-6 p-6 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-4">
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Reason for return..."
+                    className="w-full h-24 p-4 rounded-xl border border-rose-200 bg-white text-sm focus-ring outline-hidden transition-all"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => { setShowRejectForm(false); setRejectReason(""); }}
+                      className="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => { onReject(rejectReason); setRejectReason(""); setShowRejectForm(false); }}
+                      disabled={!rejectReason.trim()}
+                      className="px-6 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-all disabled:opacity-50 border-2 border-rose-600/30"
+                    >
+                      Confirm Return
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

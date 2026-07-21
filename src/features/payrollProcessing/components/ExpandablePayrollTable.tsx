@@ -60,7 +60,7 @@ function getOtherDeductions(detail: PayrollRunItemDetail | null): number {
 /* ─── Column definition order ───────────────────────────────── */
 
 const COLUMNS: ColumnDef[] = [
-  { key: "name",               label: "Master Data Name",                  align: "left",  expanded: false },
+  { key: "name",               label: "Employee",                          align: "left",  expanded: false },
   { key: "position",           label: "Job Position",                      align: "left",  expanded: false },
   { key: "department",         label: "Department",                        align: "left",  expanded: false },
   { key: "workingDay",         label: "Working Day",                       align: "right", expanded: false },
@@ -101,7 +101,7 @@ function cellValue(
     case "name": {
       const name = emp
         ? `${emp.firstName} ${emp.lastName}`
-        : `Employee #${String(item.employeeId).substring(0, 8)}`;
+        : "Unknown Employee";
       return { value: name, isNumber: false };
     }
     case "position":
@@ -387,7 +387,7 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
             {loadingDetails && expanded && (
               <div className="absolute top-4 right-16 z-20 flex items-center gap-2 glass-dark px-4 py-2 rounded-xl shadow-2xl text-white text-[10px] font-black uppercase tracking-widest border-white/10">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Updating Matrix...
+                Loading Details...
               </div>
             )}
 

@@ -84,20 +84,20 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/config" element={<Configuration />} />
-            <Route path="/employee-deductions/:configId" element={<DeductionEmployeesPage />} />
+            <Route path="/employee-deductions/:configSlug" element={<DeductionEmployeesPage />} />
             <Route path="/employee-deductions" element={<EmployeeDeductionManagement />} />
             <Route path="/employees" element={<Employees />} />
             <Route path="/payroll" element={<PayrollProcessing />} />
-            <Route path="/payroll/:periodId/employees" element={<PeriodEmployeesPage />} />
+            <Route path="/payroll/:periodSlug/employees" element={<PeriodEmployeesPage />} />
             <Route path="/payslips" element={<Payslips />} />
-            <Route path="/payslips/:periodId" element={<PeriodPayslipsPage />} />
-            <Route path="/payslips/:periodId/employees/:employeeId" element={<EmployeePayslipDetailPage />} />
+            <Route path="/payslips/:periodSlug" element={<PeriodPayslipsPage />} />
+            <Route path="/payslips/:periodSlug/employees/:employeeSlug" element={<EmployeePayslipDetailPage />} />
             <Route path="/payslip-templates" element={<PayslipTemplateListPage />} />
             <Route path="/bonus" element={<BonusManagement />} />
             <Route path="/overtime" element={<Overtime />} />
 
             <Route path="/attendance" element={<AttendancePage />} />
-            <Route path="/attendance/:employeeId" element={<AttendanceEmployeeDetail />} />
+            <Route path="/attendance/:employeeSlug" element={<AttendanceEmployeeDetail />} />
             <Route path="/leave" element={<LeavePage />} />
 
             <Route path="/acting" element={<ActingAllowance />} />

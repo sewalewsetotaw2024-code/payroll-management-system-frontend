@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import { Loader2, Upload, FolderOpen } from "lucide-react";
 import { cn } from "../../../lib/utils";
@@ -79,6 +80,12 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderOpen, setFolderOpen] = useState(false);
 
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
   // Dynamically compute per-column totals for every summary field
   const summaryTotals = parsed.summaryCols.reduce<Record<string, number>>((acc, col) => {
     if (col.name) {
@@ -100,15 +107,15 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
 
   const totalCols = TABLE_COL_COUNT + parsed.summaryCols.length;
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto mx-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] mx-4 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="sticky top-0 bg-white z-10 px-8 pt-8 pb-4 border-b border-slate-100">
+        <div className="shrink-0 px-8 pt-8 pb-4 border-b border-slate-100">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-900">Attendance Import Preview</h2>
@@ -119,7 +126,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
           </div>
         </div>
 
-        <div className="p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {/* Stat Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             <div className="bg-brand-50 rounded-xl p-4 border border-emerald-100">
@@ -236,7 +243,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white z-10 px-8 py-4 border-t border-slate-100 flex items-center justify-end gap-3 rounded-b-3xl">
+        <div className="shrink-0 bg-white px-8 py-4 border-t border-slate-100 flex items-center justify-end gap-3 rounded-b-3xl">
           <button
             onClick={onCancel}
             disabled={uploading}
@@ -258,6 +265,7 @@ export const AttendancePreviewPanel: React.FC<AttendancePreviewPanelProps> = ({
           </button>
         </div>
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 };

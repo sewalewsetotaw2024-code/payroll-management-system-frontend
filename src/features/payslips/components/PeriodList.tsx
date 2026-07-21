@@ -6,7 +6,7 @@ import type { GenerationStatus, PayslipPeriodInfo } from '../types/payslip.types
 interface PeriodListProps {
   periods: PayslipPeriodInfo[];
   selectedPeriodId: string | null;
-  onSelect: (periodId: string) => void;
+  onSelect: (periodId: string, periodName: string) => void;
 }
 
 const StatusBadge: React.FC<{ status: GenerationStatus }> = ({ status }) => {
@@ -113,7 +113,7 @@ export const PeriodList: React.FC<PeriodListProps> = ({
                   isClickable && 'cursor-pointer hover:bg-slate-50/80',
                   !isClickable && 'opacity-60 bg-slate-50/20',
                 )}
-                onClick={() => isClickable && onSelect(period.id)}
+                onClick={() => isClickable && onSelect(period.id, period.name || "")}
               >
                 <td className="px-8 py-5 border-b border-slate-50">
                   <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ export const PeriodList: React.FC<PeriodListProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      isClickable && onSelect(period.id);
+                      isClickable && onSelect(period.id, period.name || "");
                     }}
                     disabled={!isClickable}
                     className={cn(

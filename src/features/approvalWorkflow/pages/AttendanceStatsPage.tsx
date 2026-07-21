@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Loader2,
   FileSpreadsheet,
+  FileDown,
   AlertCircle,
   RefreshCw,
   Users,
@@ -14,6 +15,7 @@ import { cn } from "../../../lib/utils";
 import { DataTable } from "../components/DataTable";
 import type { Column } from "../components/DataTable";
 import { attendanceApi } from "../../attendance/api/attendanceApi";
+import { exportAttendanceSummaryToXlsx } from "../../attendance/utils/exportAttendanceSummary";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,7 @@ export const AttendanceStatsPage: React.FC = () => {
   const importId = searchParams.get("importId");
 
   const [data, setData] = useState<AttendanceEmployeeRow[]>([]);
+  const [summaryData, setSummaryData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +101,9 @@ export const AttendanceStatsPage: React.FC = () => {
     try {
       const detail = await attendanceApi.getImportById(importId);
       const summaries = detail.monthlySummaries || [];
+
+      // Store summary for export
+      setSummaryData({ employees: summaries });
 
       setData(
         summaries.map((s: any) => ({
@@ -303,6 +309,15 @@ export const AttendanceStatsPage: React.FC = () => {
             Per-employee attendance breakdown for the selected import
           </p>
         </div>
+        {!loading && !error && data.length > 0 && (
+          <button
+            onClick={() => exportAttendanceSummaryToXlsx(summaryData, 'monthly', searchParams.get('importId') || 'export')}
+            className="ml-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:border-brand-primary hover:bg-brand-light/20 transition-all shadow-sm"
+          >
+            <FileDown className="w-4 h-4 text-emerald-600" />
+            Export XLSX
+          </button>
+        )}
       </div>
 
       {/* Loading state */}

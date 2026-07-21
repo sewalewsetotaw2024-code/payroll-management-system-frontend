@@ -33,3 +33,14 @@ export function formatCurrency(amount: number | null | undefined, currency = DEF
   if (amount == null || isNaN(Number(amount))) return `${currency} 0`;
   return `${currency} ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/** Convert a period name to a URL-friendly slug (e.g. "January 2024" → "january-2024"). */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}

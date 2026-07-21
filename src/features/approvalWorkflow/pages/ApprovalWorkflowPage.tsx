@@ -96,11 +96,15 @@ export const ApprovalWorkflowPage: React.FC = () => {
   const [stage1ApprovalsSummary, setStage1ApprovalsSummary] = useState<{ label: string; status: "done" | "todo" }[]>([]);
   const [stage1RequestId, setStage1RequestId] = useState<string | null>(null);
   const [stage1ApprovalStep, setStage1ApprovalStep] = useState<{ requiredRoleId: number; requiredRoleName: string } | null>(null);
+  const [stage1Submitting, setStage1Submitting] = useState(false);
+  const [stage2Submitting, setStage2Submitting] = useState(false);
 
   const [currentApprovalStep, setCurrentApprovalStep] = useState<any>(null);
+  const [currentPayrollStep, setCurrentPayrollStep] = useState<{ requiredRoleId: number; requiredRoleName: string } | null>(null);
   const [dynamicRoles, setDynamicRoles] = useState<{ id: number; name: string }[] | null>(null);
   const [dynamicRolePermissions, setDynamicRolePermissions] = useState<Record<string, any> | null>(null);
   const [allRequests, setAllRequests] = useState<any[]>([]);
+  const [activeImportId, setActiveImportId] = useState<string | null>(null);
 
   // ── Logic: Data Fetching ───────────────────────────────────────────────────
 
@@ -116,8 +120,11 @@ export const ApprovalWorkflowPage: React.FC = () => {
         setStage1ApprovalStatus("NONE");
         setStage1ApprovalsSummary([]);
         setStage1ApprovalStep(null);
+        setActiveImportId(null);
         return;
       }
+
+      setActiveImportId(activeImport.id);
 
       const [data, requests] = await Promise.all([
         fetchAttendanceImportSummary(activeImport.id),
@@ -166,13 +173,14 @@ export const ApprovalWorkflowPage: React.FC = () => {
       if (allRuns.length === 0) {
         setStage2Data(null);
         setCurrentApprovalStep(null);
+        setCurrentPayrollStep(null);
         return;
       }
 
       const summaries = await Promise.all(allRuns.map((r: any) => fetchPayrollRunSummary(r.id)));
       const aggregated: PayrollRunSummary = {
         runId: allRuns.map((r: any) => r.id).join(","),
-        status: summaries.some(s => s.status === "REJECTED") ? "REJECTED" : summaries.every(s => s.status === "APPROVED" || s.status === "DONE") ? "APPROVED" : "PENDING",
+        status: summaries.some(s => s.status === "REJECTED") ? "REJECTED" : summaries.every(s => s.status === "DONE") ? "DONE" : summaries.every(s => s.status === "APPROVED" || s.status === "DONE") ? "APPROVED" : "PENDING",
         employeeCount: summaries.reduce((s, sm) => s + sm.employeeCount, 0),
         totalGross: summaries.reduce((s, sm) => s + sm.totalGross, 0),
         totalNet: summaries.reduce((s, sm) => s + sm.totalNet, 0),
@@ -188,12 +196,45 @@ export const ApprovalWorkflowPage: React.FC = () => {
       setAllRequests(requests);
       const activeStep = requests.find(r => (r.stageType === "PAYROLL_APPROVAL" || r.stageType === "PAYMENT_FILE") && r.status === "PENDING");
       setCurrentApprovalStep(activeStep || null);
+
+      // Resolve the workflow step for the active payroll approval request
+      if (activeStep && activeStep.stageType === "PAYROLL_APPROVAL") {
+        const stageSteps = (workflowSteps.length ? workflowSteps : DEFAULT_WORKFLOW_STEPS)
+          .filter((s: any) => s.stageType === "PAYROLL_APPROVAL")
+          .sort((a: any, b: any) => a.stepOrder - b.stepOrder);
+
+        const doneRoleNames = new Set((activeStep.approvalActions || []).filter((a: any) => a.action === "APPROVED").map((a: any) => a.actor?.role?.name).filter(Boolean));
+        const doneRoleIds = new Set((activeStep.approvalActions || []).filter((a: any) => a.action === "APPROVED").map((a: any) => a.actor?.role?.id).filter((id: any) => id != null));
+
+        const isStepDone = (s: any): boolean =>
+          doneRoleNames.has(s.requiredRole?.name) || doneRoleNames.has(s.alternateRoleName) ||
+          doneRoleIds.has(s.requiredRoleId) || (s.alternateRoleId != null && doneRoleIds.has(s.alternateRoleId));
+
+        const nextStep = stageSteps.find((s: any) => !isStepDone(s));
+        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}` } : null);
+      } else if (activeStep && activeStep.stageType === "PAYMENT_FILE") {
+        const stageSteps = (workflowSteps.length ? workflowSteps : DEFAULT_WORKFLOW_STEPS)
+          .filter((s: any) => s.stageType === "PAYMENT_FILE")
+          .sort((a: any, b: any) => a.stepOrder - b.stepOrder);
+
+        const doneRoleNames = new Set((activeStep.approvalActions || []).filter((a: any) => a.action === "APPROVED").map((a: any) => a.actor?.role?.name).filter(Boolean));
+        const doneRoleIds = new Set((activeStep.approvalActions || []).filter((a: any) => a.action === "APPROVED").map((a: any) => a.actor?.role?.id).filter((id: any) => id != null));
+
+        const isStepDone = (s: any): boolean =>
+          doneRoleNames.has(s.requiredRole?.name) || doneRoleNames.has(s.alternateRoleName) ||
+          doneRoleIds.has(s.requiredRoleId) || (s.alternateRoleId != null && doneRoleIds.has(s.alternateRoleId));
+
+        const nextStep = stageSteps.find((s: any) => !isStepDone(s));
+        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}` } : null);
+      } else {
+        setCurrentPayrollStep(null);
+      }
     } catch (err) {
       console.error("Stage 2 Error:", err);
     } finally {
       setStage2Loading(false);
     }
-  }, []);
+  }, [workflowSteps, dynamicRoles]);
 
   // ── Logic: Action Handlers ─────────────────────────────────────────────────
 
@@ -214,6 +255,62 @@ export const ApprovalWorkflowPage: React.FC = () => {
       if (selectedPeriod) { loadStage1(selectedPeriod.id); loadStage2(selectedPeriod.id); }
     } catch (err) {
       toast.error("Action failed");
+    }
+  };
+
+  const handleSubmitAttendance = async () => {
+    if (!activeImportId) return;
+    setStage1Submitting(true);
+    try {
+      const { tokenStorage } = await import("../../../lib/token");
+      const response = await fetch(`/api/v1/attendance/imports/${activeImportId}/submit-for-approval`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${tokenStorage.getToken()}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast.success("Attendance submitted for approval");
+        if (selectedPeriod) loadStage1(selectedPeriod.id);
+      } else {
+        toast.error(result.message || "Failed to submit attendance");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit attendance for approval");
+    } finally {
+      setStage1Submitting(false);
+    }
+  };
+
+  const handleSubmitPayroll = async () => {
+    if (!selectedPeriod) return;
+    setStage2Submitting(true);
+    try {
+      await apiRequestApproval("PAYROLL_APPROVAL", "PAYROLL_RUN", undefined, undefined, selectedPeriod.id);
+      toast.success("Payroll submitted for approval");
+      loadStage2(selectedPeriod.id);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to submit payroll for approval");
+    } finally {
+      setStage2Submitting(false);
+    }
+  };
+
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
+  const handleSubmitPayment = async () => {
+    if (!selectedPeriod) return;
+    setPaymentSubmitting(true);
+    try {
+      await apiRequestApproval("PAYMENT_FILE", "PAYROLL_RUN", undefined, undefined, selectedPeriod.id);
+      toast.success("Payment submitted for approval");
+      loadStage2(selectedPeriod.id);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to submit payment for approval");
+    } finally {
+      setPaymentSubmitting(false);
     }
   };
 
@@ -249,7 +346,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
   const stages: TimelineStage[] = useMemo(() => [
     { id: "att", name: "Attendance", status: stage1ApprovalStatus === "APPROVED" ? "done" : "doing" },
     { id: "pay", name: "Payroll", status: stage2Data?.status === "APPROVED" || stage2Data?.status === "DONE" ? "done" : stage1ApprovalStatus === "APPROVED" ? "doing" : "todo" },
-    { id: "dis", name: "Disbursement", status: stage2Data?.status === "DONE" ? "done" : (stage2Data?.status === "APPROVED" ? "doing" : "todo") },
+    { id: "dis", name: "Payment", status: stage2Data?.status === "DONE" ? "done" : (stage2Data?.status === "APPROVED" ? "doing" : "todo") },
   ], [stage1ApprovalStatus, stage2Data]);
 
   const activeIndex = useMemo(() => {
@@ -262,16 +359,48 @@ export const ApprovalWorkflowPage: React.FC = () => {
   const userRoleName = authUser?.role?.name;
   const userRoleId = authUser?.role?.id;
 
+  // Role-based visibility: which stages can this user interact with?
+  const HR_ROLES = ["HR Generalist", "HR CS Manager", "HR CS Director"];
+  const FINANCE_ROLES = ["Finance Officer", "Finance Manager"];
+  const isHrRole = HR_ROLES.some(r => roleNamesMatch(r, userRoleName));
+  const isFinanceRole = FINANCE_ROLES.some(r => roleNamesMatch(r, userRoleName));
+
   const matchesApproverRole = (step: any): boolean => {
     if (!step) return false;
-    const reqRole = step.requiredRoleName || step.requiredRole?.name;
+    // Resolve role name from step → dynamicRoles → fallback to Role#<id>
+    const reqRole = step.requiredRoleName
+      || step.requiredRole?.name
+      || resolveRoleNameFromId(step.requiredRoleId, dynamicRoles);
     if (roleNamesMatch(reqRole, userRoleName)) return true;
     const roleIdMatch = reqRole?.match(/^Role#(\d+)$/i);
     if (roleIdMatch && parseInt(roleIdMatch[1], 10) === userRoleId) return true;
     return step.requiredRoleId === userRoleId;
   };
 
-  const isStage1Approver = stage1ApprovalStatus === "PENDING" && matchesApproverRole(stage1ApprovalStep);
+  const isStage1Approver = isHrRole && stage1ApprovalStatus === "PENDING" && matchesApproverRole(stage1ApprovalStep);
+
+  const resolveRoleLabel = (key: string): string => {
+    // Try numeric ID lookup first
+    const numId = Number(key);
+    if (!isNaN(numId)) {
+      const found = dynamicRoles?.find(r => r.id === numId);
+      if (found) return found.name;
+    }
+    // Fallback to name lookup or key itself
+    return dynamicRoles?.find(r => r.name === key)?.name || key;
+  };
+
+  const handleViewAttendanceStats = () => {
+    if (activeImportId) {
+      navigate(`/approval/attendance-stats?importId=${activeImportId}`);
+    }
+  };
+
+  const handleViewPayrollStats = () => {
+    if (selectedPeriod?.id) {
+      navigate(`/approval/payroll-stats?periodId=${selectedPeriod.id}`);
+    }
+  };
 
   return (
     <div className="flex h-[calc(100vh-100px)] -m-8 overflow-hidden bg-white selection:bg-brand-light font-sans">
@@ -282,8 +411,8 @@ export const ApprovalWorkflowPage: React.FC = () => {
                 <BadgeCheck className="w-6 h-6" />
              </div>
              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none">Workflow</h1>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2 opacity-60">Authorization Pipeline</p>
+                <p className="text-2xl font-bold tracking-tight text-slate-900 leading-none">Workflow</p>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2 opacity-60">Pipeline</p>
              </div>
           </div>
           <div className="flex-1">
@@ -313,10 +442,12 @@ export const ApprovalWorkflowPage: React.FC = () => {
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-brand-primary transition-colors" />
                  </div>
                  <div className="h-5 w-px bg-slate-200" />
-                 <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200 shadow-sm">
-                    <div className="w-2 h-2 rounded-full bg-brand-primary" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Status: {stage2Data?.status || "Idle"}</span>
-                 </div>
+                  <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200 shadow-sm">
+                     <div className="w-2 h-2 rounded-full bg-brand-primary" />
+                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+                       {stage2Data?.status === "DONE" ? "Completed" : stage2Data?.status === "APPROVED" ? "Approved" : stage1ApprovalStatus === "APPROVED" ? "Attendance Approved" : stage2Data?.status || "Idle"}
+                     </span>
+                  </div>
               </div>
               <button onClick={() => selectedPeriod && (loadStage1(selectedPeriod.id) || loadStage2(selectedPeriod.id))} className="w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-brand-primary/30 flex items-center justify-center text-slate-400 hover:text-brand-primary transition-all active:scale-90">
                 <RefreshCw className={cn("w-4 h-4", (stage1Loading || stage2Loading) && "animate-spin")} />
@@ -326,9 +457,9 @@ export const ApprovalWorkflowPage: React.FC = () => {
 
         <div className="max-w-4xl mx-auto p-12 space-y-16 pb-48">
           <header className="space-y-4">
-            <h2 className="text-4xl font-bold tracking-tight text-slate-900 leading-tight">Authorization Ledger</h2>
+            <h2 className="text-4xl font-bold tracking-tight text-slate-900 leading-tight">Approval Workflow</h2>
             <p className="text-lg text-slate-500 font-medium leading-relaxed tracking-tight max-w-2xl">
-              Oversee the sequential clearance of biometric data, financial distributions, and disbursement files for the current cycle.
+              Track the sequential approval of attendance data, payroll calculations, and payment disbursement for the current cycle.
             </p>
           </header>
 
@@ -340,29 +471,48 @@ export const ApprovalWorkflowPage: React.FC = () => {
                approvalsSummary={stage1ApprovalsSummary}
                isApprover={isStage1Approver} 
                onRefresh={() => selectedPeriod && loadStage1(selectedPeriod.id)}
-               onApprove={() => handleApprove(stage1RequestId!)}
-               onReject={(reason) => handleReject(stage1RequestId!, reason)}
+               onApprove={() => stage1RequestId && handleApprove(stage1RequestId)}
+               onReject={(reason) => stage1RequestId && handleReject(stage1RequestId, reason)}
+               onSubmit={isHrRole ? handleSubmitAttendance : undefined}
+               submitting={stage1Submitting}
+               onViewStats={handleViewAttendanceStats}
              />
 
              <PayrollStage 
                data={stage2Data}
                loading={stage2Loading}
-               approvalStatus={(stage2Data?.status === "APPROVED" || stage2Data?.status === "DONE") ? "APPROVED" : (currentApprovalStep?.stageType === "PAYROLL_APPROVAL" ? "PENDING" : "NONE")}
-               isApprover={currentApprovalStep?.stageType === "PAYROLL_APPROVAL" && matchesApproverRole(currentApprovalStep)}
+               approvalStatus={
+                 (stage2Data?.status === "APPROVED" || stage2Data?.status === "DONE" || currentApprovalStep?.stageType === "PAYMENT_FILE")
+                   ? "APPROVED"
+                   : currentApprovalStep?.stageType === "PAYROLL_APPROVAL"
+                     ? "PENDING"
+                     : "NONE"
+               }
+               isApprover={isHrRole && currentApprovalStep?.stageType === "PAYROLL_APPROVAL" && matchesApproverRole(currentPayrollStep)}
                onRefresh={() => selectedPeriod && loadStage2(selectedPeriod.id)}
-               onApprove={() => handleApprove(currentApprovalStep.requestId)}
-               onReject={(reason) => handleReject(currentApprovalStep.requestId, reason)}
+               onApprove={() => currentApprovalStep?.id && handleApprove(currentApprovalStep.id)}
+               onReject={(reason) => currentApprovalStep?.id && handleReject(currentApprovalStep.id, reason)}
+               onSubmit={isHrRole ? handleSubmitPayroll : undefined}
+               submitting={stage2Submitting}
+               onViewStats={handleViewPayrollStats}
              />
 
-             <PaymentStage 
-               data={stage2Data}
-               loading={stage2Loading}
-               approvalStatus={stage2Data?.status === "DONE" ? "APPROVED" : (currentApprovalStep?.stageType === "PAYMENT_FILE" ? "PENDING" : "NONE")}
-               isApprover={currentApprovalStep?.stageType === "PAYMENT_FILE" && matchesApproverRole(currentApprovalStep)}
-               onApprove={() => handleApprove(currentApprovalStep.requestId)}
-               onDownloadExcel={() => stage2Data && downloadPaymentExcel(stage2Data.runId)}
-               onDownloadCsv={() => stage2Data && downloadPaymentCsv(stage2Data.runId)}
-             />
+              <PaymentStage 
+                data={stage2Data}
+                loading={stage2Loading}
+                approvalStatus={stage2Data?.status === "DONE" ? "APPROVED" : (currentApprovalStep?.stageType === "PAYMENT_FILE" ? "PENDING" : "NONE")}
+                isApprover={isFinanceRole && currentApprovalStep?.stageType === "PAYMENT_FILE" && matchesApproverRole(currentPayrollStep)}
+                onApprove={() => currentApprovalStep?.id && handleApprove(currentApprovalStep.id)}
+                onReject={(reason) => currentApprovalStep?.id && handleReject(currentApprovalStep.id, reason)}
+                onSubmit={
+                  isFinanceRole && stage2Data?.status === "APPROVED" && !currentApprovalStep
+                    ? handleSubmitPayment
+                    : undefined
+                }
+                submitting={paymentSubmitting}
+                onDownloadExcel={() => stage2Data && downloadPaymentExcel(stage2Data.runId)}
+                onDownloadCsv={() => stage2Data && downloadPaymentCsv(stage2Data.runId)}
+              />
           </div>
 
           <section className="pt-20 border-t border-slate-100">
@@ -372,11 +522,11 @@ export const ApprovalWorkflowPage: React.FC = () => {
                 </div>
                 <div>
                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Audit Trail</h3>
-                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 opacity-60">Full History</p>
+                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 opacity-60">Approval History</p>
                 </div>
              </div>
              <div className="bg-slate-50/50 rounded-3xl p-8 border border-slate-100">
-                <ApprovalHistoryTimeline actions={allRequests.flatMap(r => r.approvalActions || [])} />
+                <ApprovalHistoryTimeline localApprovalRequests={allRequests} resolveRoleLabel={resolveRoleLabel} />
              </div>
           </section>
         </div>

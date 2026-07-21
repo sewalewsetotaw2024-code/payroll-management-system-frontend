@@ -6,7 +6,7 @@ import type { GeneratePayslipResult, BatchGenerateResult } from '../../payslipTe
 // Separate axios instance for employee payslip endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
 const payslipAxios = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/payroll`,
+  baseURL: '/api/v1/payroll',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -74,7 +74,7 @@ export const payslipApi = {
 
   /** Get the URL to view/download a payslip PDF */
   getPayslipPdfUrl: (payslipId: string) =>
-    `${import.meta.env.VITE_API_URL || '/api/v1'}/payroll/payslips/${payslipId}/pdf`,
+    `/api/v1/payroll/payslips/${payslipId}/pdf`,
 
   /** Poll payslip generation status (lightweight check) */
   getPayslipStatus: async (

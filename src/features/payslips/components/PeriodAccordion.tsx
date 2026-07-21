@@ -8,7 +8,7 @@ import { PeriodList } from './PeriodList';
 interface PeriodAccordionProps {
   fiscalYears: FiscalYearWithPeriods[];
   selectedPeriodId: string | null;
-  onSelectPeriod: (periodId: string) => void;
+  onSelectPeriod: (periodId: string, periodName: string) => void;
   loading?: boolean;
 }
 

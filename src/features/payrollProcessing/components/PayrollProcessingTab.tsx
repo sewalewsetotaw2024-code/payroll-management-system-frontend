@@ -6,7 +6,7 @@ import {
   ChevronDown,
   CheckCircle2,
 } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import { cn, slugify } from "../../../lib/utils";
 import { payrollRunApi } from "../api/payrollProcessingApi";
 import type { PayrollRun } from "../api/payrollProcessingApi";
 import { useAppSelector } from "../../../store/hooks";
@@ -21,6 +21,10 @@ interface PayrollProcessingTabProps {
   processingStatus: ProcessingStatus;
   processingError: string | null;
   onProcessPeriod: (periodId: string) => void;
+  /** Whether the attendance import for the period is fully approved */
+  attendanceApproved?: boolean;
+  /** Whether the payment stage is fully approved */
+  paymentApproved?: boolean;
 }
 
 export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
@@ -30,6 +34,8 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
   processingStatus,
   processingError: _processingError,
   onProcessPeriod,
+  attendanceApproved = false,
+  paymentApproved = false,
 }) => {
   const navigate = useNavigate();
   const [expandedFiscalYearId, setExpandedFiscalYearId] = useState<string | null>(null);
@@ -70,8 +76,9 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
   }, []);
 
   const handleViewPeriod = useCallback(
-    (periodId: string) => {
-      navigate(`/payroll/${periodId}/employees`);
+    (periodId: string, periodName: string) => {
+      const slug = slugify(periodName || periodId);
+      navigate(`/payroll/${slug}/employees`);
     },
     [navigate],
   );
@@ -87,6 +94,8 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
   const userRole = useAppSelector((state) => state.auth.user?.role?.name ?? null);
   const HR_ROLES = new Set(['HR Generalist', 'HR CS Manager', 'HR CS Director']);
   const isHrRole = userRole ? HR_ROLES.has(userRole) : false;
+  const CAN_RUN_PAYROLL_ROLES = new Set(['Admin', 'HR Generalist', 'HR CS Manager']);
+  const canRunPayroll = userRole ? CAN_RUN_PAYROLL_ROLES.has(userRole) : false;
 
   // ── Generate payslip state ────────────────────────────
   const [generatingRunId, setGeneratingRunId] = useState<string | null>(null);
@@ -121,6 +130,8 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
     (periodId: string) => {
       const run = getRunForPeriod(periodId);
       if (!run) return false;
+      // Payslips can be generated once payroll is approved (before payment approval)
+      // They will be created as DRAFT and become visible after payment is fully approved
       return ["PENDING_PAYMENT_APPROVAL", "APPROVED", "DONE"].includes(run.status);
     },
     [getRunForPeriod],
@@ -290,14 +301,18 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
                           const periodHasRun = hasRun(pp.id!);
                           const isClosed = pp.status === "CLOSED" || pp.status === "DONE";
                           const isProcessing = processingStatus === "processing";
-                          const disableProcess = periodHasRun || isClosed || isProcessing;
-                          const processTitle = periodHasRun
-                            ? "This period has already been processed"
-                            : isClosed
-                              ? "This period is closed"
-                              : isProcessing
-                                ? "Processing in progress"
-                                : "Run payroll for this period";
+                          const disableProcess = periodHasRun || isClosed || isProcessing || !attendanceApproved || !canRunPayroll;
+                          const processTitle = !canRunPayroll
+                            ? "You don't have permission to process payroll"
+                            : periodHasRun
+                              ? "This period has already been processed"
+                              : isClosed
+                                ? "This period is closed"
+                                : isProcessing
+                                  ? "Processing in progress"
+                                  : !attendanceApproved
+                                    ? "Attendance must be fully approved before processing"
+                                    : "Run payroll for this period";
                           const empCount = getEmployeeCount(pp.id!);
                           const isFuture = !periodHasRun && !isClosed && pp.status !== "ACTIVE";
 
@@ -309,7 +324,7 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
                                 idx % 2 === 0 ? "bg-white/40" : "bg-slate-50/20",
                                 isFuture ? "opacity-50" : "hover:bg-brand-50/40",
                               )}
-                              onClick={() => periodHasRun && handleViewPeriod(pp.id!)}
+                              onClick={() => handleViewPeriod(pp.id!, pp.name || "")}
                             >
                               <td className="px-5 py-4">
                                 <span className="font-bold text-slate-800 text-[13px]">
@@ -343,33 +358,30 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
                               <td className="px-5 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                   <button
-                                    onClick={() => handleViewPeriod(pp.id!)}
-                                    disabled={!periodHasRun && !isClosed}
-                                    title={periodHasRun ? "View employee payroll details" : "No payroll data yet"}
+                                    onClick={() => handleViewPeriod(pp.id!, pp.name || "")}
+                                    title="View period details"
                                     className={cn(
                                       "inline-flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl border-2 transition-all",
-                                      periodHasRun || isClosed
-                                        ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm"
-                                        : "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed",
+                                      "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm",
                                     )}
                                   >
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                     View
                                   </button>
-                                  <button
-                                    onClick={() => handleProcessClick(pp.id!)}
-                                    disabled={disableProcess}
-                                    title={processTitle}
-                                    className={cn(
-                                      "inline-flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl border-2 transition-all shadow-sm",
-                                      disableProcess
-                                        ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
-                                        : "bg-primary border-brand-800/30 text-white hover:bg-brand-700 shadow-brand-900/10",
-                                    )}
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                    Process
-                                  </button>
+                                   <button
+                                      onClick={() => handleProcessClick(pp.id!)}
+                                      disabled={disableProcess}
+                                      title={processTitle}
+                                      className={cn(
+                                        "inline-flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl border-2 transition-all shadow-sm",
+                                        disableProcess
+                                          ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
+                                          : "bg-primary border-brand-800/30 text-white hover:bg-brand-700 shadow-brand-900/10",
+                                      )}
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                      Process
+                                    </button>
                                   {isHrRole && (() => {
                                     const run = getRunForPeriod(pp.id!);
                                     const canGenerate = canGeneratePayslips(pp.id!);
@@ -377,8 +389,9 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
                                     const genTitle = !run
                                       ? "Process payroll first"
                                       : !canGenerate
-                                        ? "Payroll must be fully approved before generating payslips"
-                                        : "Generate payslips for this period";
+                                        ? "Payroll must be approved before generating payslips"
+                                        : "Generate payslip records for this period";
+
                                     return (
                                       <button
                                         onClick={(e) => run && handleGeneratePayslips(run.id, e)}

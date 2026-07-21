@@ -11,6 +11,7 @@ import {
   Send,
   CheckCircle2,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../../lib/utils';
@@ -62,7 +63,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
   const activeLoadRef = useRef(0);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -167,7 +168,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
     if (!selectedImport?.id) return;
     setSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/attendance/imports/${selectedImport.id}/submit-for-approval`, {
+      const response = await fetch(`/api/v1/attendance/imports/${selectedImport.id}/submit-for-approval`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,
@@ -283,7 +284,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
                   const imp = imports.find(i => i.id === e.target.value);
                   if (imp) handleSelectImport(imp);
                 }}
-                className="appearance-none bg-white/60 border-none rounded-xl pl-4 pr-10 py-2 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[240px]"
+                className="appearance-none bg-white border-2 border-brand-200 focus:border-brand-400 rounded-xl pl-4 pr-10 py-2 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[240px]"
               >
                 {imports.map((imp) => (
                   <option key={imp.id} value={imp.id}>
@@ -341,14 +342,14 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               placeholder="Search personnel..."
-              className="w-full md:w-72 pl-12 pr-6 py-3 bg-white/50 border-none rounded-[1.5rem] text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
+              className="w-full md:w-72 pl-12 pr-6 py-3 bg-white border-2 border-brand-200 focus:border-brand-400 rounded-[1.5rem] text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
             />
           </div>
           <div className="relative group">
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="appearance-none bg-white/50 border-none rounded-[1.5rem] px-8 py-3 pr-12 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
+              className="appearance-none bg-white border-2 border-brand-200 focus:border-brand-400 rounded-[1.5rem] px-8 py-3 pr-12 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
             >
               <option value="">All Governance</option>
               <option value="APPROVED">Authorized</option>
@@ -436,7 +437,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
                         </td>
                         <td className="px-8 py-5 border-r border-slate-200/50">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 flex items-center justify-center font-black text-[10px] text-brand-primary group-hover:scale-110 transition-transform">
+                            <div className="w-10 h-10 rounded-2xl bg-brand-primary shadow-lg shadow-brand-900/20 flex items-center justify-center font-black text-[10px] text-white group-hover:scale-110 transition-transform">
                               {initials.first}{initials.last}
                             </div>
                             <div>

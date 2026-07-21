@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Clock, Users, TrendingUp, Calendar, Inbox, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "../../../lib/utils";
-import { GlassCard, StatusBadge, InitialAvatar } from "../../../components/ui";
+import { cn, slugify } from "../../../lib/utils";
+import { GlassCard, StatusBadge, InitialAvatar, Button } from "../../../components/ui";
 import { attendanceApi } from "../api/attendanceApi";
 import { AttendanceHeatmap } from "../../overtime/components/AttendanceHeatmap";
 import { formatHourValue, getSummaryColor } from "../../../lib/parseBiometricWorkbook";
@@ -22,11 +22,12 @@ const SUMMARY_FIELD_MAP: Record<string, keyof AttendanceMonthlySummary> = {
 const SUMMARY_FIELDS = Object.keys(SUMMARY_FIELD_MAP);
 
 export const EmployeeAttendanceDetail: React.FC = () => {
-  const { employeeId } = useParams<{ employeeId: string }>();
+  const { employeeSlug } = useParams<{ employeeSlug: string }>();
   const [searchParams] = useSearchParams();
   const importId = searchParams.get("importId");
   const navigate = useNavigate();
 
+  const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ImportDetail | null>(null);
@@ -34,7 +35,7 @@ export const EmployeeAttendanceDetail: React.FC = () => {
   const [employeeName, setEmployeeName] = useState("");
 
   useEffect(() => {
-    if (!importId || !employeeId) return;
+    if (!importId || !employeeSlug) return;
     let cancelled = false;
 
     setLoading(true);
@@ -42,12 +43,24 @@ export const EmployeeAttendanceDetail: React.FC = () => {
       .then((data) => {
         if (cancelled) return;
         setDetail(data);
-        const firstRecord = data.attendanceRecords?.find((r) => r.employeeId === employeeId);
-        if (firstRecord?.employee) {
-          setEmployeeName(`${firstRecord.employee.firstName} ${firstRecord.employee.lastName || ""}`.trim());
+
+        // Find employee record by matching slugified name
+        const matchedRecord = data.attendanceRecords?.find((r) => {
+          if (!r.employee) return false;
+          const fullName = `${r.employee.firstName} ${r.employee.lastName || ""}`.trim();
+          return slugify(fullName) === employeeSlug;
+        });
+
+        if (matchedRecord?.employee) {
+          const empId = matchedRecord.employee.id;
+          setResolvedEmployeeId(empId);
+          setEmployeeName(`${matchedRecord.employee.firstName} ${matchedRecord.employee.lastName || ""}`.trim());
+
+          const empSummary = data.monthlySummaries?.find((s) => s.employeeId === empId);
+          if (empSummary) setSummary(empSummary);
+        } else {
+          setError("Employee not found in this import");
         }
-        const empSummary = data.monthlySummaries?.find((s) => s.employeeId === employeeId);
-        if (empSummary) setSummary(empSummary);
       })
       .catch((err) => {
         if (!cancelled) setError(err?.message || "Failed to load employee intelligence.");
@@ -57,7 +70,7 @@ export const EmployeeAttendanceDetail: React.FC = () => {
       });
 
     return () => { cancelled = true; };
-  }, [importId, employeeId]);
+  }, [importId, employeeSlug]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
@@ -145,7 +158,7 @@ export const EmployeeAttendanceDetail: React.FC = () => {
             { label: 'Cycle Utilization', value: formatHourValue(summary.regularHours), unit: 'h', icon: Clock, color: 'text-blue-500', desc: 'Regular Hours' },
             { label: 'Cumulative Delay', value: summary.lateMinutes, unit: 'm', icon: AlertTriangle, color: summary.lateMinutes > 60 ? 'text-red-500' : 'text-amber-500', desc: 'Lateness Log' },
             { label: 'Overtime Engine', value: formatHourValue(Number(summary.normalOtHours) + Number(summary.weekendOtHours)), unit: 'h', icon: TrendingUp, color: 'text-indigo-500', desc: 'Total OT Ingest' },
-            { label: 'Presence Matrix', value: detail.attendanceRecords?.filter((r) => r.employeeId === employeeId && !r.isAbsent).length ?? 0, unit: '', icon: CheckCircle2, color: 'text-brand-primary', desc: 'Active Days' },
+            { label: 'Presence Matrix', value: detail.attendanceRecords?.filter((r) => r.employeeId === resolvedEmployeeId && !r.isAbsent).length ?? 0, unit: '', icon: CheckCircle2, color: 'text-brand-primary', desc: 'Active Days' },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -176,7 +189,7 @@ export const EmployeeAttendanceDetail: React.FC = () => {
         {/* Heatmap Card */}
         <div className="lg:col-span-8 glass rounded-[3rem] p-10 shadow-2xl border-white bg-white/40">
           <AttendanceHeatmap
-            employeeId={employeeId!}
+            employeeId={resolvedEmployeeId!}
             importId={importId!}
             employeeName={employeeName}
           />

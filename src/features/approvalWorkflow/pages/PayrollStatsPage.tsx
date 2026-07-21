@@ -9,13 +9,16 @@ import {
   BadgeCheck,
   Users,
   Calculator,
+  FileDown,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import {
   payrollRunApi,
   type PayrollRunItem,
+  type PayrollRun,
 } from "../../payrollProcessing/api/payrollProcessingApi";
 import { ExpandablePayrollTable } from "../../payrollProcessing/components/ExpandablePayrollTable";
+import { exportPayrollToExcel } from "../../payrollProcessing/utils/exportPayrollExcel";
 import { Pagination } from "../../../components/ui";
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
@@ -75,6 +78,8 @@ export const PayrollStatsPage: React.FC = () => {
   const periodId = searchParams.get("periodId");
 
   const [items, setItems] = useState<PayrollRunItem[]>([]);
+  const [currentRun, setCurrentRun] = useState<PayrollRun | null>(null);
+  const [periodName, setPeriodName] = useState("");
   const [runId, setRunId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +112,13 @@ export const PayrollStatsPage: React.FC = () => {
       }
 
       setRunId(currentRun.id);
+      setCurrentRun(currentRun);
+
+      // Get period name
+      const periodsRes = await import("../../configuration/api/configurationApi").then(m => m.payrollPeriodApi.getAll());
+      const periods = periodsRes.data?.data || [];
+      const period = periods.find((p: any) => p.id === periodId);
+      setPeriodName(period?.name || "Payroll Export");
 
       // Fetch items from the main run
       const itemsRes = await payrollRunApi.getRunItems(currentRun.id, {
@@ -229,6 +241,15 @@ export const PayrollStatsPage: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             Processed Employees
           </span>
+        )}
+        {!loading && !error && items.length > 0 && currentRun && (
+          <button
+            onClick={() => exportPayrollToExcel(items as any, currentRun as any, periodName)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:border-brand-primary hover:bg-brand-light/20 transition-all shadow-sm"
+          >
+            <FileDown className="w-4 h-4 text-emerald-600" />
+            Export XLSX
+          </button>
         )}
       </div>
 

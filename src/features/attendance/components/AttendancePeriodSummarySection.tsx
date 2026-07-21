@@ -30,7 +30,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
     const [detailLoading, setDetailLoading] = useState(false);
     const [search, setSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 10;
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'hourly' | 'monthly'>('monthly');
     const STANDARD_HOURS = 8;
@@ -172,7 +172,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                         <select
                             value={selectedImportId ?? ''}
                             onChange={(e) => setSelectedImportId(e.target.value)}
-                            className="appearance-none bg-white/60 border-none rounded-xl pl-4 pr-10 py-2 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[240px]"
+                            className="appearance-none bg-white border-2 border-brand-200 focus:border-brand-400 rounded-xl pl-4 pr-10 py-2 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[240px]"
                         >
                             {imports.map((imp) => (
                                 <option key={imp.id} value={imp.id}>
@@ -298,7 +298,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                                     placeholder="Filter Personnel Matrix..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="w-80 pl-12 pr-6 py-3 bg-white/50 border-none rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
+                                    className="w-80 pl-12 pr-6 py-3 bg-white border-2 border-brand-200 focus:border-brand-400 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
                                 />
                             </div>
                             <div className="flex items-center gap-3">
@@ -374,7 +374,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                                                 <tr key={row.id || i} className={cn(rowBg, "hover:bg-brand-primary/5 transition-all group cursor-default border-b border-slate-50/50")}>
                                                     <td className="px-8 py-5 border-r border-slate-200/50">
                                                         <div className="flex items-center gap-5">
-                                                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 flex items-center justify-center font-black text-[10px] text-brand-primary group-hover:scale-110 transition-transform">
+                                                            <div className="w-12 h-12 rounded-2xl bg-brand-primary shadow-lg shadow-brand-900/20 flex items-center justify-center font-black text-[10px] text-white group-hover:scale-110 transition-transform">
                                                                 {initials.first}{initials.last}
                                                             </div>
                                                             <div>

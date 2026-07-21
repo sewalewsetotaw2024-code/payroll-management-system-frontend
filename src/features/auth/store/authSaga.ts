@@ -4,7 +4,6 @@ import { authActions } from './authSlice';
 import { authApi } from '../api/authApi';
 import type { LoginCredentials } from '../types/auth.types';
 import { tokenStorage } from '../../../lib/token';
-import { websocketService } from '../../../lib/websocket';
 
 function* loginSaga(action: PayloadAction<LoginCredentials>): Generator {
   try {
@@ -35,23 +34,9 @@ function* fetchMeSaga(): Generator {
 
 function* logoutSaga(): Generator {
   tokenStorage.removeToken();
-  websocketService.disconnect();
-}
-
-function* loginSuccessSaga(): Generator {
-  websocketService.connect();
-}
-
-function* fetchMeSuccessSaga(): Generator {
-  websocketService.connect();
 }
 
 export default function* authSaga() {
-  yield takeLatest(authActions.loginRequest.type, loginSaga);
-  yield takeLatest(authActions.fetchMeRequest.type, fetchMeSaga);
-  yield takeLatest(authActions.logout.type, logoutSaga);
-  yield takeLatest(authActions.loginSuccess.type, loginSuccessSaga);
-  yield takeLatest(authActions.fetchMeSuccess.type, fetchMeSuccessSaga);
   yield takeLatest(authActions.loginRequest.type, loginSaga);
   yield takeLatest(authActions.fetchMeRequest.type, fetchMeSaga);
   yield takeLatest(authActions.logout.type, logoutSaga);

@@ -73,7 +73,7 @@ export const LeaveApplicationsSection: React.FC<LeaveApplicationsSectionProps> =
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 15;
+    const pageSize = 10;
 
     /**
      * Fetch leave applications within the selected period.
@@ -261,32 +261,20 @@ export const LeaveApplicationsSection: React.FC<LeaveApplicationsSectionProps> =
                     <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3">
                             <div style={{ position: 'relative' }}>
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" style={{ pointerEvents: 'none' }} />
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" style={{ pointerEvents: 'none' }} />
                                 <input
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Search employee..."
-                                    style={{
-                                        width: '220px', padding: '7px 12px 7px 34px', border: '1px solid #E5E7EB',
-                                        borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', color: '#111827',
-                                        background: '#fff', outline: 'none', transition: 'all 150ms ease',
-                                    }}
-                                    onFocus={(e) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(5,150,105,0.1)'; }}
-                                    onBlur={(e) => { e.target.style.borderColor = '#E5E7EB'; e.target.style.boxShadow = 'none'; }}
+                                    className="w-[220px] pl-10 pr-3 py-2 bg-white border-2 border-brand-200 focus:border-brand-400 rounded-xl text-[13px] font-bold text-slate-700 placeholder:text-slate-400 focus:ring-4 focus:ring-brand-primary/10 transition-all shadow-sm"
                                 />
                             </div>
                             <div style={{ position: 'relative' }}>
                                 <select
                                     value={typeFilter}
                                     onChange={(e) => setTypeFilter(e.target.value)}
-                                    style={{
-                                        padding: '7px 32px 7px 12px', border: '1px solid #E5E7EB', borderRadius: '6px',
-                                        fontSize: '13px', fontFamily: 'inherit', color: '#111827', background: '#fff',
-                                        cursor: 'pointer', outline: 'none', appearance: 'none',
-                                        backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%239CA3AF%27 stroke-width=%272%27%3E%3Cpolyline points=%276 9 12 15 18 9%27/%3E%3C/svg%3E")',
-                                        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
-                                    }}
+                                    className="appearance-none bg-white border-2 border-brand-200 focus:border-brand-400 rounded-xl px-3 py-2 pr-8 text-[13px] font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
                                 >
                                     <option value="">All Leave Types</option>
                                     {leaveTypes.map((t) => (
@@ -363,7 +351,7 @@ export const LeaveApplicationsSection: React.FC<LeaveApplicationsSectionProps> =
                                                             width: '36px', height: '36px', borderRadius: '50%',
                                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             fontWeight: 600, fontSize: '13px', flexShrink: 0,
-                                                            background: '#D1FAE5', color: '#059669',
+                                                            background: '#059669', color: '#fff',
                                                         }}>
                                                             {initials.first}{initials.last}
                                                         </div>

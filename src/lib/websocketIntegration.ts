@@ -14,6 +14,9 @@ export function initializeWebSocketIntegration(): void {
     // Refresh unread count when new notification arrives
     store.dispatch(notificationActions.fetchUnreadCountRequest());
   });
+
+  // Connect to WebSocket
+  websocketService.connect();
 }
 
 /**

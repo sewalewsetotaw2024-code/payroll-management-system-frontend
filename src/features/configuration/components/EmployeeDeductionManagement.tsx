@@ -16,7 +16,7 @@ import {
   Tag,
   Settings,
 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn, slugify } from '../../../lib/utils';
 import { Modal, Input, Select, Button, Pagination } from '../../../components/ui';
 import { DataRenderer } from '../../../components/core/renderers/DataRenderer';
 import { ConfigSection, ConfigEmptyState, ConfigModalFooter } from './shared';
@@ -741,7 +741,7 @@ const typeLabelMap: Record<string, string> = {
                       <tr 
                         key={config.id} 
                         className="group hover:bg-slate-50/50 transition-all cursor-pointer"
-                        onClick={() => navigate(`/employee-deductions/${config.id}`)}
+                        onClick={() => navigate(`/employee-deductions/${slugify(config.label)}`)}
                       >
                         <td className="px-10 py-6">
                           <div className="flex items-center gap-5">
@@ -749,7 +749,7 @@ const typeLabelMap: Record<string, string> = {
                               "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-sm transition-all group-hover:scale-105 group-hover:shadow-md",
                               iconBgMap[config.deductionType] || "bg-slate-50 text-slate-400 border-slate-200"
                             )}>
-                              {React.cloneElement(meta.icon as React.ReactElement, { className: "w-5.5 h-5.5", strokeWidth: 2.5 })}
+                              {meta.icon}
                             </div>
                             <div className="min-w-0">
                               <p className="font-bold text-slate-900 text-base tracking-tight truncate leading-none">{config.label}</p>

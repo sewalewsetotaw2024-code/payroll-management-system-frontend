@@ -10,9 +10,9 @@ import type {
 // Timeout ensures requests don't hang indefinitely when the backend is unavailable.
 const API_TIMEOUT = 10000; // 10 seconds
 
-const attendanceAxios = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/attendance`, timeout: API_TIMEOUT });
-const payrollAxios = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/payroll`, timeout: API_TIMEOUT });
-const approvalAxios = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/approval`, timeout: API_TIMEOUT });
+const attendanceAxios = axios.create({ baseURL: "/api/v1/attendance", timeout: API_TIMEOUT });
+const payrollAxios = axios.create({ baseURL: "/api/v1/payroll", timeout: API_TIMEOUT });
+const approvalAxios = axios.create({ baseURL: "/api/v1/approval", timeout: API_TIMEOUT });
 
 [attendanceAxios, payrollAxios, approvalAxios].forEach((instance) => {
   instance.interceptors.request.use((config) => {
@@ -259,7 +259,7 @@ export function computePipelineFlags(
 
 // ── Dynamic Roles API ───────────────────────────────────────────────────────
 
-const rolesAxios = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || '/api/v1'}/roles`, timeout: API_TIMEOUT });
+const rolesAxios = axios.create({ baseURL: "/api/v1/roles", timeout: API_TIMEOUT });
 rolesAxios.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
