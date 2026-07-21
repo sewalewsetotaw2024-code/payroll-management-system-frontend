@@ -34,7 +34,14 @@ class WebSocketService {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`;
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiOrigin = apiUrl && /^https?:\/\//i.test(apiUrl)
+      ? new URL(apiUrl).origin
+      : null;
+    const backendOrigin = apiOrigin
+      ? apiOrigin.replace(/^https?:/, protocol)
+      : `${protocol}//${window.location.host}`;
+    const host = import.meta.env.VITE_WS_URL || `${backendOrigin}/ws`;
 
     try {
       this.ws = new WebSocket(host);
