@@ -2,7 +2,9 @@ import axios from 'axios';
 import type { LoginCredentials, LoginResponse } from '../types/auth.types';
 import { tokenStorage } from '../../../lib/token';
 
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_API_URL || import.meta.env.VITE_API_URL || '/api/v1';
+const AUTH_BASE_URL =
+  import.meta.env.VITE_AUTH_API_URL ||
+  (import.meta.env.PROD ? 'https://adiu-okr.onrender.com/api/v1' : import.meta.env.VITE_API_URL || '/api/v1');
 
 const authAxios = axios.create({
   baseURL: `${AUTH_BASE_URL}/auth`,
