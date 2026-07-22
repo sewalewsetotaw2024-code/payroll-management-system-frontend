@@ -2,7 +2,9 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 import type { LeaveBalance, LeaveApplication, LeaveDeduction, LeaveSyncLog, PayrollLeaveItem, LeaveSyncResult, LeaveFromAttendanceResult } from '../types/leave.types';
 
-const leaveAxios = axios.create({ baseURL: '/api/v1/leave' });
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+const leaveAxios = axios.create({ baseURL: `${API_BASE_URL}/leave` });
 
 leaveAxios.interceptors.request.use((config) => {
     const token = tokenStorage.getToken();

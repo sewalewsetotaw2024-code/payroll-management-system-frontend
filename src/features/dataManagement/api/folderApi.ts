@@ -2,8 +2,10 @@ import axios from 'axios';
 import type { FolderTreeNode, FolderExportData } from '../types/folder.types';
 import { tokenStorage } from '../../../lib/token';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 const folderAxios = axios.create({
-  baseURL: '/api/v1/folders',
+  baseURL: `${API_BASE_URL}/folders`,
 });
 
 folderAxios.interceptors.request.use((config) => {

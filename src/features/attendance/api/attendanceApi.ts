@@ -9,12 +9,14 @@ import type {
     CombinedPeriodSummary,
 } from '../types/attendance.types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 /**
  * Axios instance configured for the Attendance API base path.
  * Automatically attaches the Bearer token from tokenStorage on every request.
  */
 const attendanceAxios = axios.create({
-    baseURL: '/api/v1/attendance',
+    baseURL: `${API_BASE_URL}/attendance`,
 });
 
 attendanceAxios.interceptors.request.use((config) => {

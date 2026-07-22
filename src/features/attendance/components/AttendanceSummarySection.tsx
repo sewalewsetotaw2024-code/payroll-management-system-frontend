@@ -168,7 +168,8 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
     if (!selectedImport?.id) return;
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/v1/attendance/imports/${selectedImport.id}/submit-for-approval`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1';
+      const response = await fetch(`${apiBaseUrl}/attendance/imports/${selectedImport.id}/submit-for-approval`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,

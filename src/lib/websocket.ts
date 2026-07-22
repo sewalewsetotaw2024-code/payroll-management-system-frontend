@@ -33,6 +33,12 @@ class WebSocketService {
       return;
     }
 
+    const token = tokenStorage.getToken();
+    if (!token) {
+      console.debug('[WebSocket] Waiting for an authenticated session before connecting');
+      return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const apiUrl = import.meta.env.VITE_API_URL;
     const apiOrigin = apiUrl && /^https?:\/\//i.test(apiUrl)
@@ -90,7 +96,6 @@ class WebSocketService {
     const token = tokenStorage.getToken();
     if (!token) {
       console.warn('[WebSocket] No token available for authentication');
-      this.ws?.close(4003, 'No token');
       return;
     }
 

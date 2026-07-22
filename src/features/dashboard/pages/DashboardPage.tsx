@@ -65,6 +65,16 @@ const fmtShort = (value: number | undefined | null) => {
   return value.toLocaleString();
 };
 
+const DashboardTooltipContent = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="glass-dark p-3 rounded-xl border border-white/10 shadow-2xl text-white text-xs font-bold font-mono">
+      {label}
+    </div>
+  );
+};
+
 export const DashboardPage: React.FC = () => {
   // ── Real payroll data ──────────────────────────────────
 
@@ -469,7 +479,7 @@ export const DashboardPage: React.FC = () => {
                               <Cell key={`cell-${index}`} fill={entry.fill} className="hover:opacity-80 transition-opacity cursor-pointer outline-none" />
                             ))}
                           </Pie>
-                          <Tooltip content={<div className="glass-dark p-3 rounded-xl border border-white/10 shadow-2xl text-white text-xs font-bold font-mono">Custom Value</div>} />
+                          <Tooltip content={<DashboardTooltipContent />} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">

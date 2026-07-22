@@ -1,10 +1,12 @@
 import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 // Separate axios instance for payroll processing endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
 const payrollAxios = axios.create({
-  baseURL: '/api/v1/payroll',
+  baseURL: `${API_BASE_URL}/payroll`,
   headers: { 'Content-Type': 'application/json' },
 });
 

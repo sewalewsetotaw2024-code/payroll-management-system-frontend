@@ -37,13 +37,21 @@ export interface RequestState<T> {
   isRefreshing: boolean;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-// const BASE_URL = import.meta.env.VITE_API_URL || 'https://adiu-okr.onrender.com/api/v1';
+// const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://adiu-okr.onrender.com/api/v1';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = tokenStorage.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 apiClient.interceptors.response.use(

@@ -3,10 +3,12 @@ import { tokenStorage } from '../../../lib/token';
 import type { MyPeriodsResponse, PayslipDetail, GenerationStatus } from '../types/payslip.types';
 import type { GeneratePayslipResult, BatchGenerateResult } from '../../payslipTemplates/types/payslipTemplate.types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
 // Separate axios instance for employee payslip endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
 const payslipAxios = axios.create({
-  baseURL: '/api/v1/payroll',
+  baseURL: `${API_BASE_URL}/payroll`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -74,7 +76,7 @@ export const payslipApi = {
 
   /** Get the URL to view/download a payslip PDF */
   getPayslipPdfUrl: (payslipId: string) =>
-    `/api/v1/payroll/payslips/${payslipId}/pdf`,
+    `${API_BASE_URL}/payroll/payslips/${payslipId}/pdf`,
 
   /** Poll payslip generation status (lightweight check) */
   getPayslipStatus: async (

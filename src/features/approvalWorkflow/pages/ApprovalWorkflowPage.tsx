@@ -263,7 +263,8 @@ export const ApprovalWorkflowPage: React.FC = () => {
     setStage1Submitting(true);
     try {
       const { tokenStorage } = await import("../../../lib/token");
-      const response = await fetch(`/api/v1/attendance/imports/${activeImportId}/submit-for-approval`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || "/api/v1";
+      const response = await fetch(`${apiBaseUrl}/attendance/imports/${activeImportId}/submit-for-approval`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${tokenStorage.getToken()}`,
