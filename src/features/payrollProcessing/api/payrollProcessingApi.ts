@@ -4,7 +4,7 @@ import { tokenStorage } from '../../../lib/token';
 // Separate axios instance for payroll processing endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
 const payrollAxios = axios.create({
-  baseURL: '/api/v1/payroll',
+  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/payroll' : (import.meta.env.VITE_API_URL || '') + '/api/v1/payroll',
   headers: { 'Content-Type': 'application/json' },
 });
 

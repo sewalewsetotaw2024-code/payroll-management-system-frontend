@@ -2,7 +2,7 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 import type { PayslipTemplate } from '../types/payslipTemplate.types';
 
-const api = axios.create({ baseURL: '/api/v1' });
+const api = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1' : (import.meta.env.VITE_API_URL || '') + '/api/v1' });
 api.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;

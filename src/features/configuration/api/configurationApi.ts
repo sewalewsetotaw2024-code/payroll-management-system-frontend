@@ -21,7 +21,7 @@ import type {
 
 // Axios for integration/sync endpoints (base: /api/v1/integrations)
 const integrationAxios = axios.create({
-  baseURL: '/api/v1/integrations',
+  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/integrations' : (import.meta.env.VITE_API_URL || '') + '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 

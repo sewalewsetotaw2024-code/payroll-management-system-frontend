@@ -23,7 +23,7 @@ import type {
 
 /** Axios instance with auth interceptor. */
 const axiosInstance = axios.create({
-    baseURL: '/api/v1',
+    baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com' : (import.meta.env.VITE_API_URL || '') + '',
 });
 
 axiosInstance.interceptors.request.use((config) => {

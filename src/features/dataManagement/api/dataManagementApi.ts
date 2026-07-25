@@ -3,7 +3,7 @@ import type { ImportType, ImportResult, ImportRecord } from '../types/dataManage
 import { tokenStorage } from '../../../lib/token';
 
 const dataAxios = axios.create({
-  baseURL: '/api/v1/data',
+  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/data' : (import.meta.env.VITE_API_URL || '') + '/api/v1/data',
 });
 
 dataAxios.interceptors.request.use((config) => {
