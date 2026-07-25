@@ -9,6 +9,11 @@ function* loginSaga(action: PayloadAction<LoginCredentials>): Generator {
   try {
     const response: any = yield call(authApi.login, action.payload);
     const { token, data } = response.data;
+    
+    if (!data || !data.user) {
+      throw new Error('Invalid response format from server. Are you pointing to the correct API URL?');
+    }
+
     const remember = action.payload.remember ?? false;
     tokenStorage.setToken(token, remember);
     yield put(authActions.loginSuccess({ user: data.user, token }));
