@@ -21,11 +21,9 @@ import type {
     CalculationMethod,
 } from '../types/actingAllowance.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
-
 /** Axios instance with auth interceptor. */
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: '/api/v1',
 });
 
 axiosInstance.interceptors.request.use((config) => {

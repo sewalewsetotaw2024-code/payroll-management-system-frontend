@@ -11,6 +11,8 @@ import type {
     ImportDetail,
 } from '../types/attendance.types';
 import { exportAttendanceSummaryToXlsx } from '../utils/exportAttendanceSummary';
+import { useHrGeneralistFallback } from '../hooks/useHrGeneralistFallback';
+import { useRolePermissions } from '../../../hooks/useRolePermissions';
 
 interface AttendancePeriodSummarySectionProps {
     periodId: string | null;
@@ -21,6 +23,9 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
     periodId,
     periodName,
 }) => {
+    const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+    const { hasPermission } = useRolePermissions();
+    const canCalculateSummary = hasPermission('canCalculateSummary');
     const [imports, setImports] = useState<AttendanceImport[]>([]);
     const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
     const [importDetail, setImportDetail] = useState<ImportDetail | null>(null);
@@ -154,9 +159,9 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                 <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-6 shadow-sm">
                     <Calculator className="w-8 h-8 text-slate-400" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">Matrix Context Missing</h3>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">No Period Selected</h3>
                 <p className="text-slate-500 font-medium max-w-md mx-auto">
-                    Select a valid payroll period from the gateway above to view active attendance summaries.
+                    Select a payroll period from the dropdown above to view attendance summaries.
                 </p>
             </div>
         );
@@ -167,7 +172,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
             {/* ── Command Strip: Import Selector + Calculate ── */}
             <div className="glass rounded-[2.5rem] p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-white shadow-xl bg-white/40">
                 <div className="flex items-center gap-4 pl-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Context</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Import</span>
                     <div className="relative group">
                         <select
                             value={selectedImportId ?? ''}
@@ -209,13 +214,14 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
 
                     <Button
                         onClick={handleCalculateSummary}
-                        disabled={!selectedImportId || calculating}
+                        disabled={!selectedImportId || calculating || hrManagerBlocked || !canCalculateSummary}
+                        title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canCalculateSummary ? "You don't have permission to calculate the summary" : undefined}
                         className="px-8 shadow-xl shadow-brand-900/10 h-10 text-[10px] uppercase font-black tracking-widest rounded-xl"
                     >
                         {calculating ? (
                             <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculating...</>
                         ) : (
-                            <><Calculator className="w-4 h-4" /> Run Matrix</>
+                            <><Calculator className="w-4 h-4" /> Calculate Summary</>
                         )}
                     </Button>
 
@@ -265,9 +271,9 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                     {/* ── Summary Stats Bento ── */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         {[
-                            { label: ' PERSONNEL Strength', value: formatNumber(totalEmployees), icon: Users, color: 'text-brand-primary', bg: 'bg-white/50' },
-                            { label: viewMode === 'hourly' ? 'TOTAL CAPACITY (HRS)' : 'TOTAL CAPACITY (DAYS)', value: formatHours(viewMode === 'hourly' ? totalRegularHrs : totalRegularHrs / STANDARD_HOURS), icon: Clock, color: 'text-brand-secondary', bg: 'bg-white/50' },
-                            { label: viewMode === 'hourly' ? 'ABSENCE DEFICIT (HRS)' : 'ABSENCE DEFICIT (DAYS)', value: formatHours(viewMode === 'hourly' ? totalAbsentHrs : totalAbsentHrs / STANDARD_HOURS), icon: AlertCircle, color: 'text-rose-500', bg: 'bg-white/50' },
+                            { label: 'Total Employees', value: formatNumber(totalEmployees), icon: Users, color: 'text-brand-primary', bg: 'bg-white/50' },
+                            { label: viewMode === 'hourly' ? 'Regular Hours' : 'Regular Days', value: formatHours(viewMode === 'hourly' ? totalRegularHrs : totalRegularHrs / STANDARD_HOURS), icon: Clock, color: 'text-brand-secondary', bg: 'bg-white/50' },
+                            { label: viewMode === 'hourly' ? 'Absent Hours' : 'Absent Days', value: formatHours(viewMode === 'hourly' ? totalAbsentHrs : totalAbsentHrs / STANDARD_HOURS), icon: AlertCircle, color: 'text-rose-500', bg: 'bg-white/50' },
                         ].map((stat, i) => (
                             <motion.div 
                                 key={stat.label}
@@ -295,7 +301,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                                 <input
                                     type="text"
-                                    placeholder="Filter Personnel Matrix..."
+                                    placeholder="Search employees..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="w-80 pl-12 pr-6 py-3 bg-white border-2 border-brand-200 focus:border-brand-400 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
@@ -303,7 +309,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="px-4 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
-                                    {filteredSummaries.length} Records In-Scope
+                                    {filteredSummaries.length} Records
                                 </span>
                             </div>
                         </div>
@@ -312,16 +318,16 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                             <table className="w-full text-left border-collapse min-w-[1000px]">
                                 <thead>
                                     <tr className="bg-white/60 border-b border-slate-100">
-                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Personnel Identity</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Absence Log</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Governed Absence</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Deployment Yield</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Employee</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Absences</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Paid Leave</th>
+                                        <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Total Days</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {paginatedSummaries.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No active personnel data available</td>
+                                            <td colSpan={4} className="py-32 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No attendance records found</td>
                                         </tr>
                                     ) : (
                                         paginatedSummaries.map((row, i) => {
@@ -412,7 +418,7 @@ export const AttendancePeriodSummarySection: React.FC<AttendancePeriodSummarySec
                         {filteredSummaries.length > 0 && (
                             <div className="px-8 py-6 border-t border-slate-100 flex items-center justify-between bg-white/40">
                                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                                    Syncing <span className="text-slate-900 font-mono">{paginatedSummaries.length}</span> of <span className="text-slate-900 font-mono">{filteredSummaries.length}</span> personnel
+                                    Showing <span className="text-slate-900 font-mono">{paginatedSummaries.length}</span> of <span className="text-slate-900 font-mono">{filteredSummaries.length}</span> records
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button

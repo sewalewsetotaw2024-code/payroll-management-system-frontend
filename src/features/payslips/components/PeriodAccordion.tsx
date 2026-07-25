@@ -82,7 +82,7 @@ export const PeriodAccordion: React.FC<PeriodAccordionProps> = ({
         const isExpanded = expandedId === fy.id;
         const isActive = fy.status === 'ACTIVE';
         const completedCount = fy.periods.filter(
-          (p) => p.generationStatus === 'COMPLETED',
+          (p) => p.generationStatus === 'COMPLETED' && p.visibilityStatus === 'DONE',
         ).length;
         const totalCount = fy.periods.length;
 

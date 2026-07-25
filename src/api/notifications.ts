@@ -70,7 +70,7 @@ export const notificationsApi = {
   /**
    * Mark a single notification as read
    */
-  async markAsRead(notificationId: string): Promise<Notification> {
+  async markAsRead(notificationId: string): Promise<{ updated: number }> {
     const response = await apiClient.patch(`/notifications/${notificationId}/read`);
     return response.data.data;
   },

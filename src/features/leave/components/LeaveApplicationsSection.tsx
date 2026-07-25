@@ -5,6 +5,7 @@ import { cn } from '../../../lib/utils';
 import { Button } from '../../../components/ui/Button';
 import { leaveApi } from '../api/leaveApi';
 import type { LeaveApplication } from '../types/leave.types';
+import { useRolePermissions } from '../../../hooks/useRolePermissions';
 
 /** Paid leave types (excludes unpaid/casual leave). */
 export const PAID_LEAVE_TYPES = [
@@ -62,6 +63,8 @@ export const LeaveApplicationsSection: React.FC<LeaveApplicationsSectionProps> =
     periodEnd,
     paidLeaveOnly = false,
 }) => {
+    const { hasPermission } = useRolePermissions();
+    const canSyncLeave = hasPermission('canSyncLeave');
     const [applications, setApplications] = useState<LeaveApplication[]>([]);
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
@@ -207,6 +210,8 @@ export const LeaveApplicationsSection: React.FC<LeaveApplicationsSectionProps> =
                 <Button
                     onClick={handleSync}
                     isLoading={syncing}
+                    disabled={!canSyncLeave}
+                    title={!canSyncLeave ? "You don't have permission to sync leave" : undefined}
                     size="md"
                 >
                     <RefreshCw className={cn('w-4 h-4', syncing && 'animate-spin')} />

@@ -2,10 +2,8 @@ import axios from 'axios';
 import type { ImportType, ImportResult, ImportRecord } from '../types/dataManagement.types';
 import { tokenStorage } from '../../../lib/token';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
-
 const dataAxios = axios.create({
-  baseURL: `${API_BASE_URL}/data`,
+  baseURL: '/api/v1/data',
 });
 
 dataAxios.interceptors.request.use((config) => {

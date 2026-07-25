@@ -108,14 +108,15 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
             aria-modal="true"
           >
             {/* Header */}
-            <div className="sticky top-0 glass-dark border-b border-white/10 px-8 py-6 flex items-center justify-between z-10 backdrop-blur-3xl">
-              <div>
-                <h2 className="text-xl font-black text-white tracking-tight">Employee Breakdown</h2>
-                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mt-1">Detailed calculation view</p>
+            <div className="sticky top-0 z-10 px-8 py-6 flex items-center justify-between bg-brand-primary text-white border-b border-slate-100 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="z-10">
+                <h2 className="text-xl font-black tracking-tight">Employee Breakdown</h2>
+                <p className="text-[10px] font-bold text-emerald-50 uppercase tracking-widest mt-1">Detailed calculation view</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-3 hover:bg-white/10 rounded-2xl transition-all text-white/50 hover:text-white"
+                className="p-3 hover:bg-white/10 rounded-2xl transition-all active:scale-90 z-10 cursor-pointer"
                 aria-label="Close"
               >
                 <X className="w-6 h-6" />
@@ -297,7 +298,10 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                             <div className="px-3 py-2 bg-purple-50 border-b border-purple-100">
                               <div className="flex justify-between text-[10px] font-bold text-purple-700 uppercase tracking-wider">
                                 <span>Month</span>
-                                <span>Salary Diff: {fmt(breakdown.salaryDiff)}</span>
+                                {breakdown.calculationMethod === 'FIXED_AMOUNT' || breakdown.calculationMethod === 'RULE_FIXED_AMOUNT'
+                                  ? <span>Fixed Amount: {fmt(breakdown.tierBreakdown[0]?.amount ?? 0)}</span>
+                                  : <span>Salary Diff: {fmt(breakdown.salaryDiff)}</span>
+                                }
                               </div>
                             </div>
                             <div className="divide-y divide-purple-50">
@@ -310,7 +314,10 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                                     )}
                                   </span>
                                   <div className="flex items-center gap-3">
-                                    <span className="text-slate-400 font-mono">{row.percent}%</span>
+                                    {row.percent === -1
+                                      ? <span className="text-purple-500 font-medium font-mono">Fixed</span>
+                                      : <span className="text-slate-400 font-mono">{row.percent}%</span>
+                                    }
                                     <span className="font-mono text-purple-900 w-24 text-right">{fmt(row.amount)}</span>
                                   </div>
                                 </div>
@@ -512,10 +519,29 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                         </div>
                       </div>
                     )}
+
+                    {/* Total Deductions */}
+                    <div className="mt-3 flex justify-between items-center py-3 px-4 bg-rose-50 border border-rose-200 rounded-lg">
+                      <span className="text-sm font-black text-rose-900 uppercase tracking-wide">Total Deductions</span>
+                      <span className="text-base font-black text-rose-900 font-mono">{fmt(item.totalDeductions)}</span>
+                    </div>
+
+                    {/* Gross Salary vs Gross Taxable Income — shown separately since they can differ
+                        (non-taxable allowances / transport exemption reduce taxable income below gross) */}
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="flex justify-between items-center py-3 px-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <span className="text-sm font-black text-emerald-900 uppercase tracking-wide">Gross Salary</span>
+                        <span className="text-base font-black text-emerald-900 font-mono">{fmt(item.grossSalary)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 px-4 bg-teal-50 border border-teal-200 rounded-lg">
+                        <span className="text-sm font-black text-teal-900 uppercase tracking-wide">Gross Taxable Income</span>
+                        <span className="text-base font-black text-teal-900 font-mono">{fmt(item.grossTaxableIncome)}</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Net Pay Hero */}
-                  <div className="glass bg-brand-primary rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl">
+                  <div className="bg-brand-primary rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl">
                     <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
                     <div className="relative z-10 flex justify-between items-center">
                       <div>
@@ -523,17 +549,6 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                         <p className="text-5xl font-black font-mono tracking-tighter">
                           {fmt(item.netSalary)}
                         </p>
-                        <div className="flex items-center gap-4 mt-4">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-emerald-300 uppercase tracking-widest">Gross</span>
-                            <span className="text-xs font-bold font-mono">{fmt(item.grossSalary)}</span>
-                          </div>
-                          <div className="w-px h-6 bg-white/20" />
-                          <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-rose-300 uppercase tracking-widest">Total Deductions</span>
-                            <span className="text-xs font-bold font-mono">{fmt(item.totalDeductions)}</span>
-                          </div>
-                        </div>
                       </div>
                       <div className="w-16 h-16 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
                         <DollarSign className="w-8 h-8" />
@@ -542,6 +557,16 @@ export const EmployeePayrollBreakdown: React.FC<EmployeePayrollBreakdownProps> =
                   </div>
                 </>
               )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-8 border-t border-slate-100 flex justify-end bg-white/50 backdrop-blur-md">
+              <button
+                onClick={onClose}
+                className="cursor-pointer px-8 py-3.5 text-xs font-black uppercase tracking-widest text-slate-500 glass border-white rounded-2xl hover:bg-white hover:text-slate-800 transition-all active:scale-95"
+              >
+                Dismiss
+              </button>
             </div>
           </motion.div>
         </motion.div>

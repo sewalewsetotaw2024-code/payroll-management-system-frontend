@@ -2,9 +2,7 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 import type { PayslipTemplate } from '../types/payslipTemplate.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
-
-const api = axios.create({ baseURL: API_BASE_URL });
+const api = axios.create({ baseURL: '/api/v1' });
 api.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -34,5 +32,5 @@ export const payslipTemplateApi = {
     return res.data.data.html;
   },
 
-  downloadUrl: (id: string) => `${API_BASE_URL}/payslip-templates/${id}/download`,
+  downloadUrl: (id: string) => `/api/v1/payslip-templates/${id}/download`,
 };

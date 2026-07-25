@@ -63,9 +63,13 @@ export const ApprovalHistoryTimeline: React.FC<ApprovalHistoryTimelineProps> = (
     }[] = [];
 
     for (const req of localApprovalRequests) {
-      const safeRoleName = req.requestedBy
-        ? resolveRoleLabel(req.requestedBy)
-        : "System";
+      // requestedBy is the submitting user's raw ID, not a role ID — it can't
+      // be resolved via resolveRoleLabel (which looks up roles, not users).
+      // The backend separately resolves it to the submitter's real name
+      // (falling back to their role name if they have no linked Employee record).
+      const safeRoleName = req.requestedByName
+        || req.requestedByRoleName
+        || (req.requestedBy ? "Unknown" : "System");
 
       events.push({
         id: `submit-${req.id}`,
@@ -79,6 +83,7 @@ export const ApprovalHistoryTimeline: React.FC<ApprovalHistoryTimelineProps> = (
 
       for (const action of req.approvalActions || []) {
         const actorName =
+          action.actorName ||
           action.actor?.role?.name ||
           (action.actor?.role?.id != null
             ? resolveRoleLabel(String(action.actor.role.id))

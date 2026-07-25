@@ -217,6 +217,13 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employ
                     {employee.employmentType && (
                       <DetailItem icon={<Calendar />} label="Contract Type" value={employee.employmentType} />
                     )}
+                    {employee.hireDate && (
+                      <DetailItem
+                        icon={<Calendar />}
+                        label="Employment Date"
+                        value={new Date(employee.hireDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      />
+                    )}
                     {employee.managerName && (
                       <DetailItem icon={<Briefcase />} label="Reporting To" value={employee.managerName} />
                     )}
@@ -230,16 +237,16 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employ
                   {displayGross != null && (
                     <div className="glass bg-white rounded-3xl p-6 shadow-xl border-white relative overflow-hidden group">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-transform" />
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Cycle Gross Target</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Gross Salary</p>
                       <p className="text-4xl font-black text-slate-900 tracking-tighter font-mono">{formatCurrency(displayGross)}</p>
                       <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-slate-50">
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Base</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Base Salary</span>
                           <span className="text-xs font-bold text-slate-700 font-mono">{formatCurrency(employee.basicSalary)}</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Benefits</span>
-                          <span className="text-xs font-bold text-emerald-600 font-mono">+{formatCurrency(totalAllowances)}</span>
+                          <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Allowances</span>
+                          <span className="text-xs font-bold text-emerald-600 font-mono">{formatCurrency(totalAllowances)}</span>
                         </div>
                       </div>
                     </div>
@@ -260,7 +267,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employ
                                 <p className="text-xs font-black text-slate-800 tracking-tight">{a.label}</p>
                               </div>
                             </div>
-                            <p className={`font-black text-sm font-mono ${meta.color}`}>+{formatCurrency(a.amount)}</p>
+                            <p className={`font-black text-sm font-mono ${meta.color}`}>{formatCurrency(a.amount)}</p>
                           </div>
                         );
                       })}
@@ -270,7 +277,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employ
               </div>
 
               {/* Status Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-10 border-t border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-10 border-t border-slate-100">
                 <div className="glass bg-white rounded-3xl p-6 border-white flex flex-col gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-brand-50 text-emerald-600 flex items-center justify-center">
@@ -304,6 +311,20 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({ employ
                   </div>
                   <p className="text-sm font-black font-mono text-slate-900 truncate">
                     {employee.bankAccountNumber || "NOT CONFIGURED"}
+                  </p>
+                </div>
+
+                <div className="glass bg-white rounded-3xl p-6 border-white flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                      <PiggyBank className="w-4 h-4" />
+                    </div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cost Sharing</span>
+                  </div>
+                  <p className="text-lg font-black tracking-tight text-violet-600 font-mono">
+                    {employee.costSharingBalance != null && Number(employee.costSharingBalance) > 0
+                      ? `${Number(employee.costSharingBalance).toLocaleString()} ${currency}`
+                      : '-'}
                   </p>
                 </div>
               </div>

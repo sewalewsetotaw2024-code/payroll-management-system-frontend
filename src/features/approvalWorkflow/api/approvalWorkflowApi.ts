@@ -9,13 +9,13 @@ import type {
 
 // Timeout ensures requests don't hang indefinitely when the backend is unavailable.
 const API_TIMEOUT = 10000; // 10 seconds
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
-const attendanceAxios = axios.create({ baseURL: `${API_BASE_URL}/attendance`, timeout: API_TIMEOUT });
-const payrollAxios = axios.create({ baseURL: `${API_BASE_URL}/payroll`, timeout: API_TIMEOUT });
-const approvalAxios = axios.create({ baseURL: `${API_BASE_URL}/approval`, timeout: API_TIMEOUT });
+const attendanceAxios = axios.create({ baseURL: "/api/v1/attendance", timeout: API_TIMEOUT });
+const payrollAxios = axios.create({ baseURL: "/api/v1/payroll", timeout: API_TIMEOUT });
+const approvalAxios = axios.create({ baseURL: "/api/v1/approval", timeout: API_TIMEOUT });
+const leaveAxios = axios.create({ baseURL: "/api/v1/leave", timeout: API_TIMEOUT });
 
-[attendanceAxios, payrollAxios, approvalAxios].forEach((instance) => {
+[attendanceAxios, payrollAxios, approvalAxios, leaveAxios].forEach((instance) => {
   instance.interceptors.request.use((config) => {
     const token = tokenStorage.getToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -58,6 +58,24 @@ export async function fetchAttendanceImportSummary(
     summaryData = sumRes.data;
   } catch {
     // Summary not calculated yet
+  }
+
+  // Check if leave has been synced for this period
+  let leaveSynced = false;
+  try {
+    const payrollPeriodId = importData.payrollPeriod?.id;
+    if (payrollPeriodId) {
+      const { data: syncRes } = await leaveAxios.get("/sync-logs", {
+        params: { limit: 50 },
+      });
+      const logs = syncRes.data || [];
+      leaveSynced = logs.some(
+        (log: any) =>
+          log.payrollPeriodId === payrollPeriodId && log.status === "SUCCESS",
+      );
+    }
+  } catch {
+    // Leave sync check failed — default to false
   }
 
   const periodSummaries = importData.attendancePeriodSummaries || [];
@@ -113,6 +131,7 @@ export async function fetchAttendanceImportSummary(
       : [],
     summaryCalculated: !!summaryData,
     otCalculated: !!otData,
+    leaveSynced,
   };
 }
 
@@ -223,7 +242,7 @@ export function computePipelineFlags(
     if (payrollRun.deductionCapBreached > 0) {
       flags.push({
         type: "warning",
-        message: `${payrollRun.deductionCapBreached} employees have deduction cap breached (deductions > basic/3)`,
+        message: `${payrollRun.deductionCapBreached} employees have deduction cap breached (loan/other deductions exceed the configured cap)`,
       });
     }
     if (payrollRun.midMonthHires > 0) {
@@ -260,7 +279,7 @@ export function computePipelineFlags(
 
 // ── Dynamic Roles API ───────────────────────────────────────────────────────
 
-const rolesAxios = axios.create({ baseURL: `${API_BASE_URL}/roles`, timeout: API_TIMEOUT });
+const rolesAxios = axios.create({ baseURL: "/api/v1/roles", timeout: API_TIMEOUT });
 rolesAxios.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -493,7 +512,7 @@ export interface ApprovalWorkflowConfig {
   updatedAt?: string;
   steps: {
     id: string;
-    stageType: 'PAYROLL_APPROVAL' | 'PAYMENT_FILE' | 'ATTENDANCE' | 'PAYROLL_BATCH' | 'PAYROLL_DOCUMENT';
+    stageType: 'PAYROLL_APPROVAL' | 'PAYMENT_FILE' | 'ATTENDANCE' | 'PAYROLL_DOCUMENT';
     stepOrder: number;
     requiredRoleId: number;
     isRequired: boolean;
@@ -574,6 +593,18 @@ export async function rejectRequest(
   comment?: string,
 ): Promise<ApprovalRequestData> {
   const res = await approvalAxios.post(`/${requestId}/reject`, { comment });
+  return res.data.data;
+}
+
+/**
+ * Reopen an already-approved/paid payroll run for correction (HR CS Director / Admin only).
+ * Resets the run back to DRAFT so it goes through the full approval pipeline again.
+ */
+export async function reopenPayrollRun(
+  payrollRunId: string,
+  reason: string,
+): Promise<{ id: string; status: string }> {
+  const res = await approvalAxios.post(`/payroll-runs/${payrollRunId}/reopen`, { reason });
   return res.data.data;
 }
 

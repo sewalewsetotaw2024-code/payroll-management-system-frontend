@@ -5,7 +5,7 @@ import type { LeaveSyncLog } from '../types/leave.types';
 
 interface Props {
     syncing: boolean;
-    lastResult: { typesSynced: number; balancesSynced: number; applicationsSynced: number } | null;
+    lastResult: { typesSynced: number; applicationsSynced: number } | null;
     syncLogs: LeaveSyncLog[];
     onSync: () => void;
 }
@@ -24,7 +24,7 @@ export const LeaveSyncPanel: React.FC<Props> = ({ syncing, lastResult, syncLogs,
             <div className="bg-white rounded-lg border border-slate-200 p-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Leave Data Sync</h3>
                 <p className="text-sm text-slate-500 mb-4">
-                    Pull the latest leave types, balances, and approved applications from the Employee Management System.
+                    Pull approved paid leave days from the Employee Management System for the selected payroll period.
                 </p>
 
                 <button
@@ -39,19 +39,9 @@ export const LeaveSyncPanel: React.FC<Props> = ({ syncing, lastResult, syncLogs,
                 {lastResult && (
                     <div className="mt-4 p-4 bg-brand-50 rounded-lg border border-emerald-100">
                         <p className="text-sm font-medium text-emerald-800">Sync completed</p>
-                        <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                                <span className="text-slate-500">Types:</span>{' '}
-                                <span className="font-medium">{lastResult.typesSynced}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-500">Balances:</span>{' '}
-                                <span className="font-medium">{lastResult.balancesSynced}</span>
-                            </div>
-                            <div>
-                                <span className="text-slate-500">Applications:</span>{' '}
-                                <span className="font-medium">{lastResult.applicationsSynced}</span>
-                            </div>
+                        <div className="mt-2 text-sm">
+                            <span className="text-slate-500">Employees with paid leave:</span>{' '}
+                            <span className="font-medium">{lastResult.applicationsSynced}</span>
                         </div>
                     </div>
                 )}

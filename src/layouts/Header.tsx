@@ -95,9 +95,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, user }) => {
           <span className="text-slate-200">/</span>
           <span className="text-brand-primary">{activeTab.replace('-', ' ')}</span>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight hidden lg:block">
-          {activeTab.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-        </h2>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-6">

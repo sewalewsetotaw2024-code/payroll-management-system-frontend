@@ -8,6 +8,7 @@ import { tokenStorage } from './lib/token';
 import { ToastProvider } from './components/ui/Toast';
 import { ApprovalRouteGuard } from './components/auth/ApprovalRouteGuard';
 import { AdminRouteGuard } from './components/auth/AdminRouteGuard';
+import { EmployeeScopeGuard } from './components/auth/EmployeeScopeGuard';
 
 const Dashboard = lazy(() => import('./features/dashboard').then((m) => ({ default: m.Dashboard })));
 const Configuration = lazy(() => import('./features/configuration').then((m) => ({ default: m.Configuration })));
@@ -79,6 +80,7 @@ export default function App() {
     <ToastProvider>
       <DashboardLayout onLogout={handleLogout}>
         <Suspense fallback={loadingFallback}>
+          <EmployeeScopeGuard>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -127,6 +129,7 @@ export default function App() {
             } />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          </EmployeeScopeGuard>
         </Suspense>
       </DashboardLayout>
     </ToastProvider>

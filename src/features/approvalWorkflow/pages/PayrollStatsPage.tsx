@@ -19,6 +19,7 @@ import {
 } from "../../payrollProcessing/api/payrollProcessingApi";
 import { ExpandablePayrollTable } from "../../payrollProcessing/components/ExpandablePayrollTable";
 import { exportPayrollToExcel } from "../../payrollProcessing/utils/exportPayrollExcel";
+import { toast } from "../../../components/ui/Toast";
 import { Pagination } from "../../../components/ui";
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
@@ -84,6 +85,19 @@ export const PayrollStatsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!currentRun) return;
+    setExporting(true);
+    try {
+      await exportPayrollToExcel(currentRun.id, items, currentRun, periodName);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export payroll");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── Fetch payroll data ──────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -244,11 +258,16 @@ export const PayrollStatsPage: React.FC = () => {
         )}
         {!loading && !error && items.length > 0 && currentRun && (
           <button
-            onClick={() => exportPayrollToExcel(items as any, currentRun as any, periodName)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:border-brand-primary hover:bg-brand-light/20 transition-all shadow-sm"
+            onClick={handleExportExcel}
+            disabled={exporting}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:border-brand-primary hover:bg-brand-light/20 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FileDown className="w-4 h-4 text-emerald-600" />
-            Export XLSX
+            {exporting ? (
+              <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4 text-emerald-600" />
+            )}
+            {exporting ? "Exporting..." : "Export XLSX"}
           </button>
         )}
       </div>

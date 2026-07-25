@@ -1,14 +1,12 @@
 import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
-import type { MyPeriodsResponse, PayslipDetail, GenerationStatus } from '../types/payslip.types';
+import type { MyPeriodsResponse, PayslipDetail, GenerationStatus, BatchPayslipStatusResponse } from '../types/payslip.types';
 import type { GeneratePayslipResult, BatchGenerateResult } from '../../payslipTemplates/types/payslipTemplate.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 // Separate axios instance for employee payslip endpoints
 // (main axiosInstance has baseURL '/api/v1/configurations')
 const payslipAxios = axios.create({
-  baseURL: `${API_BASE_URL}/payroll`,
+  baseURL: '/api/v1/payroll',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -76,7 +74,7 @@ export const payslipApi = {
 
   /** Get the URL to view/download a payslip PDF */
   getPayslipPdfUrl: (payslipId: string) =>
-    `${API_BASE_URL}/payroll/payslips/${payslipId}/pdf`,
+    `/api/v1/payroll/payslips/${payslipId}/pdf`,
 
   /** Poll payslip generation status (lightweight check) */
   getPayslipStatus: async (
@@ -94,6 +92,11 @@ export const payslipApi = {
   /** Batch-update payslip visibility to DONE for a given payroll run */
   updateVisibilityForRun: (runId: string, visibility = "DONE") =>
     payslipAxios.put(`/runs/${runId}/payslips/visibility`, { visibility }),
+
+  /** Per-employee payslip generation/visibility status for a run (HR "all employees" payslip page) */
+  getBatchStatus: (payrollRunId: string) =>
+    payslipAxios.get<ApiResponse<BatchPayslipStatusResponse>>(`/payslips/batch-status/${payrollRunId}`)
+      .then(r => r.data.data),
 
   /** Download payslip PDF as a file */
   downloadPayslipPdf: async (payslipId: string, filename?: string) => {

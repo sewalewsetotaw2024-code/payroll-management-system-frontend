@@ -41,6 +41,7 @@ export interface AttendanceImportSummary {
   importErrors: { row: number; message: string }[];
   summaryCalculated: boolean;
   otCalculated: boolean;
+  leaveSynced: boolean;
 }
 
 // ── Stage 2: Payroll Run ────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ export interface ApprovalWorkflowConfig {
 
 export interface ApprovalWorkflowStep {
   id: string;
-  stageType: 'PAYROLL_APPROVAL' | 'PAYMENT_FILE' | 'ATTENDANCE' | 'PAYROLL_BATCH' | 'PAYROLL_DOCUMENT';
+  stageType: 'PAYROLL_APPROVAL' | 'PAYMENT_FILE' | 'ATTENDANCE' | 'PAYROLL_DOCUMENT';
   stepOrder: number;
   requiredRoleId: number;
   requiredRole: { id: number; name: string };

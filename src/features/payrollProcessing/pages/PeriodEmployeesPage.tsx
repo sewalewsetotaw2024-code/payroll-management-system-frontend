@@ -17,6 +17,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { cn, formatCurrency, slugify } from "../../../lib/utils";
 import { useAppSelector } from "../../../store/hooks";
+import { useRolePermissions } from "../../../hooks/useRolePermissions";
+import { useHrGeneralistFallback } from "../../attendance/hooks/useHrGeneralistFallback";
 import {
   payrollRunApi,
   type PayrollRun,
@@ -35,6 +37,7 @@ import { exportPayrollToExcel } from "../utils/exportPayrollExcel";
 import { ExpandablePayrollTable } from "../components/ExpandablePayrollTable";
 import { BatchGenerateButton } from "../../payrollRun/components/BatchGenerateButton";
 import { attendanceApi } from "../../attendance/api/attendanceApi";
+import { toast } from "../../../components/ui/Toast";
 
 type ProcessingStatus = "idle" | "processing" | "success" | "error";
 
@@ -65,6 +68,7 @@ export const PeriodEmployeesPage: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>("__ALL__");
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>("idle");
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -81,6 +85,9 @@ export const PeriodEmployeesPage: React.FC = () => {
     runId: string;
     itemId: string;
   } | null>(null);
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Batch selection state
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
@@ -293,10 +300,17 @@ export const PeriodEmployeesPage: React.FC = () => {
     }
   };
 
-  const handleExportExcel = () => {
-    if (!currentRun || items.length === 0) return;
+  const handleExportExcel = async () => {
+    if (!currentRun || allItems.length === 0) return;
     const periodName = period?.name || "Payroll";
-    exportPayrollToExcel(items, currentRun, periodName);
+    setExporting(true);
+    try {
+      await exportPayrollToExcel(currentRun.id, allItems, currentRun, periodName);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to export payroll");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const toggleEmployee = (id: string) => {
@@ -309,10 +323,10 @@ export const PeriodEmployeesPage: React.FC = () => {
   };
 
   const toggleAllEmployees = () => {
-    if (selectedEmployeeIds.size === batchEmployees.length) {
+    if (selectedEmployeeIds.size === filteredBatchEmployees.length) {
       setSelectedEmployeeIds(new Set());
     } else {
-      setSelectedEmployeeIds(new Set(batchEmployees.map((be) => be.employee?.id).filter(Boolean) as string[]));
+      setSelectedEmployeeIds(new Set(filteredBatchEmployees.map((be) => be.employee?.id).filter(Boolean) as string[]));
     }
   };
 
@@ -365,15 +379,44 @@ export const PeriodEmployeesPage: React.FC = () => {
 
   // ── Role-based access ──────────────────────────────────
   const userRole = useAppSelector((state) => state.auth.user?.role?.name ?? null);
-  const CAN_RUN_PAYROLL_ROLES = new Set(['Admin', 'HR Generalist', 'HR CS Manager']);
-  const canRunPayroll = userRole ? CAN_RUN_PAYROLL_ROLES.has(userRole) : false;
+  const { hasPermission } = useRolePermissions();
+  const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+  const canRunPayroll = hasPermission('canRunPayroll') && !hrManagerBlocked;
 
-  const disableProcess = isPeriodClosed || isProcessing || !attendanceApproved || !canRunPayroll;
+  const selectedBatch = selectedBatchId && selectedBatchId !== "__ALL__"
+    ? batches.find((b) => b.id === selectedBatchId)
+    : null;
+  const isBatchInactive = !!selectedBatch && selectedBatch.status !== "ACTIVE";
+
+  const disableProcess = isPeriodClosed || isProcessing || !attendanceApproved || !canRunPayroll || isBatchInactive;
 
   // Determine which data to show in the table
   const showAttendanceEmployees = batchEmployees.length > 0 && (!currentRun || items.length === 0);
   const showPayrollItems = items.length > 0;
   const hasAnyData = showAttendanceEmployees || showPayrollItems || loadingEmployees || loadingItems;
+
+  // ── Search filtering ───────────────────────────────────
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredItems = useMemo(() => {
+    if (!normalizedQuery) return items;
+    return items.filter((item) => {
+      const name = `${item.employee?.firstName ?? ""} ${item.employee?.lastName ?? ""}`.toLowerCase();
+      const dept = (item.employee?.department?.name ?? "").toLowerCase();
+      const pos = (item.employee?.jobTitle ?? item.employee?.jobPosition ?? "").toLowerCase();
+      return name.includes(normalizedQuery) || dept.includes(normalizedQuery) || pos.includes(normalizedQuery);
+    });
+  }, [items, normalizedQuery]);
+
+  const filteredBatchEmployees = useMemo(() => {
+    if (!normalizedQuery) return batchEmployees;
+    return batchEmployees.filter((be) => {
+      const name = `${be.employee?.firstName ?? ""} ${be.employee?.lastName ?? ""}`.toLowerCase();
+      const dept = (be.employee?.department?.name ?? "").toLowerCase();
+      const pos = (be.employee?.position?.title ?? "").toLowerCase();
+      return name.includes(normalizedQuery) || dept.includes(normalizedQuery) || pos.includes(normalizedQuery);
+    });
+  }, [batchEmployees, normalizedQuery]);
 
   // ── Render ──────────────────────────────────────────────
 
@@ -456,117 +499,143 @@ export const PeriodEmployeesPage: React.FC = () => {
         onClose={() => setSelectedItem(null)}
       />
 
-      {/* Navigation & Header */}
-      <div className="space-y-6">
-        <button
-          onClick={() => navigate("/payroll")}
-          className="group inline-flex items-center gap-2 text-brand-primary hover:text-brand-dark text-xs font-black uppercase tracking-[0.2em] transition-all"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-          Back to Cycles
-        </button>
+      {/* ── Gradient Header ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-600 via-brand-600 to-brand-800 rounded-[3rem] p-10 text-white shadow-2xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-400/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`, backgroundSize: '24px 24px' }} />
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-              Payroll Processing — {period?.name || "Loading..."}
-            </h1>
-            <div className="flex flex-wrap gap-x-8 gap-y-3 mt-4">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Pay Period</span>
-                <span className="text-sm font-bold text-slate-700">
-                  {period
-                    ? `${new Date(period.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${new Date(period.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: 'numeric' })}`
-                    : "---"}
-                </span>
+        <div className="relative z-10">
+          {/* Back link */}
+          <button
+            onClick={() => navigate("/payroll")}
+            className="group inline-flex items-center gap-2 text-white/60 hover:text-white text-xs font-black uppercase tracking-[0.2em] transition-all mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            Back to Cycles
+          </button>
+
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
+            {/* Left: Title + Meta */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xl">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight leading-none">
+                    {period?.name || "Loading..."}
+                  </h1>
+                  <p className="text-brand-100 font-bold text-xs uppercase tracking-widest mt-2">Payroll Processing &bull; Period Detail</p>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Payment Date</span>
-                <span className="text-sm font-bold text-slate-700">
-                  {period?.dateOfPayment
-                    ? new Date(period.dateOfPayment).toLocaleDateString("en-US", { month: "short", day: "numeric", year: 'numeric' })
-                    : "Scheduled"}
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Cycle</span>
-                <span className="text-sm font-bold text-slate-700">{period?.cycle ?? "Monthly"}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Status</span>
-                <div className="mt-0.5">
+
+              {/* Meta pills */}
+              <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10">
+                  <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Pay Period</span>
+                  <span className="text-sm font-bold text-white">
+                    {period
+                      ? `${new Date(period.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${new Date(period.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: 'numeric' })}`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10">
+                  <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Payment</span>
+                  <span className="text-sm font-bold text-white">
+                    {period?.dateOfPayment
+                      ? new Date(period.dateOfPayment).toLocaleDateString("en-US", { month: "short", day: "numeric", year: 'numeric' })
+                      : "Scheduled"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10">
+                  <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Cycle</span>
+                  <span className="text-sm font-bold text-white">{period?.cycle ?? "Monthly"}</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10">
+                  <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Status</span>
                   {currentRun
-                    ? <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-brand-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-100 text-[10px] font-black uppercase tracking-widest border border-emerald-400/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         Calculated
                       </span>
-                    : <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest border border-amber-100 shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    : <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-100 text-[10px] font-black uppercase tracking-widest border border-amber-400/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                         Awaiting
                       </span>
                   }
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {batches.length > 0 && (
-              <div className="relative group">
-                <select
-                  value={selectedBatchId ?? ""}
-                  onChange={(e) => setSelectedBatchId(e.target.value || null)}
-                  className="appearance-none bg-white border-2 border-brand-200 rounded-2xl px-6 py-3 pr-10 text-xs font-bold text-slate-700 focus:border-brand-400 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer min-w-[180px]"
-                >
-                  <option value="__ALL__">All Personnel</option>
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
-              </div>
-            )}
-
-            <button
-              onClick={handleProcessPayroll}
-              disabled={disableProcess}
-              title={!canRunPayroll ? "You don't have permission to process payroll" : !attendanceApproved ? "Attendance must be fully approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for this period"}
-              className={cn(
-                "inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95",
-                disableProcess
-                  ? "bg-slate-100 text-slate-300 cursor-not-allowed shadow-none"
-                  : "bg-brand-primary text-white hover:bg-brand-dark shadow-brand-900/20",
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3 flex-wrap shrink-0">
+              {batches.length > 0 && (
+                <div className="relative group">
+                  <select
+                    value={selectedBatchId ?? ""}
+                    onChange={(e) => setSelectedBatchId(e.target.value || null)}
+                    className="appearance-none bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-3 pr-10 text-xs font-bold text-white focus:border-white/40 focus:ring-4 focus:ring-white/10 transition-all cursor-pointer min-w-[180px]"
+                  >
+                    <option value="__ALL__" className="text-slate-900">All Personnel</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id} className="text-slate-900">
+                        {b.name}{b.status !== "ACTIVE" ? ` (${b.status.charAt(0)}${b.status.slice(1).toLowerCase()})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/50 pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+                </div>
               )}
-            >
-              {processingStatus === "processing" ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Play className="w-4 h-4 fill-current" />
-              )}
-              {processingStatus === "processing" ? "Processing..." : "Process Payroll"}
-            </button>
 
-            {currentRun && items.length > 0 && (
               <button
-                onClick={handleExportExcel}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs bg-primary text-white hover:bg-brand-700 transition-all shadow-lg active:scale-95 border-2 border-brand-800/30"
+                onClick={handleProcessPayroll}
+                disabled={disableProcess}
+                title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canRunPayroll ? "You don't have permission to process payroll" :!attendanceApproved ? "Attendance must be fully approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for this period"}
+                className={cn(
+                  "inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95",
+                  disableProcess
+                    ? "bg-white/10 text-white/40 cursor-not-allowed shadow-none border border-white/10"
+                    : "bg-white text-brand-primary hover:bg-white/90 shadow-2xl",
+                )}
               >
-                <FileSpreadsheet className="w-4 h-4" />
-                Export
+                {processingStatus === "processing" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4 fill-current" />
+                )}
+                {processingStatus === "processing" ? "Processing..." : "Process Payroll"}
               </button>
-            )}
 
-            {/* Batch payslip generation — only after payment approval */}
-            {currentRun && items.length > 0 && ["PENDING_PAYMENT_APPROVAL", "APPROVED", "DONE"].includes(currentRun.status) && (
-              <BatchGenerateButton
-                payrollRunId={currentRun.id}
-                onComplete={() => setItemsVersion((v) => v + 1)}
-              />
-            )}
+              {currentRun && items.length > 0 && (
+                <button
+                  onClick={handleExportExcel}
+                  disabled={exporting}
+                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-all shadow-lg active:scale-95 border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="w-4 h-4" />
+                  )}
+                  {exporting ? "Exporting..." : "Export"}
+                </button>
+              )}
+
+              {currentRun && items.length > 0 && ["PENDING_PAYMENT_APPROVAL", "APPROVED", "DONE"].includes(currentRun.status) && (
+                <BatchGenerateButton
+                  payrollRunId={currentRun.id}
+                  onComplete={() => setItemsVersion((v) => v + 1)}
+                />
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Decorative swoosh */}
+        <svg className="absolute bottom-0 right-0 w-48 h-48 text-white/5 -mb-12 -mr-12 pointer-events-none" viewBox="0 0 200 200" fill="none">
+          <path d="M0 200C60 160 100 120 140 80C160 60 180 40 200 0V200H0Z" fill="currentColor" />
+        </svg>
       </div>
 
       {/* Summary Bento Strip */}
@@ -621,7 +690,9 @@ export const PeriodEmployeesPage: React.FC = () => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
                 <input
                   type="text"
-                  placeholder="Filter personnel..."
+                  placeholder="Search by name, department, or position..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                   className="w-72 pl-12 pr-6 py-3 bg-white border-2 border-brand-200 rounded-2xl text-sm focus:border-brand-400 focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400"
                 />
               </div>
@@ -633,6 +704,7 @@ export const PeriodEmployeesPage: React.FC = () => {
                 </span>
               )}
               <span className="px-4 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                {normalizedQuery ? `${showPayrollItems ? filteredItems.length : filteredBatchEmployees.length} of ` : ""}
                 {showPayrollItems
                   ? paginationMeta?.totalItems ?? items.length
                   : batchEmployees.length}{" "}
@@ -656,7 +728,7 @@ export const PeriodEmployeesPage: React.FC = () => {
           {showPayrollItems && (
             <>
               <ExpandablePayrollTable
-                items={items}
+                items={filteredItems}
                 runId={currentRun?.id ?? ''}
                 loading={loadingItems}
                 onSelectItem={(runId, itemId) => setSelectedItem({ runId, itemId })}
@@ -687,7 +759,7 @@ export const PeriodEmployeesPage: React.FC = () => {
                     <th className="w-10 px-2 py-3 text-center">
                       <input
                         type="checkbox"
-                        checked={batchEmployees.length > 0 && selectedEmployeeIds.size === batchEmployees.length}
+                        checked={filteredBatchEmployees.length > 0 && selectedEmployeeIds.size === filteredBatchEmployees.length}
                         onChange={toggleAllEmployees}
                         className="rounded border-slate-300 accent-brand-600 cursor-pointer"
                       />
@@ -699,7 +771,7 @@ export const PeriodEmployeesPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {batchEmployees.map((be, idx) => {
+                  {filteredBatchEmployees.map((be, idx) => {
                     const employeeId = be.employee?.id ?? "";
                     const isSelected = selectedEmployeeIds.has(employeeId);
                     return (
@@ -762,13 +834,17 @@ export const PeriodEmployeesPage: React.FC = () => {
                 Not Processed
               </p>
               <p className="text-sm text-slate-400 mt-2 max-w-md mx-auto font-medium">
-                {!canRunPayroll
+                {hrManagerBlocked
+                  ? "HR Generalist is responsible for processing payroll while active in your company."
+                  : !canRunPayroll
                   ? "You don't have permission to process payroll. Contact your administrator."
                   : batches.length === 0
                     ? "Create payroll batches first, then return here to process payroll."
                     : !attendanceApproved
                       ? "Attendance must be fully approved before payroll can be processed."
-                      : "Click \"Process Payroll\" to calculate employee pay for this period."}
+                      : isBatchInactive
+                        ? `This batch is ${selectedBatch!.status.toLowerCase()} — activate it before processing payroll.`
+                        : "Click \"Process Payroll\" to calculate employee pay for this period."}
               </p>
             </div>
           )}
@@ -794,7 +870,7 @@ export const PeriodEmployeesPage: React.FC = () => {
                 <button
                   onClick={handleProcessPayroll}
                   disabled={disableProcess}
-                  title={!canRunPayroll ? "You don't have permission to process payroll" : !attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for these employees"}
+                  title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canRunPayroll ? "You don't have permission to process payroll" :!attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for these employees"}
                   className={cn(
                     "inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 shadow-lg",
                     disableProcess
@@ -817,14 +893,14 @@ export const PeriodEmployeesPage: React.FC = () => {
           {!showPayrollItems && showAttendanceEmployees && (
             <div className="border-t border-slate-200 p-4 flex items-center justify-between bg-brand-50/30">
               <div className="text-xs text-slate-500">
-                <span className="font-semibold text-slate-700">{batchEmployees.length}</span> employees ready for processing
+                <span className="font-semibold text-slate-700">{filteredBatchEmployees.length}</span> employees ready for processing
               </div>
               <div className="flex items-center gap-2">
                 {selectedEmployeeIds.size > 0 && (
                   <button
                     onClick={handleProcessSelected}
                     disabled={disableProcess}
-                    title={!canRunPayroll ? "You don't have permission to process payroll" : !attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Process selected employees"}
+                    title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canRunPayroll ? "You don't have permission to process payroll" :!attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Process selected employees"}
                       className={cn(
                         "inline-flex items-center gap-2 px-5 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95 border-2",
                         disableProcess
@@ -843,7 +919,7 @@ export const PeriodEmployeesPage: React.FC = () => {
                 <button
                   onClick={handleProcessPayroll}
                   disabled={disableProcess}
-                  title={!canRunPayroll ? "You don't have permission to process payroll" : !attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for these employees"}
+                  title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canRunPayroll ? "You don't have permission to process payroll" :!attendanceApproved ? "Attendance must be approved before processing" : isPeriodClosed ? "This period is closed" : isProcessing ? "Processing in progress" : "Run payroll for these employees"}
                   className={cn(
                     "inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm active:scale-95",
                     disableProcess

@@ -13,14 +13,19 @@ import { AttendancePeriodSummarySection } from '../components/AttendancePeriodSu
 import { fiscalYearApi, payrollPeriodApi } from '../../configuration/api/configurationApi';
 import type { PayrollPeriod, FiscalYear } from '../../configuration/types/configuration.types';
 import type { ImportDetail } from '../types/attendance.types';
+import { useHrGeneralistFallback } from '../hooks/useHrGeneralistFallback';
+import { useRolePermissions } from '../../../hooks/useRolePermissions';
 
 const tabs = [
-  { id: 'attendance', label: 'Attendance Data', icon: Fingerprint },
+  { id: 'attendance', label: 'Attendance Imports', icon: Fingerprint },
   { id: 'applications', label: 'Leave Applications', icon: FileText },
   { id: 'calculation', label: 'Attendance Summary', icon: FileBarChart2 },
 ];
 
 export const AttendancePage: React.FC = () => {
+  const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+  const { hasPermission } = useRolePermissions();
+  const canImportAttendance = hasPermission('canImportAttendance');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('attendance');
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
@@ -32,6 +37,17 @@ export const AttendancePage: React.FC = () => {
   const [triggerImport, setTriggerImport] = useState(false);
   const [summaryCount, setSummaryCount] = useState(0);
   const loadCounterRef = useRef(0);
+
+  // ── BioTime live-fetch modal ─────────────────────────────
+  // Start/end date are always the SELECTED PERIOD's own boundaries, not
+  // free-typed — the fetched attendance gets attached to that period
+  // regardless of what dates were queried, so letting them drift apart would
+  // silently fetch data for one range and file it under another period.
+  const [showBiotimeModal, setShowBiotimeModal] = useState(false);
+  const [biotimeDepartmentId, setBiotimeDepartmentId] = useState('1');
+  const [biotimeFetching, setBiotimeFetching] = useState(false);
+  const [biotimeError, setBiotimeError] = useState<string | null>(null);
+  const [biotimeResult, setBiotimeResult] = useState<string | null>(null);
 
   /** Load import detail + summary count for a given period, with stale async protection. */
   const loadImportDetail = useCallback(async (periodId: string) => {
@@ -152,6 +168,41 @@ export const AttendancePage: React.FC = () => {
     if (selectedPeriodId) loadImportDetail(selectedPeriodId);
   }, [selectedPeriodId, loadImportDetail]);
 
+  const handleOpenBiotimeModal = () => {
+    setBiotimeError(null);
+    setBiotimeResult(null);
+    setShowBiotimeModal(true);
+  };
+
+  const handleFetchBiotime = async () => {
+    const startDate = selectedPeriod?.startDate?.slice(0, 10);
+    const endDate = selectedPeriod?.endDate?.slice(0, 10);
+    if (!selectedPeriodId || !startDate || !endDate) {
+      setBiotimeError('Select a payroll period first.');
+      return;
+    }
+    setBiotimeFetching(true);
+    setBiotimeError(null);
+    setBiotimeResult(null);
+    try {
+      const result = await attendanceApi.fetchBiotimeAttendance({
+        startDate,
+        endDate,
+        departmentId: biotimeDepartmentId ? parseInt(biotimeDepartmentId, 10) : undefined,
+        payrollPeriodId: selectedPeriodId,
+      });
+      setBiotimeResult(
+        `Fetched ${result.saved} employee(s)${result.skipped > 0 ? `, ${result.skipped} skipped (no matching Employee)` : ''}.`,
+      );
+      setActiveTab('attendance');
+      handleImportConsumed();
+    } catch (err: any) {
+      setBiotimeError(err?.response?.data?.message || err?.message || 'Failed to fetch BioTime attendance');
+    } finally {
+      setBiotimeFetching(false);
+    }
+  };
+
   const attendanceStats = useMemo(() => {
     if (!importDetail?.monthlySummaries) return null;
     const summaries = importDetail.monthlySummaries;
@@ -237,9 +288,9 @@ export const AttendancePage: React.FC = () => {
             <CalendarRange className="w-8 h-8 text-amber-500" />
           </div>
           <div>
-            <p className="text-xl font-black text-slate-900 tracking-tight">Deployment Restricted</p>
+            <p className="text-xl font-black text-slate-900 tracking-tight">No Payroll Periods</p>
             <p className="text-sm text-slate-500 font-medium mt-1">
-              Active payroll periods must be initialized in the Configuration matrix before biometric intelligence can be accessed.
+              Create a payroll period in Configuration before managing attendance.
             </p>
           </div>
         </div>
@@ -262,13 +313,13 @@ export const AttendancePage: React.FC = () => {
                       <Fingerprint className="w-8 h-8 text-white" />
                     </div>
                     <div>
-                      <h1 className="text-3xl font-black tracking-tight leading-none">Biometric Intelligence</h1>
-                      <p className="text-brand-100 font-bold text-xs uppercase tracking-widest mt-2">Attendance & Utilization Tracking</p>
+                      <h1 className="text-3xl font-black tracking-tight leading-none">Attendance</h1>
+                      <p className="text-brand-100 font-bold text-xs uppercase tracking-widest mt-2">Employee Attendance Tracking</p>
                     </div>
                   </div>
                   <p className="text-brand-50/80 text-sm max-w-xl font-medium leading-relaxed">
-                    Analyzing workforce engagement telemetry across all business units. 
-                    Real-time synchronization with primary biometric gateways.
+                    Track employee attendance across all departments.
+                    Import data from biometric devices or upload attendance files.
                   </p>
                 </div>
                 
@@ -293,11 +344,27 @@ export const AttendancePage: React.FC = () => {
                   </div>
                   <Button
                     onClick={handleImportData}
-                    className="w-full bg-white text-brand-primary hover:bg-brand-50 rounded-2xl font-black uppercase tracking-widest text-xs h-12 shadow-2xl shadow-brand-900/40"
+                    disabled={hrManagerBlocked || !canImportAttendance}
+                    title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canImportAttendance ? "You don't have permission to import attendance" : undefined}
+                    className="w-full bg-white text-brand-primary hover:bg-brand-50 rounded-2xl font-black uppercase tracking-widest text-xs h-12 shadow-2xl shadow-brand-900/40 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Upload className="w-4 h-4" />
-                    Ingest Gateway Data
+                    Import Attendance
                   </Button>
+                  <Button
+                    onClick={handleOpenBiotimeModal}
+                    disabled={hrManagerBlocked || !canImportAttendance}
+                    title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canImportAttendance ? "You don't have permission to import attendance" : undefined}
+                    className="w-full bg-white/10 text-white border border-white/30 hover:bg-white/20 rounded-2xl font-black uppercase tracking-widest text-xs h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Fingerprint className="w-4 h-4" />
+                    Fetch from BioTime
+                  </Button>
+                  {hrManagerBlocked && (
+                    <p className="text-[10px] text-center text-emerald-100/70 font-medium">
+                      HR Generalist is responsible for attendance data while active
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -306,7 +373,7 @@ export const AttendancePage: React.FC = () => {
           {/* ── Filter & Navigation Bar ──────────────────────────────── */}
           <div className="glass rounded-[2.5rem] p-3 flex flex-wrap items-center gap-4 shadow-xl border-white">
             <div className="flex items-center gap-2 pl-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Matrix Context</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Filter by Period</span>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
@@ -340,7 +407,7 @@ export const AttendancePage: React.FC = () => {
             <div className="ml-auto pr-4">
               {importDetail && (
                 <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-900/20">
-                  {summaryCount} Active Personnel
+                  {summaryCount} Active Employees
                 </span>
               )}
             </div>
@@ -420,6 +487,105 @@ export const AttendancePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* BioTime live-fetch modal */}
+      <AnimatePresence>
+        {showBiotimeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+            onClick={() => !biotimeFetching && setShowBiotimeModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
+                    <Fingerprint className="w-5 h-5 text-brand-primary" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Fetch from BioTime</h3>
+                </div>
+                <button
+                  onClick={() => setShowBiotimeModal(false)}
+                  disabled={biotimeFetching}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-500 mb-6">
+                Pulls attendance directly from the BioTime device API and saves it as a new
+                attendance import for the currently selected period. The date range always
+                matches the period exactly — it can't be changed here — so the fetched data
+                can never be attached to a period it doesn't actually cover.
+              </p>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Start Date</label>
+                    <div className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-600 font-medium">
+                      {selectedPeriod?.startDate ? new Date(selectedPeriod.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">End Date</label>
+                    <div className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-600 font-medium">
+                      {selectedPeriod?.endDate ? new Date(selectedPeriod.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Department ID</label>
+                  <input
+                    type="number"
+                    value={biotimeDepartmentId}
+                    onChange={(e) => setBiotimeDepartmentId(e.target.value)}
+                    placeholder="1"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-primary/10 outline-none"
+                  />
+                </div>
+              </div>
+
+              {biotimeError && (
+                <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-100 text-sm text-rose-600 font-medium">
+                  {biotimeError}
+                </div>
+              )}
+              {biotimeResult && (
+                <div className="mt-4 p-3 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-primary font-medium">
+                  {biotimeResult}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowBiotimeModal(false)}
+                  disabled={biotimeFetching}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <Button
+                  onClick={handleFetchBiotime}
+                  disabled={biotimeFetching}
+                  className="px-6 py-2.5 rounded-xl font-black uppercase tracking-widest text-xs"
+                >
+                  {biotimeFetching ? 'Fetching…' : 'Fetch & Save'}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

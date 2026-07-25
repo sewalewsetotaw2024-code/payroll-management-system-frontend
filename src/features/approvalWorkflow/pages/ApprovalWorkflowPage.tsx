@@ -8,19 +8,23 @@ import {
   BadgeCheck,
   Lock,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Unlock,
 } from "lucide-react";
-import { cn } from "../../../lib/utils";
+import { cn, roleNamesMatch } from "../../../lib/utils";
 import { toast } from "../../../components/ui/Toast";
 import { payrollRunApi } from "../../payrollProcessing/api/payrollProcessingApi";
 import { payrollPeriodApi } from "../../configuration/api/configurationApi";
 import { attendanceApi } from "../../attendance/api/attendanceApi";
+import { useHrGeneralistFallback } from "../../attendance/hooks/useHrGeneralistFallback";
+import { useRolePermissions } from "../../../hooks/useRolePermissions";
 import {
   fetchAttendanceImportSummary,
   fetchPayrollRunSummary,
   requestApproval as apiRequestApproval,
   approveRequest as apiApproveRequest,
   rejectRequest as apiRejectRequest,
+  reopenPayrollRun as apiReopenPayrollRun,
   fetchApprovalStatus,
   fetchApprovalWorkflow,
   fetchWorkflowForCompany,
@@ -33,7 +37,6 @@ import type {
   AttendanceImportSummary,
   PayrollRunSummary,
   RolePermissions,
-  ApprovalWorkflowStep,
 } from "../types/approvalWorkflow.types";
 import {
   DEFAULT_ROLE_PERMISSIONS,
@@ -51,30 +54,15 @@ import {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_WORKFLOW_STEPS: ApprovalWorkflowStep[] = [
-  { id: "default-step-attendance", stageType: "ATTENDANCE", stepOrder: 1, requiredRoleId: 14, requiredRole: { id: 14, name: "HR CS Manager" }, alternateRoleId: null, isRequired: true },
-  { id: "default-step-attendance-2", stageType: "ATTENDANCE", stepOrder: 2, requiredRoleId: 15, requiredRole: { id: 15, name: "HR CS Director" }, alternateRoleId: null, isRequired: true },
-  { id: "default-step-hr-approval", stageType: "PAYROLL_APPROVAL", stepOrder: 3, requiredRoleId: 14, requiredRole: { id: 14, name: "HR CS Manager" }, alternateRoleId: null, isRequired: true },
-  { id: "default-step-payment", stageType: "PAYMENT_FILE", stepOrder: 4, requiredRoleId: 16, requiredRole: { id: 16, name: "Finance Officer" }, alternateRoleId: null, isRequired: true },
-  { id: "default-step-payment-2", stageType: "PAYMENT_FILE", stepOrder: 5, requiredRoleId: 17, requiredRole: { id: 17, name: "Finance Manager" }, alternateRoleId: null, isRequired: true },
-];
-
 function resolveRoleNameFromId(roleId: number, dynamicRoles: { id: number; name: string }[] | null): string | null {
   const match = dynamicRoles?.find((r) => r.id === roleId);
-  if (match?.name) return match.name;
-  const step = DEFAULT_WORKFLOW_STEPS.find((s) => s.requiredRoleId === roleId);
-  if (step?.requiredRole?.name) return step.requiredRole.name;
-  return null;
-}
-
-function roleNamesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
-  if (!a || !b) return false;
-  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "_");
-  return norm(a) === norm(b);
+  return match?.name ?? null;
 }
 
 export const ApprovalWorkflowPage: React.FC = () => {
   const authUser = useAppSelector((state) => state.auth.user);
+  const { blockedByFallback: hrManagerBlockedFromSubmit } = useHrGeneralistFallback();
+  const { hasPermission } = useRolePermissions();
   const navigate = useNavigate();
 
   const [currentRole, setCurrentRole] = useState<string>(() => {
@@ -95,12 +83,12 @@ export const ApprovalWorkflowPage: React.FC = () => {
   const [stage1ApprovalStatus, setStage1ApprovalStatus] = useState<"NONE" | "PENDING" | "APPROVED" | "REJECTED">("NONE");
   const [stage1ApprovalsSummary, setStage1ApprovalsSummary] = useState<{ label: string; status: "done" | "todo" }[]>([]);
   const [stage1RequestId, setStage1RequestId] = useState<string | null>(null);
-  const [stage1ApprovalStep, setStage1ApprovalStep] = useState<{ requiredRoleId: number; requiredRoleName: string } | null>(null);
+  const [stage1ApprovalStep, setStage1ApprovalStep] = useState<{ requiredRoleId: number; requiredRoleName: string; alternateRoleId?: number | null; alternateRoleName?: string } | null>(null);
   const [stage1Submitting, setStage1Submitting] = useState(false);
   const [stage2Submitting, setStage2Submitting] = useState(false);
 
   const [currentApprovalStep, setCurrentApprovalStep] = useState<any>(null);
-  const [currentPayrollStep, setCurrentPayrollStep] = useState<{ requiredRoleId: number; requiredRoleName: string } | null>(null);
+  const [currentPayrollStep, setCurrentPayrollStep] = useState<{ requiredRoleId: number; requiredRoleName: string; alternateRoleId?: number | null; alternateRoleName?: string } | null>(null);
   const [dynamicRoles, setDynamicRoles] = useState<{ id: number; name: string }[] | null>(null);
   const [dynamicRolePermissions, setDynamicRolePermissions] = useState<Record<string, any> | null>(null);
   const [allRequests, setAllRequests] = useState<any[]>([]);
@@ -138,7 +126,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
         setStage1ApprovalStatus(req.status as any);
         setStage1RequestId(req.id);
         
-        const stageSteps = (workflowSteps.length ? workflowSteps : DEFAULT_WORKFLOW_STEPS)
+        const stageSteps = workflowSteps
           .filter((s: any) => s.stageType === "ATTENDANCE")
           .sort((a: any, b: any) => a.stepOrder - b.stepOrder);
 
@@ -151,7 +139,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
 
         setStage1ApprovalsSummary(stageSteps.map((s: any) => ({ label: s.requiredRole?.name || `Role#${s.requiredRoleId}`, status: isStepDone(s) ? "done" : "todo" })));
         const nextStep = stageSteps.find((s: any) => !isStepDone(s));
-        setStage1ApprovalStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}` } : null);
+        setStage1ApprovalStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}`, alternateRoleId: nextStep.alternateRoleId ?? null, alternateRoleName: nextStep.alternateRoleId ? (nextStep.alternateRoleName || resolveRoleNameFromId(nextStep.alternateRoleId, dynamicRoles) || `Role#${nextStep.alternateRoleId}`) : undefined } : null);
       } else {
         setStage1ApprovalStatus("NONE");
         setStage1ApprovalsSummary([]);
@@ -199,7 +187,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
 
       // Resolve the workflow step for the active payroll approval request
       if (activeStep && activeStep.stageType === "PAYROLL_APPROVAL") {
-        const stageSteps = (workflowSteps.length ? workflowSteps : DEFAULT_WORKFLOW_STEPS)
+        const stageSteps = workflowSteps
           .filter((s: any) => s.stageType === "PAYROLL_APPROVAL")
           .sort((a: any, b: any) => a.stepOrder - b.stepOrder);
 
@@ -211,9 +199,9 @@ export const ApprovalWorkflowPage: React.FC = () => {
           doneRoleIds.has(s.requiredRoleId) || (s.alternateRoleId != null && doneRoleIds.has(s.alternateRoleId));
 
         const nextStep = stageSteps.find((s: any) => !isStepDone(s));
-        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}` } : null);
+        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}`, alternateRoleId: nextStep.alternateRoleId ?? null, alternateRoleName: nextStep.alternateRoleId ? (nextStep.alternateRoleName || resolveRoleNameFromId(nextStep.alternateRoleId, dynamicRoles) || `Role#${nextStep.alternateRoleId}`) : undefined } : null);
       } else if (activeStep && activeStep.stageType === "PAYMENT_FILE") {
-        const stageSteps = (workflowSteps.length ? workflowSteps : DEFAULT_WORKFLOW_STEPS)
+        const stageSteps = workflowSteps
           .filter((s: any) => s.stageType === "PAYMENT_FILE")
           .sort((a: any, b: any) => a.stepOrder - b.stepOrder);
 
@@ -225,7 +213,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
           doneRoleIds.has(s.requiredRoleId) || (s.alternateRoleId != null && doneRoleIds.has(s.alternateRoleId));
 
         const nextStep = stageSteps.find((s: any) => !isStepDone(s));
-        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}` } : null);
+        setCurrentPayrollStep(nextStep ? { requiredRoleId: nextStep.requiredRoleId, requiredRoleName: nextStep.requiredRole?.name || resolveRoleNameFromId(nextStep.requiredRoleId, dynamicRoles) || `Role#${nextStep.requiredRoleId}`, alternateRoleId: nextStep.alternateRoleId ?? null, alternateRoleName: nextStep.alternateRoleId ? (nextStep.alternateRoleName || resolveRoleNameFromId(nextStep.alternateRoleId, dynamicRoles) || `Role#${nextStep.alternateRoleId}`) : undefined } : null);
       } else {
         setCurrentPayrollStep(null);
       }
@@ -260,11 +248,27 @@ export const ApprovalWorkflowPage: React.FC = () => {
 
   const handleSubmitAttendance = async () => {
     if (!activeImportId) return;
+
+    // Pre-submit validation: ensure prerequisites are met
+    if (stage1Data) {
+      if (!stage1Data.otCalculated) {
+        toast.error("OT has not been calculated. Calculate overtime before submitting.");
+        return;
+      }
+      if (!stage1Data.summaryCalculated) {
+        toast.error("Attendance summary has not been calculated. Calculate summary before submitting.");
+        return;
+      }
+      if (!stage1Data.leaveSynced) {
+        toast.error("Leave data has not been synced. Sync leave from the Leave module before submitting.");
+        return;
+      }
+    }
+
     setStage1Submitting(true);
     try {
       const { tokenStorage } = await import("../../../lib/token");
-      const apiBaseUrl = import.meta.env.VITE_API_URL || "/api/v1";
-      const response = await fetch(`${apiBaseUrl}/attendance/imports/${activeImportId}/submit-for-approval`, {
+      const response = await fetch(`/api/v1/attendance/imports/${activeImportId}/submit-for-approval`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${tokenStorage.getToken()}`,
@@ -315,6 +319,30 @@ export const ApprovalWorkflowPage: React.FC = () => {
     }
   };
 
+  // ── Reopen for correction (HR CS Director / Admin only) ─────────────────────
+  const [showReopenForm, setShowReopenForm] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+  const [reopenSubmitting, setReopenSubmitting] = useState(false);
+
+  const handleReopenPayroll = async () => {
+    if (!selectedPeriod || !stage2Data?.runId || !reopenReason.trim()) return;
+    setReopenSubmitting(true);
+    try {
+      const runIds = stage2Data.runId.split(",").filter(Boolean);
+      for (const runId of runIds) {
+        await apiReopenPayrollRun(runId, reopenReason.trim());
+      }
+      toast.success("Payroll reopened for correction");
+      setShowReopenForm(false);
+      setReopenReason("");
+      loadStage2(selectedPeriod.id);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to reopen payroll");
+    } finally {
+      setReopenSubmitting(false);
+    }
+  };
+
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -331,7 +359,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
         setPeriods(pps);
         setDynamicRoles(rolesRes || []);
         setDynamicRolePermissions(permsRes || {});
-        setWorkflowSteps(wf?.steps || DEFAULT_WORKFLOW_STEPS);
+        setWorkflowSteps(wf?.steps || []);
         if (pps.length > 0) setSelectedPeriod(pps[0]);
       } finally {
         setLoading(false);
@@ -360,25 +388,46 @@ export const ApprovalWorkflowPage: React.FC = () => {
   const userRoleName = authUser?.role?.name;
   const userRoleId = authUser?.role?.id;
 
-  // Role-based visibility: which stages can this user interact with?
-  const HR_ROLES = ["HR Generalist", "HR CS Manager", "HR CS Director"];
-  const FINANCE_ROLES = ["Finance Officer", "Finance Manager"];
-  const isHrRole = HR_ROLES.some(r => roleNamesMatch(r, userRoleName));
-  const isFinanceRole = FINANCE_ROLES.some(r => roleNamesMatch(r, userRoleName));
+  // Submitting a stage is a distinct action from approving it — HR CS Director is
+  // the approver (step 2) for both Attendance and Payroll Approval in this workflow,
+  // so they must not also see the Submit button for those same stages. Reads the
+  // live canSubmitForApproval permission (same one Workflow Builder edits) instead
+  // of a hardcoded role list, so a permission change takes effect here too.
+  // HR CS Manager is a fallback for HR Generalist on top of that — blocked when an
+  // active HR Generalist exists (mirrors the backend's enforceHrGeneralistFallback).
+  const canSubmitStage = hasPermission("canSubmitForApproval") && !hrManagerBlockedFromSubmit;
+  const canReopen =
+    roleNamesMatch("HR CS Director", userRoleName) ||
+    roleNamesMatch("Admin", userRoleName) ||
+    roleNamesMatch("Super Admin", userRoleName);
 
+  // A step's ALTERNATE role is just as much a legitimate approver as its
+  // required role — the backend's approveRequest/rejectRequest accept either
+  // one. This must check both; checking only requiredRoleId would leave any
+  // alternate-only approver unable to ever see the Approve button, even
+  // though they're fully authorized to click it.
   const matchesApproverRole = (step: any): boolean => {
     if (!step) return false;
-    // Resolve role name from step → dynamicRoles → fallback to Role#<id>
-    const reqRole = step.requiredRoleName
-      || step.requiredRole?.name
-      || resolveRoleNameFromId(step.requiredRoleId, dynamicRoles);
-    if (roleNamesMatch(reqRole, userRoleName)) return true;
-    const roleIdMatch = reqRole?.match(/^Role#(\d+)$/i);
-    if (roleIdMatch && parseInt(roleIdMatch[1], 10) === userRoleId) return true;
-    return step.requiredRoleId === userRoleId;
+
+    const matchesRole = (roleId: number | null | undefined, roleNameField: string | undefined, roleObj: { name?: string } | undefined): boolean => {
+      if (roleId == null) return false;
+      // Resolve role name from step → dynamicRoles → fallback to Role#<id>
+      const resolvedName = roleNameField
+        || roleObj?.name
+        || resolveRoleNameFromId(roleId, dynamicRoles);
+      if (roleNamesMatch(resolvedName, userRoleName)) return true;
+      const roleIdMatch = resolvedName?.match(/^Role#(\d+)$/i);
+      if (roleIdMatch && parseInt(roleIdMatch[1], 10) === userRoleId) return true;
+      return roleId === userRoleId;
+    };
+
+    return (
+      matchesRole(step.requiredRoleId, step.requiredRoleName, step.requiredRole) ||
+      matchesRole(step.alternateRoleId, step.alternateRoleName, step.alternateRole)
+    );
   };
 
-  const isStage1Approver = isHrRole && stage1ApprovalStatus === "PENDING" && matchesApproverRole(stage1ApprovalStep);
+  const isStage1Approver = stage1ApprovalStatus === "PENDING" && matchesApproverRole(stage1ApprovalStep);
 
   const resolveRoleLabel = (key: string): string => {
     // Try numeric ID lookup first
@@ -464,8 +513,20 @@ export const ApprovalWorkflowPage: React.FC = () => {
             </p>
           </header>
 
+          {!loading && workflowSteps.length === 0 && (
+            <div className="flex items-start gap-4 p-6 rounded-2xl bg-amber-50 border border-amber-100">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-slate-900">No workflow configured for this company</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  An administrator needs to set up approval steps in the Workflow Builder before attendance, payroll, and payment approvals can be tracked here.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-12">
-             <AttendanceStage 
+             <AttendanceStage
                data={stage1Data}
                loading={stage1Loading}
                approvalStatus={stage1ApprovalStatus}
@@ -474,7 +535,7 @@ export const ApprovalWorkflowPage: React.FC = () => {
                onRefresh={() => selectedPeriod && loadStage1(selectedPeriod.id)}
                onApprove={() => stage1RequestId && handleApprove(stage1RequestId)}
                onReject={(reason) => stage1RequestId && handleReject(stage1RequestId, reason)}
-               onSubmit={isHrRole ? handleSubmitAttendance : undefined}
+               onSubmit={canSubmitStage ? handleSubmitAttendance : undefined}
                submitting={stage1Submitting}
                onViewStats={handleViewAttendanceStats}
              />
@@ -489,11 +550,11 @@ export const ApprovalWorkflowPage: React.FC = () => {
                      ? "PENDING"
                      : "NONE"
                }
-               isApprover={isHrRole && currentApprovalStep?.stageType === "PAYROLL_APPROVAL" && matchesApproverRole(currentPayrollStep)}
+               isApprover={currentApprovalStep?.stageType === "PAYROLL_APPROVAL" && matchesApproverRole(currentPayrollStep)}
                onRefresh={() => selectedPeriod && loadStage2(selectedPeriod.id)}
                onApprove={() => currentApprovalStep?.id && handleApprove(currentApprovalStep.id)}
                onReject={(reason) => currentApprovalStep?.id && handleReject(currentApprovalStep.id, reason)}
-               onSubmit={isHrRole ? handleSubmitPayroll : undefined}
+               onSubmit={canSubmitStage ? handleSubmitPayroll : undefined}
                submitting={stage2Submitting}
                onViewStats={handleViewPayrollStats}
              />
@@ -502,11 +563,11 @@ export const ApprovalWorkflowPage: React.FC = () => {
                 data={stage2Data}
                 loading={stage2Loading}
                 approvalStatus={stage2Data?.status === "DONE" ? "APPROVED" : (currentApprovalStep?.stageType === "PAYMENT_FILE" ? "PENDING" : "NONE")}
-                isApprover={isFinanceRole && currentApprovalStep?.stageType === "PAYMENT_FILE" && matchesApproverRole(currentPayrollStep)}
+                isApprover={currentApprovalStep?.stageType === "PAYMENT_FILE" && matchesApproverRole(currentPayrollStep)}
                 onApprove={() => currentApprovalStep?.id && handleApprove(currentApprovalStep.id)}
                 onReject={(reason) => currentApprovalStep?.id && handleReject(currentApprovalStep.id, reason)}
                 onSubmit={
-                  isFinanceRole && stage2Data?.status === "APPROVED" && !currentApprovalStep
+                  hasPermission("canSubmitPaymentFile") && stage2Data?.status === "APPROVED" && !currentApprovalStep
                     ? handleSubmitPayment
                     : undefined
                 }
@@ -514,6 +575,56 @@ export const ApprovalWorkflowPage: React.FC = () => {
                 onDownloadExcel={() => stage2Data && downloadPaymentExcel(stage2Data.runId)}
                 onDownloadCsv={() => stage2Data && downloadPaymentCsv(stage2Data.runId)}
               />
+
+              {canReopen && stage2Data && (stage2Data.status === "APPROVED" || stage2Data.status === "DONE") && (
+                <div className="flow-card p-6 flex flex-col gap-4 border-dashed border-2 border-slate-200">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                        <Unlock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">Need to fix something after approval?</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Reopening resets this payroll to Draft — it must go through the full approval pipeline again.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowReopenForm(!showReopenForm)}
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all shrink-0"
+                    >
+                      Reopen for Correction
+                    </button>
+                  </div>
+
+                  {showReopenForm && (
+                    <div className="p-5 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-4">
+                      <textarea
+                        value={reopenReason}
+                        onChange={(e) => setReopenReason(e.target.value)}
+                        placeholder="Reason for reopening (e.g. leave/overtime was recalculated after approval)..."
+                        className="w-full h-20 p-4 rounded-xl border border-amber-200 bg-white text-sm focus-ring outline-hidden transition-all"
+                        autoFocus
+                      />
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={() => { setShowReopenForm(false); setReopenReason(""); }}
+                          className="px-5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleReopenPayroll}
+                          disabled={!reopenReason.trim() || reopenSubmitting}
+                          className="px-6 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {reopenSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                          Confirm Reopen
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
 
           <section className="pt-20 border-t border-slate-100">

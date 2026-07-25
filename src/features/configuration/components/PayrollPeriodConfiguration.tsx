@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, CalendarDays, AlertTriangle } from 'lucide-react';
+import { Plus, CalendarDays, AlertTriangle, Filter } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
 import { configurationActions } from '../store/configurationSlice';
 import { Modal, Input, Select, Button } from '../../../components/ui';
@@ -86,18 +86,43 @@ export const PayrollPeriodConfiguration: React.FC = () => {
   const dailyBasis = previewData?.dailyWorkingHours ?? dailyWorkingHours;
   const monthlyBasis = previewData?.defaultMonthlyWorkdays ?? 30;
 
-  // ── Sorted periods ───────────────────────────────────────────
+  // ── Fiscal year filter state ─────────────────────────────────
+  const [selectedFiscalYearId, setSelectedFiscalYearId] = useState<string>('');
+
+  // All fiscal years (not just active) for the filter dropdown
+  const allFiscalYearOptions = useMemo(() => {
+    const sorted = [...fiscalYears].sort(
+      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+    );
+    return [
+      { value: '', label: 'All Fiscal Years' },
+      ...sorted.map((fy) => ({
+        value: fy.id!,
+        label: `${fy.name} (${fy.status.toLowerCase()})`,
+      })),
+    ];
+  }, [fiscalYears]);
+
+  // ── Sorted + filtered periods ────────────────────────────────
   const sortedPeriods = useMemo(
     () =>
-      [...(periods as PayrollPeriod[])].sort((a, b) => {
-        const order: Record<string, number> = { ACTIVE: 0, DRAFT: 1, DONE: 2 };
-        const ao = order[a.status ?? 'DONE'] ?? 3;
-        const bo = order[b.status ?? 'DONE'] ?? 3;
-        if (ao !== bo) return ao - bo;
-        return new Date(b.startDate ?? 0).getTime() - new Date(a.startDate ?? 0).getTime();
-      }),
-    [periods],
+      [...(periods as PayrollPeriod[])]
+        .filter((p) => !selectedFiscalYearId || p.fiscalYearId === selectedFiscalYearId)
+        .sort((a, b) => {
+          const order: Record<string, number> = { ACTIVE: 0, DRAFT: 1, DONE: 2 };
+          const ao = order[a.status ?? 'DONE'] ?? 3;
+          const bo = order[b.status ?? 'DONE'] ?? 3;
+          if (ao !== bo) return ao - bo;
+          return new Date(b.startDate ?? 0).getTime() - new Date(a.startDate ?? 0).getTime();
+        }),
+    [periods, selectedFiscalYearId],
   );
+
+  // Period count for the currently selected fiscal year (used for 12-period limit)
+  const periodCountInSelectedFY = useMemo(() => {
+    if (!selectedFiscalYearId) return (periods as PayrollPeriod[]).length;
+    return (periods as PayrollPeriod[]).filter((p) => p.fiscalYearId === selectedFiscalYearId).length;
+  }, [periods, selectedFiscalYearId]);
 
   const activePeriod = sortedPeriods.find((p) => p.status === 'ACTIVE');
   const currentlyOpenPeriod = (periods as PayrollPeriod[]).find((p) => p.status === 'ACTIVE');
@@ -105,11 +130,14 @@ export const PayrollPeriodConfiguration: React.FC = () => {
   // ── Open "Add new" modal ─────────────────────────────────────
   const openAdd = () => {
     setEditPeriod(null);
-    const defaultFy = activeFiscalYears[0];
+    // Pre-select the filtered fiscal year if one is chosen, otherwise use first active
+    const defaultFy = selectedFiscalYearId
+      ? fiscalYears.find((fy) => fy.id === selectedFiscalYearId)
+      : activeFiscalYears[0];
     setForm({
       ...emptyForm,
       fiscalYearId: defaultFy?.id ?? '',
-      startDate: '', // Don't pre-fill with whole FY dates to avoid overlaps
+      startDate: '',
       endDate: '',
     });
     setFormError('');
@@ -248,13 +276,34 @@ export const PayrollPeriodConfiguration: React.FC = () => {
         <Button
           id="btn-add-payroll-period"
           onClick={openAdd}
-          disabled={saving || (periods as PayrollPeriod[]).length >= 12}
+          disabled={saving || periodCountInSelectedFY >= 12 || activeFiscalYears.length === 0}
           className="shadow shadow-brand-200/50"
         >
           <Plus className="w-4 h-4" /> Add Period
         </Button>
       }
     >
+      {/* ── Fiscal Year Filter ──────────────────────────────────── */}
+      {fiscalYears.length > 0 && (
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+            <Filter className="w-4 h-4" />
+            <span>Fiscal Year:</span>
+          </div>
+          <Select
+            value={selectedFiscalYearId}
+            onChange={(e) => setSelectedFiscalYearId(e.target.value)}
+            options={allFiscalYearOptions}
+            className="w-64 bg-white"
+          />
+          {selectedFiscalYearId && (
+            <span className="text-xs text-slate-400 font-medium">
+              {sortedPeriods.length} period{sortedPeriods.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+
       <DataRenderer
         state={periodRendererState}
         onRetry={() => dispatch(configurationActions.fetchPayrollPeriodsRequest())}
@@ -306,11 +355,11 @@ export const PayrollPeriodConfiguration: React.FC = () => {
               <p className="text-xs text-rose-800 font-medium">{error}</p>
             </div>
           )}
-          {periods.length >= 10 && !editPeriod && (
+          {periodCountInSelectedFY >= 10 && !editPeriod && (
             <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-800 font-medium">
-                {(periods as PayrollPeriod[]).length} of 12 periods created for this fiscal year.
+                {periodCountInSelectedFY} of 12 periods created for this fiscal year.
               </p>
             </div>
           )}

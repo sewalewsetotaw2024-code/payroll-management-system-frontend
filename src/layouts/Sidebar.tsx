@@ -89,8 +89,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, isCollapsed, onLogo
 
   const canSeeWorkflowBuilder = roleKey === 'ADMIN';
 
+  // Plain "Employee" is self-service only — Payslips is the only sidebar
+  // item relevant to them (Notifications lives in the header bell, not here).
+  const isEmployeeOnly = (userRole ?? '').trim().toLowerCase() === 'employee';
+
   // Show all nav items except approval-related ones for non-approval roles
   const visibleItems = navItems.filter((item) => {
+    if (isEmployeeOnly) return item.id === 'payslips';
     if (item.id === 'approval') return canSeeApproval;
     if (item.id === 'workflow-builder') return canSeeWorkflowBuilder;
     return true;
@@ -142,12 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, isCollapsed, onLogo
       </nav>
 
       <div className="p-4 mt-auto">
-        {!isCollapsed && (
-          <div className="mb-4 p-4 rounded-2xl bg-brand-primary/5 border border-brand-primary/10">
-            <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mb-1">Company</p>
-            <p className="text-sm font-bold text-slate-900 truncate">Kacha Digital Financial</p>
-          </div>
-        )}
+
         <button
           onClick={onLogout}
           className={cn(

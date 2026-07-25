@@ -5,13 +5,11 @@ import type {
   ImportDetail,
   OtCalculationResult,
   CombinedPeriodSummary,
-  EmployeeDailyRecords,
 } from '../types/attendance.types';
 
 export interface AttendanceState {
   imports: AttendanceImport[];
   selectedImport: ImportDetail | null;
-  employeeDailyRecords: EmployeeDailyRecords | null;
   overtimeResults: OtCalculationResult | null;
   summary: CombinedPeriodSummary | null;
   loading: boolean;
@@ -23,7 +21,6 @@ export interface AttendanceState {
 const initialState: AttendanceState = {
   imports: [],
   selectedImport: null,
-  employeeDailyRecords: null,
   overtimeResults: null,
   summary: null,
   loading: false,
@@ -105,20 +102,6 @@ const attendanceSlice = createSlice({
       state.calculationLoading = false;
       state.error = action.payload;
     },
-    fetchEmployeeDailyRecordsRequest(state, action: PayloadAction<{ importId: string; employeeId: string }>) {
-      state.loading = true;
-      state.error = null;
-      void action;
-    },
-    fetchEmployeeDailyRecordsSuccess(state, action: PayloadAction<EmployeeDailyRecords>) {
-      state.employeeDailyRecords = action.payload;
-      state.loading = false;
-      state.error = null;
-    },
-    fetchEmployeeDailyRecordsFailure(state, action: PayloadAction<string>) {
-      state.loading = false;
-      state.error = action.payload;
-    },
     deleteImportRequest(state, action: PayloadAction<string>) {
       state.loading = true;
       state.error = null;
@@ -147,7 +130,6 @@ const attendanceSlice = createSlice({
     },
     clearSelectedImport(state) {
       state.selectedImport = null;
-      state.employeeDailyRecords = null;
       state.overtimeResults = null;
       state.summary = null;
     },
@@ -158,7 +140,6 @@ export const attendanceActions = attendanceSlice.actions;
 
 export const selectAllImports = (state: RootState) => state.attendance.imports;
 export const selectSelectedImport = (state: RootState) => state.attendance.selectedImport;
-export const selectEmployeeDailyRecords = (state: RootState) => state.attendance.employeeDailyRecords;
 export const selectOvertimeResults = (state: RootState) => state.attendance.overtimeResults;
 export const selectAttendanceSummary = (state: RootState) => state.attendance.summary;
 export const selectAttendanceLoading = (state: RootState) => state.attendance.loading;

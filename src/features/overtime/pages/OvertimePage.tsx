@@ -27,6 +27,8 @@ import {
   Cell
 } from 'recharts';
 import { attendanceApi } from '../../attendance/api/attendanceApi';
+import { useHrGeneralistFallback } from '../../attendance/hooks/useHrGeneralistFallback';
+import { useRolePermissions } from '../../../hooks/useRolePermissions';
 import { overtimeRuleApi, workdaysApi, payrollPeriodApi, fiscalYearApi } from '../../configuration/api/configurationApi';
 import type { AttendanceImport, AttendanceMonthlySummary, ImportDetail, OtCalculationResult } from '../../attendance/types/attendance.types';
 import type { OvertimeRule, WorkdaysConfig, PayrollPeriod, FiscalYear } from '../../configuration/types/configuration.types';
@@ -197,10 +199,13 @@ function buildEmployeeName(s: AttendanceMonthlySummary): string {
   if (s.employee?.firstName || s.employee?.lastName) {
     return [s.employee.firstName, s.employee.lastName].filter(Boolean).join(' ');
   }
-  return s.employeeName || `Employee #${s.employeeId}`;
+  return s.employeeName || s.employee?.externalId || `Employee #${s.employeeId}`;
 }
 
 export const OvertimePage: React.FC = () => {
+  const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+  const { hasPermission } = useRolePermissions();
+  const canCalculateOt = hasPermission('canCalculateOt');
   const navigate = useNavigate();
   const [imports, setImports] = useState<AttendanceImport[]>([]);
   const [selectedImport, setSelectedImport] = useState<AttendanceImport | null>(null);
@@ -487,7 +492,7 @@ export const OvertimePage: React.FC = () => {
       <div className="space-y-8 pb-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Overtime Management</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Overtime</h1>
             <p className="text-slate-500 text-sm">Track and calculate overtime hours and payments</p>
           </div>
         </div>
@@ -514,31 +519,29 @@ export const OvertimePage: React.FC = () => {
   // ---- main content ----
   return (
     <div className="space-y-10 pb-12">
-      {/* ─── Ledger Header ──────────────────────────── */}
+      {/* ─── Header ──────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="ledger-header">
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Overtime Management</h1>
-          <p className="text-slate-500 text-sm mt-1 max-w-2xl font-medium">
-            Audit and authorize overtime hours. Monitor cost distribution and configure active rate rules for the current payroll cycle.
-          </p>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Overtime</h1>
         </div>
         
         <div className="flex items-center gap-3">
           <Button
             onClick={handleCalculateOt}
-            disabled={calculating || !selectedImport}
+            disabled={calculating || !selectedImport || hrManagerBlocked || !canCalculateOt}
+            title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canCalculateOt ? "You don't have permission to calculate overtime" : undefined}
             className="btn-primary min-w-[180px]"
           >
             <RefreshCw className={cn("w-4 h-4", calculating && "animate-spin")} />
-            {calculating ? 'Processing...' : 'Run OT Engine'}
+            {calculating ? 'Processing...' : 'Calculate OT'}
           </Button>
         </div>
       </div>
 
-      {/* ─── Context Selector ──────────────────────────────── */}
+      {/* ─── Filters ──────────────────────────────── */}
       <GlassCard className="flex flex-wrap items-center gap-x-10 gap-y-6 px-8 py-5">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Financial Year</span>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fiscal Year</span>
           <div className="relative group">
             <select
               value={selectedFiscalYearId}
@@ -556,7 +559,7 @@ export const OvertimePage: React.FC = () => {
         <div className="h-10 w-px bg-slate-200/60 hidden md:block" />
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payroll Cycle</span>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pay Period</span>
           <div className="relative group">
             <select
               value={selectedPeriodId}
@@ -578,25 +581,25 @@ export const OvertimePage: React.FC = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              ACTIVE IMPORT: {selectedImport.periodLabel}
+              ACTIVE: {selectedImport.periodLabel}
             </div>
           )}
         </div>
       </GlassCard>
 
-      {/* ─── Executive Summary ───────────────────────────────────── */}
+      {/* ─── Stats ───────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { 
             label: 'Total OT Hours', 
             value: (safeNum(totalOtHours) || 0).toFixed(1), 
-            unit: 'HRS', 
+            unit: 'Hours', 
             icon: Clock, 
             color: 'text-emerald-600',
             bg: 'bg-brand-50'
           },
           { 
-            label: 'Budget Impact', 
+            label: 'Total OT Cost', 
             value: (safeNum(totalOtCost) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }), 
             unit: 'ETB', 
             icon: TrendingUp, 
@@ -604,17 +607,17 @@ export const OvertimePage: React.FC = () => {
             bg: 'bg-orange-50'
           },
           { 
-            label: 'Eligible Staff', 
+            label: 'Employees with OT', 
             value: safeNum(employeesWithOT), 
-            unit: 'USERS', 
+            unit: 'Employees', 
             icon: Users, 
             color: 'text-blue-600',
             bg: 'bg-blue-50'
           },
           { 
-            label: 'Avg Intensity', 
+            label: 'Avg Hours/Employee', 
             value: (safeNum(avgOtPerEmployee) || 0).toFixed(1), 
-            unit: 'H/EMP', 
+            unit: 'Hrs/Employee', 
             icon: Clock, 
             color: 'text-purple-600',
             bg: 'bg-purple-50'
@@ -646,19 +649,19 @@ export const OvertimePage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* ─── Distribution Analytics ──────────── */}
+        {/* ─── OT Hours Chart ──────────── */}
         <div className="lg:col-span-2">
           <GlassCard className="h-full flex flex-col min-h-[460px]">
             <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100/60">
-              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Cost Distribution Analytics</h3>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">OT Hours by Category</h3>
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-brand-primary shadow-sm" />
-                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">STANDARD</span>
+                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">Regular</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-brand-accent shadow-sm" />
-                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">PREMIUM</span>
+                  <span className="text-[10px] font-black text-slate-500 tracking-wider uppercase">Premium</span>
                 </div>
               </div>
             </div>
@@ -708,18 +711,18 @@ export const OvertimePage: React.FC = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full opacity-30 select-none">
                   <Database className="w-12 h-12 mb-3 text-slate-400" />
-                  <p className="text-sm font-black tracking-tight uppercase">Awaiting Calculation Results</p>
-                  <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tighter">Run the OT engine to generate distribution data</p>
+                  <p className="text-sm font-black tracking-tight uppercase">No Data</p>
+                  <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tighter">Calculate OT to see breakdown</p>
                 </div>
               )}
             </div>
           </GlassCard>
         </div>
 
-        {/* ─── Rate Rule Auditor ──────────────── */}
+        {/* ─── OT Rate Rules ──────────────── */}
         <GlassCard className="flex flex-col min-h-[460px]">
           <div className="px-8 py-6 border-b border-slate-100/60">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Rate Rule Auditor</h3>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">OT Rate Rules</h3>
           </div>
           <div className="p-6 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
             {otRules.length > 0 ? (
@@ -803,7 +806,7 @@ export const OvertimePage: React.FC = () => {
             ) : (
               <div className="py-20 flex flex-col items-center opacity-20">
                 <Database className="w-8 h-8 mb-2" />
-                <span className="text-[10px] font-black uppercase tracking-widest">No Active Rules</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">No Rules</span>
               </div>
             )}
           </div>
@@ -816,28 +819,25 @@ export const OvertimePage: React.FC = () => {
         </GlassCard>
       </div>
 
-      {/* ─── Payroll Impact Audit Table ─────────── */}
+      {/* ─── OT Summary Table ─────────── */}
       <GlassCard className="overflow-hidden border-none shadow-glass">
         <div className="flex flex-col md:flex-row md:items-center justify-between px-8 py-6 border-b border-slate-100/60 gap-6">
           <div className="flex items-center gap-4">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Payroll Impact Audit</h3>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">OT Summary</h3>
             <div className="h-4 w-px bg-slate-200" />
             <span className="px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tighter shadow-inner">
-              {visibleSummaries.length} VALID ENTRIES
+              {visibleSummaries.length} entries
             </span>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div className="relative group flex-1 md:flex-none">
               <input
                 type="text"
-                placeholder="Audit Search..."
+                placeholder="Search employees..."
                 className="w-full md:w-72 pl-11 pr-4 py-2.5 text-xs font-bold bg-white border-2 border-brand-200 focus:border-brand-400 rounded-2xl focus:ring-4 focus:ring-brand-primary/10 outline-none transition-all placeholder:text-slate-400"
               />
               <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-brand-primary transition-colors" />
             </div>
-            <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-slate-200/60 text-slate-400 hover:text-brand-primary hover:border-brand-primary/20 transition-all shadow-sm">
-              <Database className="w-4 h-4" />
-            </button>
           </div>
         </div>
         
@@ -845,13 +845,13 @@ export const OvertimePage: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/40">
-                <th className="px-8 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Employee Registry</th>
-                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekday (1.5x)</th>
-                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Night (2x)</th>
-                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekend (2x)</th>
-                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Holiday (2.5x)</th>
-                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Volume</th>
-                <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Net Payable</th>
+                <th className="px-8 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Employee</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekday (Hours)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Night (Hours)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Weekend (Hours)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Holiday (Hours)</th>
+                <th className="px-4 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Total Hours</th>
+                <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Total Payment</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/60">
@@ -877,7 +877,7 @@ export const OvertimePage: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-sm font-black text-slate-800 group-hover:text-brand-primary transition-colors">{name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 tracking-tighter uppercase">Employee #{row.employeeId.substring(0, 8)}</p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-tighter uppercase">{row.employee?.externalId || row.employeeId.substring(0, 8)}</p>
                           </div>
                         </div>
                       </td>
@@ -915,7 +915,7 @@ export const OvertimePage: React.FC = () => {
         {totalPages > 1 && (
           <div className="flex flex-col sm:flex-row items-center justify-between px-8 py-6 bg-slate-50/30 border-t border-slate-100/60 gap-4">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              Audit Page {currentPage} of {totalPages}
+              Page {currentPage} of {totalPages}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -959,19 +959,16 @@ export const OvertimePage: React.FC = () => {
         )}
       </GlassCard>
       
-      {/* Contextual Info */}
+      {/* Info */}
       <div className="bg-white/40 border border-slate-200/60 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 shadow-sm">
         <div className="w-16 h-16 rounded-3xl bg-brand-50 flex items-center justify-center text-brand-primary shrink-0 shadow-inner">
           <Fingerprint className="w-8 h-8" />
         </div>
         <div className="flex-1 text-center md:text-left">
-          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Ledger Integrity Notice</h4>
+          <h4 className="font-black text-slate-800 uppercase tracking-widest text-xs">Note</h4>
           <p className="text-slate-500 text-sm mt-1.5 leading-relaxed font-bold">
-            Overtime calculations are derived directly from biometric authentication logs. Any deviations must be authorized by department heads and recorded in the audit trail.
+            Overtime calculations are based on attendance records. Any deviations must be authorized by department heads.
           </p>
-        </div>
-        <div className="flex gap-4">
-           <Button className="btn-secondary text-[10px] font-black px-8">Audit Logs</Button>
         </div>
       </div>
     </div>

@@ -476,7 +476,7 @@ export const DeductionEmployeesPage: React.FC = () => {
 
   return (
     <div className="space-y-10 pb-20 px-4 md:px-8">
-      {/* ─── Navigation & Context ────────────────────────── */}
+      {/* ─── Back Navigation ────────────────────────── */}
       <button
         onClick={() => navigate("/employee-deductions")}
         className="group inline-flex items-center gap-2.5 text-slate-400 hover:text-slate-900 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
@@ -484,10 +484,10 @@ export const DeductionEmployeesPage: React.FC = () => {
         <div className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center group-hover:border-slate-900 transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </div>
-        Return to Registry
+        Back to Deductions
       </button>
 
-      {/* ─── Component Blueprint Header ───────────────────── */}
+      {/* ─── Header ───────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-8 border-b border-slate-200">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-4 flex-wrap mb-4">
@@ -501,7 +501,7 @@ export const DeductionEmployeesPage: React.FC = () => {
                 "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.15em] border shadow-sm",
                 hasFixedValue ? 'bg-brand-50 border-emerald-100 text-emerald-700' : 'bg-blue-50 border-blue-100 text-blue-700'
               )}>
-                {hasFixedValue ? 'Corporate (Type B)' : 'Voluntary (Type C)'}
+                {hasFixedValue ? 'Fixed Amount' : 'Variable'}
               </span>
             )}
           </div>
@@ -510,15 +510,11 @@ export const DeductionEmployeesPage: React.FC = () => {
             {!heroSkeleton && (
               <>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">System Type</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Type</span>
                   <span className="text-sm font-bold text-slate-700 font-mono bg-slate-50 px-3 py-1 rounded-lg border border-slate-100 w-fit">{config!.deductionType}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Registry Code</span>
-                  <span className="text-sm font-bold text-slate-900 truncate tracking-tight">{resolvedConfigId?.slice(0, 12)}...</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Calculation Model</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Calculation</span>
                   <span className="text-sm font-black text-slate-900">
                     {getCalculationLabel(config!.calculationType)}
                     {config!.amount != null && <span className="text-emerald-600 ml-2">ETB {config!.amount.toLocaleString()}</span>}
@@ -530,7 +526,7 @@ export const DeductionEmployeesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Primary Actions - Expert Style */}
+        {/* Primary Actions */}
         <div className="flex items-center gap-4 shrink-0">
           <button
             onClick={openBulkAssign}
@@ -538,14 +534,7 @@ export const DeductionEmployeesPage: React.FC = () => {
             className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-white bg-primary border-2 border-brand-800/30 rounded-xl hover:bg-brand-800 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer"
           >
             <Plus className="w-4 h-4" strokeWidth={3} />
-            Add Personnel
-          </button>
-          <button
-            disabled={heroSkeleton}
-            className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit Blueprint
+            Add Employee
           </button>
         </div>
       </div>
@@ -554,11 +543,11 @@ export const DeductionEmployeesPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           {[
-            { key: '', label: 'Full Register', count: stats.total, color: 'slate' },
+            { key: '', label: 'All', count: stats.total, color: 'slate' },
             { key: 'ACTIVE', label: 'Active', count: stats.active, color: 'emerald' },
-            { key: 'COMPLETED', label: 'Fulfilled', count: stats.completed, color: 'blue' },
-            { key: 'PAUSED', label: 'On Hold', count: stats.paused, color: 'amber' },
-            { key: 'CANCELLED', label: 'Void', count: stats.cancelled, color: 'rose' },
+            { key: 'COMPLETED', label: 'Completed', count: stats.completed, color: 'blue' },
+            { key: 'PAUSED', label: 'Paused', count: stats.paused, color: 'amber' },
+            { key: 'CANCELLED', label: 'Cancelled', count: stats.cancelled, color: 'rose' },
           ].map((tab) => {
             const isActive = statusFilter === tab.key;
             return (

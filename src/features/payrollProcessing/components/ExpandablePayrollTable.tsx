@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, ChevronLeft, Loader2, AlertTriangle } from "lucide-react";
+import { ChevronRight, ChevronLeft, Loader2, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { cn, formatCurrency } from "../../../lib/utils";
-import { Pagination } from "../../../components/ui/Pagination/Pagination";
 import { payrollRunApi, type PayrollRunItem, type PayrollRunItemDetail } from "../api/payrollProcessingApi";
+import type { BatchPayslipStatusItem } from "../../payslips/types/payslip.types";
 
 /* ─── Types ─────────────────────────────────────────────────── */
 
@@ -11,19 +11,21 @@ interface ExpandablePayrollTableProps {
   runId: string;
   loading: boolean;
   onSelectItem: (runId: string, itemId: string) => void;
+  /** Optional payslip status per employee — shown as a status column when provided */
+  payslipStatus?: BatchPayslipStatusItem[];
 }
 
 /* ─── Earning type → column label ──────────────────────────── */
 
 type ColumnKey =
-  | "name" | "position" | "department" | "workingDay"
-  | "basicSalary" | "grossSalary"
+  | "name" | "payslipStatus" | "position" | "department" | "workingDay"
+  | "basicSalary" | "grossSalary" | "costToCompany"
   | "transportTaxable" | "transportNonTaxable"
   // expanded (hidden until expand)
   | "telephone" | "representation" | "housing"
-  | "meal" | "overtime" | "incomeTax"
+  | "meal" | "overtime" 
   | "pensionEmployer" | "pensionEmployee"
-  | "otherDeductions" | "totalDeduction" | "netPay";
+  | "otherDeductions"  | "incomeTax" | "totalDeduction" | "netPay";
 
 interface ColumnDef {
   key: ColumnKey;
@@ -35,7 +37,7 @@ interface ColumnDef {
 
 /* ─── Detail value helpers ──────────────────────────────────── */
 
-function getEarningAmount(detail: PayrollRunItemDetail | null, earningType: string): number {
+export function getEarningAmount(detail: PayrollRunItemDetail | null, earningType: string): number {
   if (!detail) return 0;
   return detail.payrollEarnings
     .filter((e) => e.earningType === earningType)
@@ -50,7 +52,7 @@ function getAllowanceAmount(detail: PayrollRunItemDetail | null, labelMatch: str
 }
 
 /** Sum of all deductions EXCEPT income tax and employee pension. */
-function getOtherDeductions(detail: PayrollRunItemDetail | null): number {
+export function getOtherDeductions(detail: PayrollRunItemDetail | null): number {
   if (!detail) return 0;
   return detail.payrollDeductions
     .filter((d) => d.deductionType !== "EMPLOYMENT_INCOME_TAX" && d.deductionType !== "PENSION_EMPLOYEE")
@@ -61,23 +63,25 @@ function getOtherDeductions(detail: PayrollRunItemDetail | null): number {
 
 const COLUMNS: ColumnDef[] = [
   { key: "name",               label: "Employee",                          align: "left",  expanded: false },
+  { key: "payslipStatus",      label: "Payslip",                          align: "left",  expanded: false },
   { key: "position",           label: "Job Position",                      align: "left",  expanded: false },
   { key: "department",         label: "Department",                        align: "left",  expanded: false },
   { key: "workingDay",         label: "Working Day",                       align: "right", expanded: false },
   { key: "basicSalary",        label: "Basic Salary",                      align: "right", expanded: false },
   { key: "grossSalary",        label: "Gross Salary",                      align: "right", expanded: false },
-  { key: "transportTaxable",   label: "Transport (Taxable Remuneration)",  align: "right", expanded: false },
+  { key: "costToCompany",      label: "Cost to Company",                   align: "right", expanded: false },
+  { key: "transportTaxable",   label: "Transport Allowance",  align: "right", expanded: false },
   { key: "transportNonTaxable",label: "Non-Taxable Transport Allowance",   align: "right", expanded: false },
   // ── expand boundary ──
   { key: "telephone",          label: "Telephone Allowance",               align: "right", expanded: true },
-  { key: "representation",     label: "Representation / Meal (Non-Mgmt)",  align: "right", expanded: true },
+  { key: "representation",     label: "Representation Allowance",  align: "right", expanded: true },
   { key: "housing",            label: "Housing Allowance",                 align: "right", expanded: true },
   { key: "meal",               label: "Meal Allowance",                    align: "right", expanded: true },
   { key: "overtime",           label: "OT (Overtime)",                     align: "right", expanded: true },
-  { key: "incomeTax",          label: "Income Tax",                        align: "right", expanded: true },
   { key: "pensionEmployer",    label: "11% Pension (Employer)",            align: "right", expanded: true },
   { key: "pensionEmployee",    label: "7% Pension (Employee)",             align: "right", expanded: true },
   { key: "otherDeductions",    label: "Other Deductions",                  align: "right", expanded: true },
+  { key: "incomeTax",          label: "Income Tax",                        align: "right", expanded: true },
   { key: "totalDeduction",     label: "Total Deduction",                   align: "right", expanded: true },
   { key: "netPay",             label: "Net Pay",                           align: "right", expanded: true },
 ];
@@ -114,6 +118,8 @@ function cellValue(
       return { value: fmt(num(item.basicSalary)), isNumber: true };
     case "grossSalary":
       return { value: fmt(num(item.grossSalary)), isNumber: true, colorClass: "text-slate-800 font-semibold" };
+    case "costToCompany":
+      return { value: fmt(num(item.costToCompany)), isNumber: true, colorClass: "text-brand-700 font-semibold bg-brand-50" };
     case "transportTaxable": {
       const amt = getEarningAmount(detail, "TRANSPORT_TAXABLE");
       return { value: amt > 0 ? fmt(amt) : "\u2014", isNumber: true };
@@ -144,10 +150,7 @@ function cellValue(
         : 0;
       return { value: amt > 0 ? fmt(amt) : "\u2014", isNumber: true };
     }
-    case "incomeTax": {
-      const amt = detail ? Number(detail.payrollTax?.taxAmount ?? 0) : 0;
-      return { value: amt > 0 ? fmt(amt) : "\u2014", isNumber: true, colorClass: "text-slate-900" };
-    }
+    
     case "pensionEmployer": {
       const amt = detail ? Number(detail.payrollPension?.employerContribution ?? 0) : 0;
       return { value: amt > 0 ? fmt(amt) : "\u2014", isNumber: true, colorClass: "text-slate-900" };
@@ -169,6 +172,10 @@ function cellValue(
         : 0;
       return { value: otherTotal > 0 ? fmt(otherTotal) : "\u2014", isNumber: true, colorClass: "text-slate-900" };
     }
+    case "incomeTax": {
+      const amt = detail ? Number(detail.payrollTax?.taxAmount ?? 0) : 0;
+      return { value: amt > 0 ? fmt(amt) : "\u2014", isNumber: true, colorClass: "text-slate-900" };
+    }
     case "totalDeduction":
       return { value: fmt(num(item.totalDeductions)), isNumber: true, colorClass: "text-slate-900 font-semibold" };
     case "netPay":
@@ -189,16 +196,14 @@ function totalFor(items: PayrollRunItem[], details: Map<string, PayrollRunItemDe
       return formatCurrency(items.reduce((s, i) => s + num(i.basicSalary), 0));
     case "grossSalary":
       return formatCurrency(items.reduce((s, i) => s + num(i.grossSalary), 0));
+    case "costToCompany":
+      return formatCurrency(items.reduce((s, i) => s + num(i.costToCompany), 0));
     case "overtime":
       return formatCurrency(items.reduce((s, i) => {
         const d = details.get(i.id) ?? null;
         return s + (d ? d.payrollOvertime.reduce((a, o) => a + Number(o.amount), 0) : 0);
       }, 0));
-    case "incomeTax":
-      return formatCurrency(items.reduce((s, i) => {
-        const d = details.get(i.id) ?? null;
-        return s + Number(d?.payrollTax?.taxAmount ?? 0);
-      }, 0));
+    
     case "pensionEmployer":
       return formatCurrency(items.reduce((s, i) => {
         const d = details.get(i.id) ?? null;
@@ -217,6 +222,11 @@ function totalFor(items: PayrollRunItem[], details: Map<string, PayrollRunItemDe
           .filter((dd) => dd.deductionType !== "EMPLOYMENT_INCOME_TAX" && dd.deductionType !== "PENSION_EMPLOYEE")
           .reduce((a, dd) => a + Number(dd.amount), 0);
       }, 0));
+    case "incomeTax":
+      return formatCurrency(items.reduce((s, i) => {
+        const d = details.get(i.id) ?? null;
+        return s + Number(d?.payrollTax?.taxAmount ?? 0);
+      }, 0));  
     case "totalDeduction":
       return formatCurrency(items.reduce((s, i) => s + num(i.totalDeductions), 0));
     case "netPay":
@@ -235,6 +245,7 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
   runId,
   loading,
   onSelectItem,
+  payslipStatus,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [details, setDetails] = useState<Map<string, PayrollRunItemDetail | null>>(new Map());
@@ -242,12 +253,17 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const detailsFetchedRef = useRef(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
 
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedItems = items.slice((safePage - 1) * pageSize, safePage * pageSize);
+  // Build payslip status lookup by employee id
+  const statusMap = useMemo(() => {
+    const map = new Map<string, BatchPayslipStatusItem>();
+    if (payslipStatus) {
+      for (const ps of payslipStatus) {
+        map.set(ps.employeeId, ps);
+      }
+    }
+    return map;
+  }, [payslipStatus]);
 
   const HIDDEN_COUNT = EXPANDED_COLUMNS.length; // 11
 
@@ -437,7 +453,7 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
 
             {/* ── Body ────────────────────────────────────────── */}
             <tbody>
-              {paginatedItems.map((item, idx) => {
+              {items.map((item, idx) => {
                 const detail = getDetail(item.id);
                 const isBreached = item.deductionCapBreached;
                 return (
@@ -489,7 +505,28 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
                                 )}
                               </div>
                             </div>
-                          ) : (
+                          ) : col.key === "payslipStatus" ? (() => {
+                            const ps = statusMap.get(item.employee?.id ?? "");
+                            const isDone = ps?.visibilityStatus === 'DONE';
+                            const isDraft = ps?.visibilityStatus === 'DRAFT';
+                            const notGenerated = !ps?.payslipId;
+                            const isFailed = ps?.status === 'FAILED';
+                            return (
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border',
+                                  isDone ? 'bg-brand-50 text-emerald-700 border-emerald-100' :
+                                  isDraft ? 'bg-sky-50 text-sky-700 border-sky-100' :
+                                  isFailed ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                  notGenerated ? 'bg-slate-50 text-slate-400 border-slate-100' :
+                                  'bg-amber-50 text-amber-700 border-amber-100',
+                                )}
+                              >
+                                {isDone ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                {isDone ? 'Authorized' : isDraft ? 'Draft' : isFailed ? 'Error' : notGenerated ? 'N/A' : 'Processing'}
+                              </span>
+                            );
+                          })() : (
                             <span className={cn(
                               "whitespace-nowrap text-xs",
                               isNumber ? "tabular-nums" : "",
@@ -541,15 +578,6 @@ export const ExpandablePayrollTable: React.FC<ExpandablePayrollTableProps> = ({
           </table>
         </div>
       </div>
-
-      {/* ── Pagination ─────────────────────────────────────────── */}
-      <Pagination
-        currentPage={safePage}
-        totalPages={totalPages}
-        totalItems={items.length}
-        onPageChange={setCurrentPage}
-        pageSize={pageSize}
-      />
     </div>
   );
 };

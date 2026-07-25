@@ -11,10 +11,8 @@ import {
   Percent,
   RefreshCw,
   ChevronDown,
-  Eye,
   Banknote,
   Tag,
-  Settings,
 } from 'lucide-react';
 import { cn, slugify } from '../../../lib/utils';
 import { Modal, Input, Select, Button, Pagination } from '../../../components/ui';
@@ -177,15 +175,22 @@ export const EmployeeDeductionManagement: React.FC = () => {
     return map;
   }, [allDeductions]);
 
-  const totalActiveDeductions = useMemo(
-    () => allDeductions.filter((d) => d.status === 'ACTIVE').length,
-    [allDeductions],
+  // Only count deductions linked to active configs (or those without a config)
+  const activeConfigIds = useMemo(
+    () => new Set(deductionTemplates.filter((c) => c.isActive !== false).map((c) => c.id)),
+    [deductionTemplates],
+  );
+  const relevantDeductions = useMemo(
+    () => allDeductions.filter(
+      (d) => d.status === 'ACTIVE' && (!d.deductionItemId || activeConfigIds.has(d.deductionItemId)),
+    ),
+    [allDeductions, activeConfigIds],
   );
 
+  const totalActiveDeductions = relevantDeductions.length;
+
   const totalMonthlyAll = useMemo(
-    () => allDeductions
-      .filter((d) => d.status === 'ACTIVE')
-      .reduce((sum, d) => {
+    () => relevantDeductions.reduce((sum, d) => {
         let m = 0;
         if (d.calculationType === 'FIXED_AMOUNT') {
           m = Number(d.amount || 0);
@@ -198,7 +203,7 @@ export const EmployeeDeductionManagement: React.FC = () => {
         }
         return sum + m;
       }, 0),
-    [allDeductions],
+    [relevantDeductions],
   );
 
   // Active configs with employee counts
@@ -561,57 +566,39 @@ const typeLabelMap: Record<string, string> = {
 
   return (
     <div className="space-y-10 pb-20 px-4 md:px-8">
-      {/* ─── Professional Header ─────────────────────────── */}
+      {/* ─── Header ─────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-            <span>Audit & Compliance</span>
-            <span className="w-1 h-1 rounded-full bg-slate-300" />
-            <span>Payroll Components</span>
-          </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
             Employee Deductions
           </h1>
-          <p className="text-sm text-slate-500 font-medium mt-1.5 max-w-2xl leading-relaxed">
-            Monitor and control deduction allocations across the workforce. Manage statutory compliance, loan recoveries, and voluntary employee contributions with precision.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2.5 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm active:scale-[0.98] cursor-pointer">
-            <Settings className="w-4 h-4" />
-            Control Center
-          </button>
-          <button className="flex items-center gap-2.5 px-6 py-3 text-xs font-black uppercase tracking-widest text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-all shadow-md active:scale-[0.98] cursor-pointer">
-            <Plus className="w-4 h-4" />
-            New Component
-          </button>
         </div>
       </div>
 
-      {/* ─── Structured Stats - Data Precision ──────────────── */}
+      {/* ─── Stats Row ──────────────────────── */}
       <div className="bg-white border border-slate-200 rounded-[2rem] p-2 shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-          {/* Active Allocations - Focal Point */}
+          {/* Active Deductions */}
           <div className="p-8 group hover:bg-slate-50/50 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-brand-50 border border-emerald-100 flex items-center justify-center text-emerald-600 transition-transform group-hover:scale-110">
                 <CheckCircle className="w-5 h-5" />
               </div>
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Active Allocations</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Active Deductions</span>
             </div>
             <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
               {totalActiveDeductions}
             </p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Verified payroll units</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Assigned employees</p>
           </div>
 
-          {/* Monthly Volume */}
+          {/* Monthly Total */}
           <div className="p-8 group hover:bg-slate-50/50 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
                 <Banknote className="w-5 h-5" />
               </div>
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Monthly Volume</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Monthly Total</span>
             </div>
             <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
               <span className="text-lg font-bold text-slate-400 mr-1.5 uppercase">ETB</span>
@@ -619,24 +606,24 @@ const typeLabelMap: Record<string, string> = {
                 ? `${(totalMonthlyAll / 1000).toFixed(1)}K`
                 : totalMonthlyAll.toLocaleString()}
             </p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Est. disbursement</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Estimated total</p>
           </div>
 
-          {/* Component Types */}
+          {/* Deduction Types */}
           <div className="p-8 group hover:bg-slate-50/50 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
                 <Receipt className="w-5 h-5" />
               </div>
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Defined Types</span>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Deduction Types</span>
             </div>
             <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
               {deductionTemplates.length}
             </p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Active blueprints</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Defined configs</p>
           </div>
 
-          {/* Total Workforce */}
+          {/* Workforce */}
           <div className="p-8 group hover:bg-slate-50/50 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-110">
@@ -647,18 +634,18 @@ const typeLabelMap: Record<string, string> = {
             <p className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums leading-none">
               {employees.length}
             </p>
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Eligible personnel</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em] mt-3">Total employees</p>
           </div>
         </div>
       </div>
 
-      {/* ─── Search & Registry Controls ─────────────────── */}
+      {/* ─── Search & Controls ─────────────────── */}
       <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
         <div className="relative flex-1 min-w-[320px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search payroll components by name or type..."
+            placeholder="Search deduction types..."
             value={templateSearch}
             onChange={(e) => setTemplateSearch(e.target.value)}
             className="w-full pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all placeholder:text-slate-400 font-medium"
@@ -668,10 +655,10 @@ const typeLabelMap: Record<string, string> = {
         <div className="flex items-center gap-3">
           <div className="relative">
             <select className="appearance-none pl-4 pr-11 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:border-slate-900 outline-none cursor-pointer text-slate-700 font-bold min-w-[180px]">
-              <option>All Compliance Tiers</option>
-              <option>Statutory (Type A)</option>
-              <option>Corporate (Type B)</option>
-              <option>Voluntary (Type C)</option>
+              <option>All Types</option>
+              <option>Statutory</option>
+              <option>Corporate</option>
+              <option>Voluntary</option>
             </select>
             <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -679,7 +666,7 @@ const typeLabelMap: Record<string, string> = {
           <button 
             onClick={loadDeductionTemplates}
             className="p-3 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Reload Component Registry"
+            title="Reload"
           >
             <RefreshCw className={cn("w-4.5 h-4.5", templatesLoading && "animate-spin")} />
           </button>
@@ -688,14 +675,14 @@ const typeLabelMap: Record<string, string> = {
         {filteredConfigs.length > 0 && (
           <div className="ml-auto flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">Registry</span>
-              <span className="text-sm font-black text-slate-900 leading-tight">{filteredConfigs.length} Entries</span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">Count</span>
+              <span className="text-sm font-black text-slate-900 leading-tight">{filteredConfigs.length}</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ─── Component Registry - High Density ──────────── */}
+      {/* ─── Deduction Types Table ──────────────── */}
       <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
         <DataRenderer
           state={{
@@ -710,9 +697,9 @@ const typeLabelMap: Record<string, string> = {
               <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
                 <Percent className="w-10 h-10 text-slate-300" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">Component Registry Empty</h3>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">No Deduction Types</h3>
               <p className="text-sm text-slate-500 mt-2 max-w-sm mx-auto leading-relaxed">
-                No payroll components matched your current filter. Adjust your search or define a new deduction blueprint.
+                No deduction types match your current filter. Adjust your search or create a new deduction type.
               </p>
             </div>
           }
@@ -721,11 +708,11 @@ const typeLabelMap: Record<string, string> = {
               <table className="w-full text-left border-collapse border-spacing-0">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200">
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Component Blueprint</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Compliance Status</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-center">Current Load</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Registry Volume</th>
-                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right w-[180px]">Actions</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Deduction Type</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Status</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-center">Employees</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right">Monthly Total</th>
+                    <th className="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] text-right w-[120px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -769,7 +756,7 @@ const typeLabelMap: Record<string, string> = {
                         <td className="px-10 py-6 text-center">
                           <div className="inline-flex items-center gap-4 bg-white border border-slate-100 px-4 py-2 rounded-2xl shadow-sm group-hover:border-slate-200 transition-colors">
                             <div className="flex flex-col items-center">
-                              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">Global</span>
+                              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest leading-none">Total</span>
                               <span className="text-sm font-black text-slate-900 leading-tight mt-1">{empCount}</span>
                             </div>
                             <div className="w-px h-8 bg-slate-100" />
@@ -785,23 +772,16 @@ const typeLabelMap: Record<string, string> = {
                               ? `ETB ${totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                               : '\u2014'}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">Est. Impact</p>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 opacity-60">Monthly</p>
                         </td>
                         <td className="px-10 py-6 text-right">
                           <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                             <button
                               onClick={(e) => { e.stopPropagation(); openBulkAssign(config); }}
-                              className="w-10 h-10 flex items-center justify-center text-emerald-600 hover:bg-brand-50 rounded-xl border border-transparent hover:border-emerald-100 transition-all cursor-pointer shadow-sm active:scale-90"
-                              title="Assign Personnel"
+                              className="w-10 h-10 flex items-center justify-center text-white bg-brand-primary hover:bg-brand-dark rounded-xl border border-brand-400 transition-all cursor-pointer shadow-sm active:scale-90"
+                              title="Assign Employees"
                             >
                               <Plus className="w-5 h-5" strokeWidth={2.5} />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); navigate(`/employee-deductions/${config.id}`); }}
-                              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all cursor-pointer shadow-sm active:scale-90"
-                              title="Audit Register"
-                            >
-                              <Eye className="w-5 h-5" strokeWidth={2.5} />
                             </button>
                           </div>
                         </td>
@@ -821,7 +801,7 @@ const typeLabelMap: Record<string, string> = {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editDeduction ? 'Modify Allocation' : 'Establish New Allocation'}
+        title={editDeduction ? 'Edit Deduction' : 'Add Deduction'}
         size="lg"
         footer={
           <ConfigModalFooter
@@ -836,12 +816,12 @@ const typeLabelMap: Record<string, string> = {
           {/* Identity Section */}
           {!editDeduction && !activeCardEmployee ? (
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Personnel Identity</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Employee</label>
               <Select
                 value={form.employeeId}
                 onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
                 options={[
-                  { value: '', label: 'Select personnel from registry...' },
+                  { value: '', label: 'Select an employee...' },
                   ...employees.map((e) => ({
                     value: e.id,
                     label: `${e.firstName} ${e.lastName}`,
@@ -867,7 +847,7 @@ const typeLabelMap: Record<string, string> = {
           {/* Configuration Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Blueprint Type</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Deduction Type</label>
               <Select
                 value={form.deductionType}
                 onChange={(e) => {
@@ -883,13 +863,13 @@ const typeLabelMap: Record<string, string> = {
                     value: t.deductionType,
                     label: `${t.label} (${t.deductionType})`,
                   })),
-                  { value: 'OTHER', label: 'Custom Protocol' },
+                  { value: 'OTHER', label: 'Other' },
                 ]}
                 className="h-12 border-brand-200 rounded-2xl focus:border-brand-400 border-2"
               />
             </div>
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Allocation Identifier</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Label</label>
               <Input
                 value={form.label}
                 onChange={(e) => { setForm({ ...form, label: e.target.value }); setFormError(''); }}
@@ -903,7 +883,7 @@ const typeLabelMap: Record<string, string> = {
           {/* Reference & Model */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Reference Code</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Reference No.</label>
               <div className="relative">
                 <Input
                   value={form.refNo}
@@ -915,7 +895,7 @@ const typeLabelMap: Record<string, string> = {
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Calculation Model</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Calculation Type</label>
               <Select
                 value={form.calculationType}
                 onChange={(e) => setForm({ ...form, calculationType: e.target.value as DeductionCalculationType })}
@@ -931,7 +911,7 @@ const typeLabelMap: Record<string, string> = {
             
             {form.calculationType === 'FIXED_AMOUNT' && (
               <div className="space-y-4 relative z-10">
-                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Fixed Monthly Impact</label>
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Fixed Amount</label>
                 <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-white/30 transition-all shadow-inner">
                   <span className="px-5 py-4 text-xs font-black text-white/20 border-r border-white/10 uppercase tracking-widest bg-white/5">ETB</span>
                   <input
@@ -947,7 +927,7 @@ const typeLabelMap: Record<string, string> = {
 
             {(form.calculationType === 'PERCENTAGE_OF_BASIC' || form.calculationType === 'PERCENTAGE_OF_GROSS') && (
               <div className="space-y-4 relative z-10">
-                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Payroll Impact Factor</label>
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.25em] block">Percentage</label>
                 <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl overflow-hidden focus-within:border-white/30 transition-all shadow-inner">
                   <input
                     type="number"
@@ -959,17 +939,17 @@ const typeLabelMap: Record<string, string> = {
                   <span className="px-5 py-4 text-xs font-black text-white/20 border-l border-white/10 uppercase tracking-widest bg-white/5">%</span>
                 </div>
                 <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest ml-1 italic opacity-60">
-                  Calculated against {form.calculationType === 'PERCENTAGE_OF_BASIC' ? 'Basic Salary' : 'Gross Salary'} registry
+                  Calculated against {form.calculationType === 'PERCENTAGE_OF_BASIC' ? 'basic' : 'gross'} salary
                 </p>
               </div>
             )}
 
-            {/* Remaining Balance / Loan fields - Expert Style */}
+            {/* Remaining Balance / Loan fields */}
             {form.calculationType === 'REMAINING_BALANCE' && (
               <div className="space-y-6 relative z-10">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Principal Amount</label>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Total Amount</label>
                     <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                       <span className="px-3 py-2 text-[10px] font-black text-white/20 border-r border-white/10 uppercase tracking-widest bg-white/5">ETB</span>
                       <input
@@ -982,7 +962,7 @@ const typeLabelMap: Record<string, string> = {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Term (Cycles)</label>
+                    <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Installments</label>
                     <input
                       type="number"
                       value={form.numInstallments ?? ''}
@@ -1057,11 +1037,11 @@ const typeLabelMap: Record<string, string> = {
           </div>
 
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Internal Registry Notes</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Notes</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Record any additional context or compliance notes here..."
+              placeholder="Additional notes..."
               className="w-full px-5 py-4 rounded-2xl border border-slate-200 text-sm font-medium focus:border-slate-900 transition-all resize-none bg-slate-50/30"
               rows={3}
             />
@@ -1073,7 +1053,7 @@ const typeLabelMap: Record<string, string> = {
       <Modal
         isOpen={bulkModalOpen}
         onClose={() => setBulkModalOpen(false)}
-        title={`Registry Assignment: ${bulkConfig?.label || ''}`}
+        title={`Assign Employees: ${bulkConfig?.label || ''}`}
         size="lg"
         footer={
           <ConfigModalFooter
@@ -1081,7 +1061,7 @@ const typeLabelMap: Record<string, string> = {
             onSave={handleBulkAssign}
             isEdit={false}
             saving={bulkSaving}
-            saveLabel="Finalize Assignments"
+            saveLabel="Confirm Assignment"
           />
         }
       >
@@ -1104,7 +1084,7 @@ const typeLabelMap: Record<string, string> = {
                   {DEDUCTION_TYPE_META[bulkConfig.deductionType]?.icon || <Tag className="w-5 h-5" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Blueprint Identification</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Deduction Type</p>
                   <p className="font-black text-slate-900 text-lg tracking-tight leading-none truncate">{bulkConfig.label}</p>
                 </div>
                 <span className={cn(
@@ -1113,7 +1093,7 @@ const typeLabelMap: Record<string, string> = {
                     ? 'bg-white border-brand-200 text-emerald-700'
                     : 'bg-white border-blue-200 text-blue-700'
                 )}>
-                  {bulkConfig.amount || bulkConfig.percent ? 'STATIC RATE' : 'VARIABLE RATE'}
+                  {bulkConfig.amount || bulkConfig.percent ? 'FIXED' : 'VARIABLE'}
                 </span>
               </div>
             </div>
@@ -1123,7 +1103,7 @@ const typeLabelMap: Record<string, string> = {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search personnel registry by name..."
+                placeholder="Search employees by name..."
                 value={bulkSearch}
                 onChange={(e) => setBulkSearch(e.target.value)}
                 className="w-full h-12 pl-11 pr-4 py-3 text-sm bg-white border border-slate-200 rounded-2xl focus:border-slate-900 outline-none transition-all font-medium shadow-sm"
@@ -1149,11 +1129,11 @@ const typeLabelMap: Record<string, string> = {
                   onChange={handleBulkSelectAll}
                   className="sr-only"
                 />
-                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select Entire View ({filteredBulkEmployees.length})</span>
+                <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Select All ({filteredBulkEmployees.length})</span>
               </label>
               {selectedBulkIds.size > 0 && (
                 <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10">
-                  {selectedBulkIds.size} Target Personnel
+                  {selectedBulkIds.size} Selected
                 </div>
               )}
             </div>
@@ -1165,7 +1145,7 @@ const typeLabelMap: Record<string, string> = {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto" />
                 </div>
               ) : filteredBulkEmployees.length === 0 ? (
-                <div className="py-20 text-center text-slate-400 text-xs font-black uppercase tracking-widest">No matching personnel</div>
+                <div className="py-20 text-center text-slate-400 text-xs font-black uppercase tracking-widest">No matching employees</div>
               ) : (
                 filteredBulkEmployees.map((emp) => {
                   const isSelected = selectedBulkIds.has(emp.id);
@@ -1195,7 +1175,7 @@ const typeLabelMap: Record<string, string> = {
 
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-900 text-sm tracking-tight truncate">{emp.firstName} {emp.lastName}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{emp.departmentName || 'General Registry'}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">{emp.departmentName || 'General'}</p>
                       </div>
 
                       {/* Per-employee value input (Type B) */}
@@ -1237,10 +1217,10 @@ const typeLabelMap: Record<string, string> = {
         footer={
           <div className="flex gap-3 justify-end">
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>
-              No, Keep It
+              Cancel
             </Button>
             <Button variant="danger" onClick={confirmDelete}>
-              Yes, Cancel Deduction
+              Confirm Cancel
             </Button>
           </div>
         }
@@ -1251,7 +1231,7 @@ const typeLabelMap: Record<string, string> = {
           </div>
           <p className="text-slate-700 font-medium">Are you sure you want to cancel this deduction?</p>
           <p className="text-sm text-slate-500 mt-2">
-            This action will mark the deduction as cancelled and stop future deductions.
+            This will mark the deduction as cancelled and stop future deductions.
           </p>
         </div>
       </Modal>

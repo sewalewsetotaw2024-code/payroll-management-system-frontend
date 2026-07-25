@@ -10,6 +10,8 @@ import { cn, slugify } from "../../../lib/utils";
 import { payrollRunApi } from "../api/payrollProcessingApi";
 import type { PayrollRun } from "../api/payrollProcessingApi";
 import { useAppSelector } from "../../../store/hooks";
+import { useRolePermissions } from "../../../hooks/useRolePermissions";
+import { useHrGeneralistFallback } from "../../attendance/hooks/useHrGeneralistFallback";
 import type { FiscalYear, PayrollPeriod } from "../../configuration/types/configuration.types";
 
 type ProcessingStatus = "idle" | "processing" | "success" | "error";
@@ -94,8 +96,9 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
   const userRole = useAppSelector((state) => state.auth.user?.role?.name ?? null);
   const HR_ROLES = new Set(['HR Generalist', 'HR CS Manager', 'HR CS Director']);
   const isHrRole = userRole ? HR_ROLES.has(userRole) : false;
-  const CAN_RUN_PAYROLL_ROLES = new Set(['Admin', 'HR Generalist', 'HR CS Manager']);
-  const canRunPayroll = userRole ? CAN_RUN_PAYROLL_ROLES.has(userRole) : false;
+  const { hasPermission } = useRolePermissions();
+  const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+  const canRunPayroll = hasPermission('canRunPayroll') && !hrManagerBlocked;
 
   // ── Generate payslip state ────────────────────────────
   const [generatingRunId, setGeneratingRunId] = useState<string | null>(null);
@@ -302,7 +305,9 @@ export const PayrollProcessingTab: React.FC<PayrollProcessingTabProps> = ({
                           const isClosed = pp.status === "CLOSED" || pp.status === "DONE";
                           const isProcessing = processingStatus === "processing";
                           const disableProcess = periodHasRun || isClosed || isProcessing || !attendanceApproved || !canRunPayroll;
-                          const processTitle = !canRunPayroll
+                          const processTitle = hrManagerBlocked
+                            ? "HR Generalist is responsible for this while active"
+                            : !canRunPayroll
                             ? "You don't have permission to process payroll"
                             : periodHasRun
                               ? "This period has already been processed"

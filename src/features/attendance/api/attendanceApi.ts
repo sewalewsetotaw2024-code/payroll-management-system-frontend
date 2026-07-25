@@ -5,18 +5,15 @@ import type {
     ImportResult,
     OtCalculationResult,
     ImportDetail,
-    EmployeeDailyRecords,
     CombinedPeriodSummary,
 } from '../types/attendance.types';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 /**
  * Axios instance configured for the Attendance API base path.
  * Automatically attaches the Bearer token from tokenStorage on every request.
  */
 const attendanceAxios = axios.create({
-    baseURL: `${API_BASE_URL}/attendance`,
+    baseURL: '/api/v1/attendance',
 });
 
 attendanceAxios.interceptors.request.use((config) => {
@@ -46,6 +43,20 @@ export const attendanceApi = {
 
         const response = await attendanceAxios.post('/import', formData);
         return response.data.data as ImportResult;
+    },
+
+    /**
+     * Fetches attendance directly from the BioTime device API and saves it as
+     * a new AttendanceImport — an alternative to uploading an xlsx export.
+     */
+    fetchBiotimeAttendance: async (params: {
+        startDate: string;
+        endDate: string;
+        departmentId?: number;
+        payrollPeriodId?: string;
+    }): Promise<{ importId: string; totalEmployees: number; saved: number; skipped: number; skippedEmpCodes: string[]; periodLabel: string }> => {
+        const response = await attendanceAxios.post('/biotime/fetch', params);
+        return response.data.data;
     },
 
     /**
@@ -191,15 +202,12 @@ export const attendanceApi = {
     },
 
     /**
-     * Retrieves daily attendance records for a single employee within an import,
-     * pre-grouped by month for the heatmap component.
-     *
-     * @param importId - The attendance import ID.
-     * @param employeeId - The employee ID to get records for.
-     * @returns Promise resolving to structured per-month daily records.
+     * Whether the caller's company currently has an active HR Generalist.
+     * HR CS Manager is a fallback for HR Generalist on attendance-management
+     * actions — used to decide whether to show those actions to HR CS Manager.
      */
-    getEmployeeDailyRecords: async (importId: string, employeeId: string): Promise<EmployeeDailyRecords> => {
-        const response = await attendanceAxios.get(`/imports/${importId}/employees/${employeeId}/daily-records`);
-        return response.data.data as EmployeeDailyRecords;
+    getHrGeneralistStatus: async (): Promise<{ hasActiveHrGeneralist: boolean }> => {
+        const response = await attendanceAxios.get('/hr-generalist-status');
+        return response.data.data as { hasActiveHrGeneralist: boolean };
     },
 };

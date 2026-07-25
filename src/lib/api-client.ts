@@ -37,8 +37,7 @@ export interface RequestState<T> {
   isRefreshing: boolean;
 }
 
-// const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://adiu-okr.onrender.com/api/v1';
+const BASE_URL = '/api/v1';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -46,6 +45,9 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: 15000,
 });
 
+// Attach the auth token to every outgoing request on this instance.
+// Without this, any feature using apiClient directly (e.g. notifications)
+// would silently send unauthenticated requests and get 401s.
 apiClient.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) {
@@ -58,9 +60,8 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     const normalized = normalizeError(error);
-    if (normalized.status === 401) {
-      tokenStorage.removeToken();
-    }
+    // Note: Do NOT remove the token here. Token management is handled by the
+    // auth saga. Removing it here cascades failures across ALL axios instances.
     return Promise.reject(normalized);
   }
 );

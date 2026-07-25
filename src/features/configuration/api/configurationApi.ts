@@ -19,11 +19,9 @@ import type {
   SystemCurrency,
 } from '../types/configuration.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
-
 // Axios for integration/sync endpoints (base: /api/v1/integrations)
 const integrationAxios = axios.create({
-  baseURL: `${API_BASE_URL}/integrations`,
+  baseURL: '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 

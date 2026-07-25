@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Download, UserPlus, RefreshCw, AlertCircle, Users, DollarSign, Building2, ArrowRightLeft, CheckCircle2, X } from 'lucide-react';
+import { Plus, Download, RefreshCw, AlertCircle, Users, DollarSign, Building2, ArrowRightLeft, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeTable } from '../components/EmployeeTable';
 import { EmployeeFilters } from '../components/EmployeeFilters';
@@ -200,31 +200,24 @@ export const EmployeesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Personnel Intelligence</h1>
-          <p className="text-slate-500 font-medium mt-1">Master directory of records synced from ERP</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Employee Profiles</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Button
             onClick={handleSync}
             disabled={syncing || loading}
-            variant="secondary"
-            className="shadow-lg border-white"
+            className="shadow-lg"
           >
             <RefreshCw className={cn('w-4 h-4', syncing && 'animate-spin')} />
-            {syncing ? 'Synchronizing...' : 'ERP Sync'}
+            {syncing ? 'Synchronizing...' : 'Employee Sync'}
           </Button>
           
           <Button
               onClick={handleExport}
               disabled={exporting}
-              variant="secondary"
-              className="shadow-lg border-white"
+              className="shadow-lg"
           >
               <Download className="w-4 h-4" /> Export
-          </Button>
-
-          <Button className="shadow-brand-900/20">
-            <UserPlus className="w-4 h-4" /> Onboard New
           </Button>
         </div>
       </div>

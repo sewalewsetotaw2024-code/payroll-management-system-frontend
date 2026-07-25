@@ -30,22 +30,13 @@ function buildLines(data: PayslipDetailData) {
   const deductions: { label: string; amount: number }[] = [];
 
   // ── Earnings ───────────────────────────────────────────────────────────
-  // Standard earnings line items
+  // payrollEarnings already includes Basic Salary, ALL allowances (Transport,
+  // Housing, Meal, Other, Representation), overtime, and acting allowances.
+  // Do NOT also push from data.allowances or data.overtime — that would
+  // duplicate every allowance and overtime line.
   for (const e of data.earnings ?? []) {
     const amt = Math.max(0, e.amount);
     if (amt > 0) earnings.push({ label: e.label || e.earningType, amount: amt });
-  }
-
-  // Allowances listed as additional earnings
-  for (const al of data.allowances ?? []) {
-    const amt = Math.max(0, al.amount);
-    if (amt > 0) earnings.push({ label: al.label, amount: amt });
-  }
-
-  // Overtime: show a single combined line (sum of all overtime for the period)
-  const totalOvertime = (data.overtime ?? []).reduce((s, ot) => s + Math.max(0, ot.amount), 0);
-  if (totalOvertime > 0) {
-    earnings.push({ label: 'Overtime', amount: totalOvertime });
   }
 
   // ── Deductions ─────────────────────────────────────────────────────────

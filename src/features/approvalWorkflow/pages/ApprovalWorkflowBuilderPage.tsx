@@ -19,9 +19,13 @@ import {
   RefreshCw,
   LayoutList,
   User,
+  FileSpreadsheet,
+  Calculator,
+  Banknote,
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { toast } from "../../../components/ui/Toast";
+import { syncApi } from "../../configuration/api/configurationApi";
 import {
   fetchApprovalWorkflow,
   updateWorkflow,
@@ -49,72 +53,81 @@ import {
 } from "../api/approvalWorkflowApi";
 
 // ── Permission Labels ───────────────────────────────────────────────────────-
-
-const PERMISSION_GROUPS: { label: string; keys: { key: string; label: string }[] }[] = [
-  {
-    label: "Import",
-    keys: [
-      { key: "canActivateImport", label: "Activate Import" },
-      { key: "canApproveImport", label: "Submit Import for Approval" },
-    ],
-  },
-  {
-    label: "Calculations",
-    keys: [
-      { key: "canCalculateOt", label: "Calculate Overtime" },
-      { key: "canCalculateSummary", label: "Calculate Summary" },
-    ],
-  },
-  {
-    label: "Payroll",
-    keys: [
-      { key: "canRunPayroll", label: "Run Payroll" },
-      { key: "canSubmitForApproval", label: "Submit Payroll for Approval" },
-      { key: "canSubmitPayroll", label: "Submit Payroll" },
-      { key: "canSyncLeave", label: "Sync Leave" },
-      { key: "canReRunEmployee", label: "Re-run Employee" },
-    ],
-  },
-  {
-    label: "Approval",
-    keys: [
-      { key: "canApproveRun", label: "Approve Payroll Run" },
-      { key: "canRejectRun", label: "Reject Payroll Run" },
-      { key: "canApproveAttendance", label: "Approve Attendance" },
-      { key: "canRejectAttendance", label: "Reject Attendance" },
-    ],
-  },
-  {
-    label: "Payment",
-    keys: [
-      { key: "canSubmitPaymentFile", label: "Submit Payment File" },
-    ],
-  },
-  {
-    label: "View",
-    keys: [
-      { key: "canViewEmployeeDetail", label: "View Employee Detail" },
-    ],
-  },
+//
+// Grouped by STAGE rather than by feature area — matches how the Workflow
+// Builder now presents Attendance/Payroll/Payment as cards, each showing who
+// can do the stage's supporting tasks, who can submit it, and (via the
+// Approval Chain, driven by ApprovalStep, not these keys) who approves/
+// rejects it.
+const ATTENDANCE_TASK_KEYS: { key: string; label: string }[] = [
+  { key: "canActivateImport", label: "Activate Import" },
+  { key: "canImportAttendance", label: "Import Attendance" },
+  { key: "canCalculateOt", label: "Calculate Overtime" },
+  { key: "canCalculateSummary", label: "Calculate Summary" },
+  { key: "canDeleteAttendanceImport", label: "Delete Import" },
 ];
+
+const PAYROLL_TASK_KEYS: { key: string; label: string }[] = [
+  { key: "canRunPayroll", label: "Run Payroll" },
+  { key: "canSubmitPayroll", label: "Submit Payroll" },
+  { key: "canSyncLeave", label: "Sync Leave" },
+  { key: "canReRunEmployee", label: "Re-run Employee" },
+  { key: "canGeneratePayslips", label: "Generate Payslips" },
+];
+
+/**
+ * These keys exist on every role's `permissions` object (VALID_PERMISSION_KEYS
+ * on the backend) but nothing in the backend currently reads them — real
+ * approve/reject authority for a stage comes from that stage's Approval
+ * Chain (ApprovalStep), not these flags. Shown anyway (per-stage, at the end
+ * of each matrix) since they're part of the API response and toggling them
+ * shouldn't require leaving this page — but each carries a note so it's
+ * clear they're not wired to anything yet.
+ */
+const LEGACY_KEY_NOTE = "Not enforced — see Approval Chain below";
+const ATTENDANCE_LEGACY_KEYS: { key: string; label: string; note?: string }[] = [
+  { key: "canApproveImport", label: "Approve Import", note: LEGACY_KEY_NOTE },
+  { key: "canApproveAttendance", label: "Approve Attendance", note: LEGACY_KEY_NOTE },
+  { key: "canRejectAttendance", label: "Reject Attendance", note: LEGACY_KEY_NOTE },
+];
+const PAYROLL_LEGACY_KEYS: { key: string; label: string; note?: string }[] = [
+  { key: "canApproveRun", label: "Approve Payroll Run", note: LEGACY_KEY_NOTE },
+  { key: "canRejectRun", label: "Reject Payroll Run", note: LEGACY_KEY_NOTE },
+];
+const PAYMENT_LEGACY_KEYS: { key: string; label: string; note?: string }[] = [
+  { key: "canApprovePayment", label: "Approve Payment", note: LEGACY_KEY_NOTE },
+  { key: "canRejectPayment", label: "Reject Payment", note: LEGACY_KEY_NOTE },
+];
+
+/** Not stage-specific — kept in a small "Other Permissions" card instead of a stage card. */
+const OTHER_PERMISSION_KEYS: { key: string; label: string }[] = [
+  { key: "canViewEmployeeDetail", label: "View Employee Detail" },
+  { key: "canViewAllPayslips", label: "View All Employees' Payslips" },
+];
+
+/**
+ * canSubmitForApproval genuinely gates BOTH Attendance's and Payroll's submit
+ * action today (STAGE_SUBMIT_PERMISSION_KEYS on the backend maps it to
+ * PAYROLL_APPROVAL, and Attendance's dedicated submit route checks the same
+ * key directly) — the sharedNote surfaces that on both cards so toggling one
+ * doesn't quietly affect the other unannounced.
+ */
+const SUBMIT_KEY_BY_STAGE: Record<string, { key: string; label: string; sharedNote?: string }> = {
+  ATTENDANCE: { key: "canSubmitForApproval", label: "Submit for Approval", sharedNote: "Shared — also controls Payroll's submit" },
+  PAYROLL_APPROVAL: { key: "canSubmitForApproval", label: "Submit for Approval", sharedNote: "Shared — also controls Attendance's submit" },
+  PAYMENT_FILE: { key: "canSubmitPaymentFile", label: "Submit Payment File" },
+};
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
+// Must cover every ApprovalStageType value the backend still accepts
+// (PAYROLL_BATCH was removed from that enum — never add it back here).
 const STAGE_TYPE_OPTIONS = [
   { value: "PAYROLL_APPROVAL", label: "Payroll Approval" },
   { value: "PAYMENT_FILE", label: "Payment File" },
   { value: "ATTENDANCE", label: "Attendance" },
+  { value: "PAYROLL_DOCUMENT", label: "Document Review" },
 ] as const;
-
-/** Fallback roles used when the backend roles API is unavailable. */
-const FALLBACK_ROLES: DynamicRole[] = [
-  { id: 13, name: "HR Generalist", permissions: null },
-  { id: 14, name: "HR CS Manager", permissions: null },
-  { id: 15, name: "HR CS Director", permissions: null },
-  { id: 16, name: "Finance Officer", permissions: null },
-  { id: 17, name: "Finance Manager", permissions: null },
-  { id: 6, name: "Admin", permissions: null },
-];
 
 // ── Helper ───────────────────────────────────────────────────────────────────
 
@@ -317,24 +330,44 @@ function useValidationWarnings(steps: ApprovalWorkflowStep[], roles: DynamicRole
       });
     }
 
-    // Check for duplicate required roles within same stage type
-    steps
+    // Check for role collisions within the same stage — mirrors the
+    // backend's assertNoDuplicateRequiredRole exactly: two required steps in
+    // one stage can't share a role via EITHER their required OR alternate
+    // role, since step completion is tracked per-role, not per-step (one
+    // approval would silently satisfy both steps).
+    const requiredByStage = steps
       .filter((s) => s.isRequired)
       .reduce((acc, s) => {
         const existing = acc.get(s.stageType) ?? [];
-        existing.push(s.requiredRoleId);
+        existing.push(s);
         acc.set(s.stageType, existing);
         return acc;
-      }, new Map<string, number[]>())
-      .forEach((roleIds, stage) => {
-        const dupes = roleIds.filter((id, i) => roleIds.indexOf(id) !== i);
-        if (dupes.length > 0) {
-          warnings.push({
-            type: "warning",
-            message: `Duplicate required role "${roleName(dupes[0], roles)}" in "${stage}" stage. A role can only approve one step per stage.`,
-          });
+      }, new Map<string, ApprovalWorkflowStep[]>());
+
+    requiredByStage.forEach((stageSteps, stage) => {
+      const reportedPairs = new Set<string>();
+      for (let i = 0; i < stageSteps.length; i++) {
+        for (let j = i + 1; j < stageSteps.length; j++) {
+          const a = stageSteps[i];
+          const b = stageSteps[j];
+          const collides =
+            a.requiredRoleId === b.requiredRoleId ||
+            (a.alternateRoleId != null && a.alternateRoleId === b.requiredRoleId) ||
+            (b.alternateRoleId != null && b.alternateRoleId === a.requiredRoleId) ||
+            (a.alternateRoleId != null && a.alternateRoleId === b.alternateRoleId);
+          if (collides) {
+            const key = [a.id, b.id].sort().join("-");
+            if (!reportedPairs.has(key)) {
+              reportedPairs.add(key);
+              warnings.push({
+                type: "warning",
+                message: `"${roleName(a.requiredRoleId, roles)}" and "${roleName(b.requiredRoleId, roles)}" overlap in the "${stage}" stage (via required or alternate role) — one approval could silently satisfy both steps.`,
+              });
+            }
+          }
         }
-      });
+      }
+    });
 
     // Check: steps should have an alternate role if possible
     const singleApproverSteps = steps.filter(
@@ -356,7 +389,9 @@ function useValidationWarnings(steps: ApprovalWorkflowStep[], roles: DynamicRole
 interface StepCardProps {
   step: ApprovalWorkflowStep;
   index: number;
-  total: number;
+  /** Disable up/down independently — scoped to the step's own stage, not the whole list (see handleMoveStep). */
+  disableUp: boolean;
+  disableDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onEdit: () => void;
@@ -367,7 +402,8 @@ interface StepCardProps {
 const StepCard: React.FC<StepCardProps> = ({
   step,
   index,
-  total,
+  disableUp,
+  disableDown,
   onMoveUp,
   onMoveDown,
   onEdit,
@@ -385,7 +421,7 @@ const StepCard: React.FC<StepCardProps> = ({
           <div className="flex flex-col gap-0.5">
             <button
               onClick={onMoveUp}
-              disabled={index === 0}
+              disabled={disableUp}
               className="w-5 h-4 flex items-center justify-center rounded hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
               title="Move up"
             >
@@ -393,7 +429,7 @@ const StepCard: React.FC<StepCardProps> = ({
             </button>
             <button
               onClick={onMoveDown}
-              disabled={index === total - 1}
+              disabled={disableDown}
               className="w-5 h-4 flex items-center justify-center rounded hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed transition-all"
               title="Move down"
             >
@@ -459,6 +495,272 @@ const StepCard: React.FC<StepCardProps> = ({
   </div>
 );
 
+// ── Role Permission Row — one task/submit row, a chip per role ─────────────
+
+interface RolePermissionRowProps {
+  label: string;
+  permissionKey: string;
+  note?: string;
+  roles: DynamicRole[];
+  getEffectivePerms: (role: DynamicRole) => Record<string, boolean>;
+  savingPermKey: string | null;
+  onToggle: (role: DynamicRole, key: string) => void;
+}
+
+const RolePermissionRow: React.FC<RolePermissionRowProps> = ({
+  label,
+  permissionKey,
+  note,
+  roles,
+  getEffectivePerms,
+  savingPermKey,
+  onToggle,
+}) => (
+  <div>
+    <div className="flex items-center justify-between gap-2 mb-2">
+      <p className="text-xs font-bold text-slate-600">{label}</p>
+      {note && <p className="text-[10px] text-slate-400 font-medium">{note}</p>}
+    </div>
+    <div className="flex flex-wrap gap-1.5">
+      {roles.length === 0 ? (
+        <p className="text-[11px] text-slate-300 font-medium italic">No roles yet</p>
+      ) : (
+        roles.map((role) => {
+          const active = getEffectivePerms(role)[permissionKey] === true;
+          const isSaving = savingPermKey === `${role.id}:${permissionKey}`;
+          return (
+            <button
+              key={role.id}
+              onClick={() => onToggle(role, permissionKey)}
+              disabled={isSaving}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all",
+                active
+                  ? "bg-brand-50 border-brand-200 text-emerald-700 hover:bg-brand-100"
+                  : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300",
+              )}
+            >
+              {isSaving ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <div
+                  className={cn(
+                    "w-3 h-3 rounded border-2 flex items-center justify-center",
+                    active ? "bg-emerald-500 border-brand-500" : "border-slate-300",
+                  )}
+                >
+                  {active && <CheckCircle2 className="w-2.5 h-2.5 text-white" />}
+                </div>
+              )}
+              {role.name}
+            </button>
+          );
+        })
+      )}
+    </div>
+  </div>
+);
+
+// ── Permission Matrix — tasks (+ submit) as columns, roles as rows ──────────
+
+interface PermissionMatrixProps {
+  columns: { key: string; label: string; note?: string }[];
+  roles: DynamicRole[];
+  getEffectivePerms: (role: DynamicRole) => Record<string, boolean>;
+  savingPermKey: string | null;
+  onToggle: (role: DynamicRole, key: string) => void;
+}
+
+const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
+  columns,
+  roles,
+  getEffectivePerms,
+  savingPermKey,
+  onToggle,
+}) => {
+  if (roles.length === 0) {
+    return <p className="text-[11px] text-slate-300 font-medium italic">No roles yet</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-50/50 border-b border-slate-200">
+            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-widest sticky left-0 bg-slate-50/50 whitespace-nowrap">
+              Role
+            </th>
+            {columns.map((c) => (
+              <th
+                key={c.key}
+                className="px-3 py-3 text-center text-[10px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap"
+              >
+                {c.label}
+                {c.note && (
+                  <span className="block text-[9px] font-medium normal-case text-slate-300 tracking-normal mt-0.5">
+                    {c.note}
+                  </span>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {roles.map((role, i) => (
+            <tr
+              key={role.id}
+              className={cn(
+                "border-b border-slate-100 last:border-b-0",
+                i % 2 === 1 && "bg-slate-50/30",
+              )}
+            >
+              <td className="px-4 py-2.5 text-xs font-bold text-slate-700 whitespace-nowrap sticky left-0 bg-inherit">
+                {role.name}
+              </td>
+              {columns.map((c) => {
+                const active = getEffectivePerms(role)[c.key] === true;
+                const isSaving = savingPermKey === `${role.id}:${c.key}`;
+                return (
+                  <td key={c.key} className="px-3 py-2.5 text-center">
+                    <button
+                      onClick={() => onToggle(role, c.key)}
+                      disabled={isSaving}
+                      title={c.label}
+                      className={cn(
+                        "w-6 h-6 rounded-md border-2 flex items-center justify-center mx-auto transition-all",
+                        active
+                          ? "bg-emerald-500 border-brand-500"
+                          : "border-slate-300 hover:border-slate-400",
+                      )}
+                    >
+                      {isSaving ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                      ) : (
+                        active && <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      )}
+                    </button>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ── Stage Card — Attendance / Payroll / Payment ─────────────────────────────
+
+interface StageCardProps {
+  stageType: string;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  taskKeys: { key: string; label: string }[];
+  legacyKeys: { key: string; label: string; note?: string }[];
+  submitInfo: { key: string; label: string; sharedNote?: string };
+  steps: ApprovalWorkflowStep[];
+  roles: DynamicRole[];
+  rolesReady: boolean;
+  getEffectivePerms: (role: DynamicRole) => Record<string, boolean>;
+  savingPermKey: string | null;
+  onTogglePerm: (role: DynamicRole, key: string) => void;
+  onAddStep: () => void;
+  onEditStep: (step: ApprovalWorkflowStep) => void;
+  onDeleteStep: (stepId: string) => void;
+  onMoveStep: (step: ApprovalWorkflowStep, direction: -1 | 1) => void;
+}
+
+const StageCard: React.FC<StageCardProps> = ({
+  title,
+  icon: Icon,
+  taskKeys,
+  legacyKeys,
+  submitInfo,
+  steps,
+  roles,
+  rolesReady,
+  getEffectivePerms,
+  savingPermKey,
+  onTogglePerm,
+  onAddStep,
+  onEditStep,
+  onDeleteStep,
+  onMoveStep,
+}) => (
+  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      <div className="flex items-center gap-5">
+        <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-brand-primary">
+          <Icon className="w-6 h-6" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">{title}</h2>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
+            {steps.length} approval {steps.length === 1 ? "step" : "steps"} configured
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="p-8 space-y-8">
+      <div className="space-y-4">
+        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Permissions</p>
+        <PermissionMatrix
+          columns={[
+            ...taskKeys,
+            { key: submitInfo.key, label: submitInfo.label, note: submitInfo.sharedNote },
+            ...legacyKeys,
+          ]}
+          roles={roles}
+          getEffectivePerms={getEffectivePerms}
+          savingPermKey={savingPermKey}
+          onToggle={onTogglePerm}
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Approval Chain</p>
+          <button
+            onClick={onAddStep}
+            disabled={!rolesReady}
+            title={!rolesReady ? "Roles haven't loaded yet" : undefined}
+            className="px-3 py-1.5 text-[10px] font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-3 h-3" />
+            Add Step
+          </button>
+        </div>
+
+        {steps.length === 0 ? (
+          <div className="text-center py-10 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+            <Settings2 className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+            <p className="text-xs font-medium text-slate-400">No approval steps configured for this stage</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {steps.map((step, index) => (
+              <StepCard
+                key={step.id}
+                step={step}
+                index={index}
+                disableUp={index === 0}
+                disableDown={index === steps.length - 1}
+                roles={roles}
+                onMoveUp={() => onMoveStep(step, -1)}
+                onMoveDown={() => onMoveStep(step, 1)}
+                onEdit={() => onEditStep(step)}
+                onDelete={() => onDeleteStep(step.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 // ── Add/Edit Step Modal ──────────────────────────────────────────────────────
 
 interface StepFormModalProps {
@@ -479,6 +781,14 @@ interface StepFormModalProps {
   title: string;
   /** Dynamic role list fetched from the API. */
   roles: DynamicRole[];
+  /**
+   * When set, this step is being added/edited from inside a specific stage's
+   * card — the stage is already implied by which card you're in, so the
+   * dropdown is replaced by a static label and the value is forced rather
+   * than left pickable (simpler, and avoids a step silently changing which
+   * stage card it belongs to).
+   */
+  lockedStageType?: string;
 }
 
 const StepFormModal: React.FC<StepFormModalProps> = ({
@@ -488,12 +798,13 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
   initial,
   title,
   roles,
+  lockedStageType,
 }) => {
   const [stageType, setStageType] = useState(
-    initial?.stageType ?? "PAYROLL_APPROVAL",
+    lockedStageType ?? initial?.stageType ?? "PAYROLL_APPROVAL",
   );
   const [requiredRoleId, setRequiredRoleId] = useState(
-    initial?.requiredRoleId ?? 3,
+    initial?.requiredRoleId ?? roles[0]?.id ?? 0,
   );
   const [isRequired, setIsRequired] = useState(initial?.isRequired ?? true);
   const [alternateRoleId, setAlternateRoleId] = useState<number | null>(
@@ -502,12 +813,16 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      setStageType(initial?.stageType ?? "PAYROLL_APPROVAL");
-      setRequiredRoleId(initial?.requiredRoleId ?? 3);
+      setStageType(lockedStageType ?? initial?.stageType ?? "PAYROLL_APPROVAL");
+      // Default to the first REAL role in the list that's actually rendered,
+      // not a magic number — a <select> can't visually reflect a value that
+      // matches no <option>, so a mismatched default here would let someone
+      // save a step with a different role than the one they see highlighted.
+      setRequiredRoleId(initial?.requiredRoleId ?? roles[0]?.id ?? 0);
       setIsRequired(initial?.isRequired ?? true);
       setAlternateRoleId(initial?.alternateRoleId ?? null);
     }
-  }, [open, initial]);
+  }, [open, initial, roles, lockedStageType]);
 
   if (!open) return null;
 
@@ -533,19 +848,25 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
         <div className="space-y-5">
           <div className="space-y-1.5">
             <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-              Stage Type
+              Stage
             </label>
-            <select
-              value={stageType}
-              onChange={(e) => setStageType(e.target.value)}
-              className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
-            >
-              {STAGE_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            {lockedStageType ? (
+              <div className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl">
+                {stageTypeLabel(lockedStageType)}
+              </div>
+            ) : (
+              <select
+                value={stageType}
+                onChange={(e) => setStageType(e.target.value)}
+                className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-200 focus:border-brand-400 outline-none"
+              >
+                {STAGE_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -1023,10 +1344,15 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
     null,
   );
-  const [roles, setRoles] = useState<DynamicRole[]>(FALLBACK_ROLES);
-  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(
-    roles.length > 0 ? roles[0].id : null,
-  );
+  // No static fallback data here on purpose — a hardcoded role/id list would
+  // silently drift from whatever the server actually has (this exact class of
+  // bug was already found once: three role IDs pointed at the wrong role
+  // name). If the real fetch fails, rolesError below drives a retry UI
+  // instead of ever letting the user pick from guessed data.
+  const [roles, setRoles] = useState<DynamicRole[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1035,6 +1361,14 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   const [editingStep, setEditingStep] = useState<ApprovalWorkflowStep | null>(
     null,
   );
+  // Which stage card the Add/Edit Step modal was opened from — every entry
+  // point is now a stage card, so this is always set while the modal is open.
+  const [modalStageType, setModalStageType] = useState<string | null>(null);
+
+  // Which stage's card is currently shown — Attendance / Payroll / Payment.
+  const [activeStageTab, setActiveStageTab] = useState<
+    "ATTENDANCE" | "PAYROLL_APPROVAL" | "PAYMENT_FILE"
+  >("ATTENDANCE");
 
   // Delete confirmation
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -1046,57 +1380,53 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<DynamicRole | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // ── Permission Toggle State (inlined from PermissionEditor) ──
-  const [localPerms, setLocalPerms] = useState<Record<string, boolean> | null>(null);
-  const [savingPerm, setSavingPerm] = useState<string | null>(null);
-
-  // Reset localPerms when switching roles to prevent stale permission data
-  useEffect(() => {
-    setLocalPerms(null);
-    setSavingPerm(null);
-  }, [selectedRoleId]);
+  // ── Permission Toggle State ──
+  // Keyed by role id (not a single "selected" role) — the stage cards show
+  // every role's chip for a given task/submit key at once, so more than one
+  // role's optimistic override can be in flight at the same time.
+  const [localPermOverrides, setLocalPermOverrides] = useState<Record<number, Record<string, boolean>>>({});
+  const [savingPermKey, setSavingPermKey] = useState<string | null>(null);
 
   const defaultPerms: Record<string, boolean> = {};
-  PERMISSION_GROUPS.forEach((g) =>
-    g.keys.forEach((k) => { defaultPerms[k.key] = false; }),
-  );
+  [...ATTENDANCE_TASK_KEYS, ...PAYROLL_TASK_KEYS, ...OTHER_PERMISSION_KEYS].forEach((k) => {
+    defaultPerms[k.key] = false;
+  });
+  Object.values(SUBMIT_KEY_BY_STAGE).forEach((s) => {
+    defaultPerms[s.key] = false;
+  });
 
   const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
 
-  const effectivePerms = {
-    ...defaultPerms,
-    ...(selectedRole?.permissions ?? {}),
-    ...(localPerms ?? {})
-  };
+  const getEffectivePerms = useCallback(
+    (role: DynamicRole): Record<string, boolean> => ({
+      ...defaultPerms,
+      ...(role.permissions ?? {}),
+      ...(localPermOverrides[role.id] ?? {}),
+    }),
+    [localPermOverrides],
+  );
 
-  const handleToggle = async (key: string) => {
-    if (!selectedRole) return;
-    const newValue = !effectivePerms[key];
-    setLocalPerms((prev) => ({
-      ...(prev ?? selectedRole.permissions ?? {}),
-      [key]: newValue,
+  const handleToggle = async (role: DynamicRole, key: string) => {
+    const newValue = !getEffectivePerms(role)[key];
+    setLocalPermOverrides((prev) => ({
+      ...prev,
+      [role.id]: { ...(prev[role.id] ?? role.permissions ?? {}), [key]: newValue },
     }));
-    setSavingPerm(key);
+    setSavingPermKey(`${role.id}:${key}`);
     try {
-      const updated = await updateRolePermissions(selectedRole.id, {
-        [key]: newValue,
-      });
+      const updated = await updateRolePermissions(role.id, { [key]: newValue });
       if (updated) {
-        setLocalPerms(updated.permissions);
-        setRoles(
-          roles.map((r) =>
-            r.id === selectedRole.id
-              ? { ...r, permissions: updated.permissions }
-              : r,
-          ),
+        setLocalPermOverrides((prev) => ({ ...prev, [role.id]: updated.permissions }));
+        setRoles((prev) =>
+          prev.map((r) => (r.id === role.id ? { ...r, permissions: updated.permissions } : r)),
         );
       }
       toast.success(`${key.replace(/^can/, "").replace(/([A-Z])/g, " $1").trim()} → ${newValue ? "Enabled" : "Disabled"}`);
     } catch (err: any) {
-      setLocalPerms(selectedRole.permissions ?? defaultPerms);
+      setLocalPermOverrides((prev) => ({ ...prev, [role.id]: role.permissions ?? defaultPerms }));
       toast.error(err.message || "Failed to update permission");
     } finally {
-      setSavingPerm(null);
+      setSavingPermKey(null);
     }
   };
 
@@ -1183,9 +1513,26 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   }, []);
 
   const loadRoles = useCallback(async () => {
-    const fetched = await fetchRoles();
-    if (fetched && fetched.length > 0) {
-      setRoles(fetched);
+    setRolesLoading(true);
+    setRolesError(null);
+    try {
+      const fetched = await fetchRoles();
+      if (fetched && fetched.length > 0) {
+        setRoles(fetched);
+        // Keep the current selection if it's still valid; otherwise fall back
+        // to the first real role instead of leaving the panel showing nothing.
+        setSelectedRoleId((prev) =>
+          prev && fetched.some((r) => r.id === prev) ? prev : fetched[0].id,
+        );
+      } else {
+        setRoles([]);
+        setRolesError("No roles were returned by the server.");
+      }
+    } catch {
+      setRoles([]);
+      setRolesError("Failed to load roles. Check your connection and retry.");
+    } finally {
+      setRolesLoading(false);
     }
   }, []);
 
@@ -1203,6 +1550,36 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
       setDeleting(false);
     }
   };
+
+  // ── EDM sync status — roles/users are only as fresh as the last sync ──────
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadLastSync = useCallback(async () => {
+    try {
+      const res = await syncApi.getSyncLogs();
+      const logs: any[] = res.data?.data || [];
+      const latest = logs
+        .filter((l) => l.system === "EMPLOYEE_MODULE" && l.completedAt)
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+      setLastSyncedAt(latest?.completedAt ?? null);
+    } catch {
+      // Non-critical — the panel just omits the "last synced" indicator.
+    }
+  }, []);
+
+  const handleSyncNow = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await syncApi.triggerSync();
+      toast.success("Sync completed — roles and users are up to date");
+      await Promise.all([loadRoles(), loadLastSync()]);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }, [loadRoles, loadLastSync]);
 
   const loadWorkflows = useCallback(async () => {
     setLoading(true);
@@ -1224,15 +1601,26 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   useEffect(() => {
     loadRoles();
     loadWorkflows();
-  }, [loadRoles, loadWorkflows]);
+    loadLastSync();
+  }, [loadRoles, loadWorkflows, loadLastSync]);
 
-  const handleAddStep = () => {
+  const handleAddStep = (stageType: string) => {
+    if (roles.length === 0) {
+      toast.error("Roles haven't loaded yet — refresh and try again.");
+      return;
+    }
     setEditingStep(null);
+    setModalStageType(stageType);
     setModalOpen(true);
   };
 
   const handleEditStep = (step: ApprovalWorkflowStep) => {
+    if (roles.length === 0) {
+      toast.error("Roles haven't loaded yet — refresh and try again.");
+      return;
+    }
     setEditingStep(step);
+    setModalStageType(step.stageType);
     setModalOpen(true);
   };
 
@@ -1308,29 +1696,37 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
     }
   };
 
-  const handleMoveStep = async (index: number, direction: -1 | 1) => {
+  // Move a step relative to its NEIGHBOR WITHIN THE SAME STAGE ONLY.
+  // stepOrder is only ever compared between steps of the same stageType when
+  // resolving who approves next (the backend filters by stageType before
+  // looking at order), so letting a step swap past a step from a different
+  // stage doesn't change anything real — it just looks like it does.
+  const handleMoveStep = async (step: ApprovalWorkflowStep, direction: -1 | 1) => {
     if (!selectedWorkflow) return;
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= sortedSteps.length) return;
 
-    const steps = [...sortedSteps];
-    const temp = steps[index].stepOrder;
-    steps[index] = { ...steps[index], stepOrder: steps[newIndex].stepOrder };
-    steps[newIndex] = { ...steps[newIndex], stepOrder: temp };
-    steps.sort((a, b) => a.stepOrder - b.stepOrder);
+    const stageGroup = sortedSteps.filter((s) => s.stageType === step.stageType);
+    const groupIndex = stageGroup.findIndex((s) => s.id === step.id);
+    const targetGroupIndex = groupIndex + direction;
+    if (targetGroupIndex < 0 || targetGroupIndex >= stageGroup.length) return;
+
+    const other = stageGroup[targetGroupIndex];
+    const temp = step.stepOrder;
+    const updatedSteps = sortedSteps
+      .map((s) => {
+        if (s.id === step.id) return { ...s, stepOrder: other.stepOrder };
+        if (s.id === other.id) return { ...s, stepOrder: temp };
+        return s;
+      })
+      .sort((a, b) => a.stepOrder - b.stepOrder);
 
     // Optimistic local update
-    setPendingReorder(steps);
+    setPendingReorder(updatedSteps);
 
     setSaving(true);
     try {
       // Update both swapped steps
-      await updateWorkflowStep(steps[index].id, {
-        stepOrder: steps[index].stepOrder,
-      });
-      await updateWorkflowStep(steps[newIndex].id, {
-        stepOrder: steps[newIndex].stepOrder,
-      });
+      await updateWorkflowStep(step.id, { stepOrder: other.stepOrder });
+      await updateWorkflowStep(other.id, { stepOrder: temp });
       await loadWorkflows();
       markDirty();
     } catch (err: any) {
@@ -1375,30 +1771,6 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
   const handleCancelEditName = () => {
     setEditingName(false);
     setNameDraft("");
-  };
-
-  // ── Batch Save Order ──────────────────────────────────────
-
-  const handleSaveOrder = async () => {
-    if (!selectedWorkflow || !pendingReorder) return;
-    setSaving(true);
-    try {
-      // Save each step's order individually
-      for (const step of pendingReorder) {
-        const originalStep = selectedWorkflow.steps.find((s) => s.id === step.id);
-        if (originalStep && originalStep.stepOrder !== step.stepOrder) {
-          await updateWorkflowStep(step.id, { stepOrder: step.stepOrder });
-        }
-      }
-      await loadWorkflows();
-      toast.success("Step order saved");
-      resetDirty();
-    } catch (err: any) {
-      toast.error(extractErrorMessage(err, "Failed to save step order"));
-      await loadWorkflows();
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleToggleActive = async () => {
@@ -1488,18 +1860,6 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
               </span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Warning Banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-        <div className="text-sm text-amber-800">
-          <p className="font-bold mb-1">⚠️ Changes affect pending requests immediately</p>
-          <p className="text-amber-700">
-            Adding, removing, or reordering steps takes effect on all currently
-            pending approval requests. Only one workflow can be active per company.
-          </p>
         </div>
       </div>
 
@@ -1685,7 +2045,41 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
                     Create Role
                   </button>
                 </div>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {lastSyncedAt
+                      ? `Roles last synced: ${new Date(lastSyncedAt).toLocaleString()}`
+                      : "Roles last synced: unknown"}
+                  </p>
+                  <button
+                    onClick={handleSyncNow}
+                    disabled={syncing}
+                    className="px-2.5 py-1 text-[9px] font-bold rounded-lg text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RefreshCw className={cn("w-3 h-3", syncing && "animate-spin")} />
+                    {syncing ? "Syncing…" : "Sync Now"}
+                  </button>
+                </div>
               </div>
+
+              {/* Roles failed to load — never fall back to guessed data */}
+              {rolesError && (
+                <div className="m-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <p className="font-bold mb-1.5">{rolesError}</p>
+                  <button
+                    onClick={() => loadRoles()}
+                    disabled={rolesLoading}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 font-bold hover:bg-rose-100 transition-all disabled:opacity-50"
+                  >
+                    {rolesLoading ? "Retrying…" : "Retry"}
+                  </button>
+                </div>
+              )}
+              {rolesLoading && roles.length === 0 && !rolesError && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-300" />
+                </div>
+              )}
 
               {/* Role Cards */}
               <div className="p-4 overflow-y-auto flex-1 space-y-2">
@@ -1747,7 +2141,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Panel — Permissions + Users */}
+          {/* Right Panel — Other Permissions + Users */}
           <div className="flex-1 min-w-0">
             {!selectedRole ? (
               <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-12 text-center">
@@ -1756,7 +2150,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Permissions Section */}
+                {/* Other Permissions Section — task/submit permissions live on the stage cards below; this is only for keys that aren't stage-specific. */}
                 <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-brand-50/50 to-transparent">
                     <div className="flex items-center gap-3">
@@ -1765,52 +2159,25 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">
-                          Permissions — {selectedRole.name}
+                          Other Permissions — {selectedRole.name}
                         </h3>
                         <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                          Toggle capabilities for this role
+                          Not tied to a specific stage — task and submit permissions are on the stage cards below
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="p-5 space-y-5">
-                    {PERMISSION_GROUPS.map((group) => (
-                      <div key={group.label}>
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2.5">
-                          {group.label}
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                          {group.keys.map((perm) => (
-                            <button
-                              key={perm.key}
-                              onClick={() => handleToggle(perm.key)}
-                              disabled={savingPerm === perm.key}
-                              className={cn(
-                                "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-bold",
-                                effectivePerms[perm.key]
-                                  ? "bg-brand-50 border-brand-200 text-emerald-700 hover:bg-brand-100"
-                                  : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300",
-                              )}
-                            >
-                              {savingPerm === perm.key ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                              ) : (
-                                <div className={cn(
-                                  "w-4 h-4 rounded border-2 flex items-center justify-center transition-all",
-                                  effectivePerms[perm.key]
-                                    ? "bg-emerald-500 border-brand-500"
-                                    : "border-slate-300",
-                                )}>
-                                  {effectivePerms[perm.key] && (
-                                    <CheckCircle2 className="w-3 h-3 text-white" />
-                                  )}
-                                </div>
-                              )}
-                              {perm.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                  <div className="p-5 space-y-4">
+                    {OTHER_PERMISSION_KEYS.map((perm) => (
+                      <RolePermissionRow
+                        key={perm.key}
+                        label={perm.label}
+                        permissionKey={perm.key}
+                        roles={[selectedRole]}
+                        getEffectivePerms={getEffectivePerms}
+                        savingPermKey={savingPermKey}
+                        onToggle={handleToggle}
+                      />
                     ))}
                   </div>
                 </div>
@@ -1901,70 +2268,80 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
         </div>
       )}
 
-      {/* Steps List */}
-      {selectedWorkflow && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-              Steps ({sortedSteps.length})
-            </h2>
-            <div className="flex items-center gap-2">
-              {pendingReorder && (
-                <button
-                  onClick={handleSaveOrder}
-                  disabled={saving}
-                  className="px-3 py-2 text-xs font-bold rounded-xl text-amber-600 border border-amber-200 hover:bg-amber-50 transition-all flex items-center gap-1.5"
-                >
-                  {saving ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-3 h-3" />
-                  )}
-                  Save Order
-                </button>
-              )}
-              <button
-                onClick={handleAddStep}
-                className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-primary hover:bg-brand-800 shadow-lg shadow-brand-900/10 transition-all flex items-center gap-2"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Step
-              </button>
-            </div>
-          </div>
+      {/* Stage Tabs + Card — Attendance / Payroll / Payment */}
+      {selectedWorkflow && (() => {
+        const stepsSource = pendingReorder ?? sortedSteps;
+        const stepsFor = (stageType: string) =>
+          stepsSource.filter((s) => s.stageType === stageType);
 
-          {sortedSteps.length === 0 ? (
-            <div className="text-center py-16 bg-white border border-slate-200 rounded-3xl">
-              <Settings2 className="w-12 h-12 mx-auto mb-3 text-slate-200" />
-              <p className="text-sm font-medium text-slate-400">
-                No steps configured yet
-              </p>
-              <p className="text-xs text-slate-300 mt-1">
-                Add your first approval step to define the workflow
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {(pendingReorder ?? sortedSteps).map((step, index) => {
-                const steps = pendingReorder ?? sortedSteps;
+        const stageTabs: {
+          stageType: "ATTENDANCE" | "PAYROLL_APPROVAL" | "PAYMENT_FILE";
+          title: string;
+          icon: React.ComponentType<{ className?: string }>;
+          taskKeys: { key: string; label: string }[];
+          legacyKeys: { key: string; label: string; note?: string }[];
+        }[] = [
+          { stageType: "ATTENDANCE", title: "Attendance", icon: FileSpreadsheet, taskKeys: ATTENDANCE_TASK_KEYS, legacyKeys: ATTENDANCE_LEGACY_KEYS },
+          { stageType: "PAYROLL_APPROVAL", title: "Payroll", icon: Calculator, taskKeys: PAYROLL_TASK_KEYS, legacyKeys: PAYROLL_LEGACY_KEYS },
+          { stageType: "PAYMENT_FILE", title: "Payment", icon: Banknote, taskKeys: [], legacyKeys: PAYMENT_LEGACY_KEYS },
+        ];
+
+        const active = stageTabs.find((t) => t.stageType === activeStageTab) ?? stageTabs[0];
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-wrap gap-2 bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
+              {stageTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isTabActive = tab.stageType === activeStageTab;
+                const tabStepCount = stepsFor(tab.stageType).length;
                 return (
-                  <StepCard
-                    key={step.id}
-                    step={step as ApprovalWorkflowStep}
-                    index={index}
-                    total={steps.length}
-                    roles={roles}
-                    onMoveUp={() => handleMoveStep(index, -1)}
-                    onMoveDown={() => handleMoveStep(index, 1)}
-                    onEdit={() => handleEditStep(step as ApprovalWorkflowStep)}
-                    onDelete={() => setDeleteTargetId(step.id)}
-                  />
+                  <button
+                    key={tab.stageType}
+                    onClick={() => setActiveStageTab(tab.stageType)}
+                    className={cn(
+                      "inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95",
+                      isTabActive
+                        ? "bg-primary text-white shadow-lg shadow-brand-900/20"
+                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-800",
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.title}</span>
+                    <span
+                      className={cn(
+                        "px-1.5 py-0.5 rounded-md text-[9px] font-black",
+                        isTabActive ? "bg-white/20 text-white" : "bg-brand-50 text-emerald-700",
+                      )}
+                    >
+                      {tabStepCount}
+                    </span>
+                  </button>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+
+            <StageCard
+              stageType={active.stageType}
+              title={active.title}
+              icon={active.icon}
+              taskKeys={active.taskKeys}
+              legacyKeys={active.legacyKeys}
+              submitInfo={SUBMIT_KEY_BY_STAGE[active.stageType]}
+              steps={stepsFor(active.stageType)}
+              roles={roles}
+              rolesReady={!rolesLoading && roles.length > 0}
+              getEffectivePerms={getEffectivePerms}
+              savingPermKey={savingPermKey}
+              onTogglePerm={handleToggle}
+              onAddStep={() => handleAddStep(active.stageType)}
+              onEditStep={handleEditStep}
+              onDeleteStep={setDeleteTargetId}
+              onMoveStep={handleMoveStep}
+            />
+          </div>
+        );
+      })()}
 
       {/* No workflow selected */}
       {!selectedWorkflow && workflows.length === 0 && !loading && (
@@ -1986,6 +2363,7 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
         onClose={() => {
           setModalOpen(false);
           setEditingStep(null);
+          setModalStageType(null);
         }}
         onSave={handleSaveStep}
         roles={roles}
@@ -1999,7 +2377,12 @@ export const ApprovalWorkflowBuilderPage: React.FC = () => {
               }
             : undefined
         }
-        title={editingStep ? "Edit Step" : "Add Step"}
+        title={
+          editingStep
+            ? `Edit ${stageTypeLabel(modalStageType ?? editingStep.stageType)} Step`
+            : `Add ${stageTypeLabel(modalStageType ?? "")} Step`
+        }
+        lockedStageType={modalStageType ?? undefined}
       />
 
       {/* Delete Confirmation Modal */}

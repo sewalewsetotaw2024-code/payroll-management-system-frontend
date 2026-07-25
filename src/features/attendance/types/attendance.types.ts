@@ -78,6 +78,7 @@ export interface AttendanceMonthlySummary {
     compensatoryHours: number;
     employee?: {
         id: string;
+        externalId?: string;
         firstName: string;
         lastName: string;
         compensation?: {
@@ -140,37 +141,6 @@ export interface ImportDetail extends AttendanceImport {
     attendanceRecords: AttendanceRecord[];
     monthlySummaries: AttendanceMonthlySummary[];
     attendancePeriodSummaries: AttendancePeriodSummary[];
-}
-
-/**
- * A single day entry returned from the daily-records endpoint.
- * Pre-structured for direct rendering in the heatmap.
- */
-export interface DailyRecordEntry {
-    day: number;
-    date: string;
-    hours: number;
-    isAbsent: boolean;
-}
-
-/**
- * A month group returned from the daily-records endpoint.
- * Contains all daily records for a given month, already sorted.
- */
-export interface MonthGroup {
-    key: string;
-    monthName: string;
-    year: number;
-    days: DailyRecordEntry[];
-}
-
-/**
- * Response from GET /attendance/imports/:importId/employees/:employeeId/daily-records.
- */
-export interface EmployeeDailyRecords {
-    employeeId: string;
-    importId: string;
-    months: MonthGroup[];
 }
 
 // ─── Attendance Summary Types ─────────────────────────────────────────

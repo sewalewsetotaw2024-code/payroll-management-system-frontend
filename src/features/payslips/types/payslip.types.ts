@@ -6,6 +6,29 @@
 export type GenerationStatus = 'NOT_READY' | 'GENERATING' | 'COMPLETED' | 'FAILED';
 export type VisibilityStatus = 'DRAFT' | 'DONE';
 
+/** Per-employee payslip status for a payroll run — backs the HR "all employees" payslip page */
+export interface BatchPayslipStatusItem {
+  runItemId: string;
+  employeeId: string;
+  employeeName: string;
+  status: 'PENDING' | 'GENERATING' | 'COMPLETED' | 'FAILED';
+  /** null until a Payslip row exists; DRAFT until payment is fully approved, then DONE */
+  visibilityStatus: VisibilityStatus | null;
+  payslipId: string | null;
+  pdfUrl: string | null;
+  error: string | null;
+}
+
+/** Response from GET /payslips/batch-status/:payrollRunId */
+export interface BatchPayslipStatusResponse {
+  total: number;
+  completed: number;
+  failed: number;
+  pending: number;
+  generating: number;
+  items: BatchPayslipStatusItem[];
+}
+
 /** A payroll period with payslip availability flag */
 export interface PayslipPeriodInfo {
   id: string;
@@ -15,6 +38,7 @@ export interface PayslipPeriodInfo {
   endDate: string;
   status: string;
   generationStatus: GenerationStatus;
+  visibilityStatus: VisibilityStatus;
   payslipId: string | null;
 }
 

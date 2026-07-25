@@ -145,11 +145,19 @@ export const EmployeePayslipDetailPage: React.FC = () => {
   // ── Retry handler (FAILED → re-trigger batch generation) ─────────────────
 
   const handleRetry = async () => {
-    if (!payslipDetail?.payrollRunId) return;
+    if (!payslipDetail?.id || !resolvedPeriodId) return;
     setRetrying(true);
     setRetryError(null);
     try {
-      await payslipApi.batchGeneratePayslipPdfs(payslipDetail.payrollRunId);
+      // Regenerate just this one payslip — batchGeneratePayslipPdfs would
+      // regenerate every employee in the run, which is not what "retry" means
+      // here. Self-service (no employeeId param) uses the self-service
+      // endpoint; HR viewing someone else's payslip uses the admin one.
+      if (employeeId) {
+        await payslipApi.generatePayslipPdf(payslipDetail.id);
+      } else {
+        await payslipApi.generateMyPayslip(resolvedPeriodId);
+      }
       // Optimistically switch to GENERATING — polling will confirm
       setGenerationStatus('GENERATING');
     } catch (err: any) {
@@ -344,11 +352,11 @@ export const EmployeePayslipDetailPage: React.FC = () => {
 
         <div className="relative z-10">
           <button
-            onClick={() => navigate(`/payslips/${periodSlug}`)}
+            onClick={() => navigate(employeeId ? `/payslips/${periodSlug}` : '/payslips')}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 border border-white/20 rounded-lg hover:bg-white/10 transition-colors cursor-pointer mb-4"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Employees
+            {employeeId ? 'Back to Employees' : 'Back to Periods'}
           </button>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1">
             {payslipDetail?.employeeName ? `Payslip — ${payslipDetail.employeeName}` : 'Payslip Details'}

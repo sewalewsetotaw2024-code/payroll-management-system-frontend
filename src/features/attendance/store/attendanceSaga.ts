@@ -54,16 +54,6 @@ function* calculateSummarySaga(action: { payload: string }): Generator {
   }
 }
 
-function* fetchEmployeeDailyRecordsSaga(action: { payload: { importId: string; employeeId: string } }): Generator {
-  try {
-    const records: any = yield call(attendanceApi.getEmployeeDailyRecords, action.payload.importId, action.payload.employeeId);
-    yield put(attendanceActions.fetchEmployeeDailyRecordsSuccess(records));
-  } catch (error: any) {
-    const message = error.response?.data?.message || error.message || 'Failed to fetch employee records';
-    yield put(attendanceActions.fetchEmployeeDailyRecordsFailure(message));
-  }
-}
-
 function* deleteImportSaga(action: { payload: string }): Generator {
   try {
     yield call(attendanceApi.deleteImport, action.payload);
@@ -95,7 +85,6 @@ export default function* attendanceSaga() {
   yield takeLatest(attendanceActions.importFileRequest.type as any, importFileSaga);
   yield takeLatest(attendanceActions.calculateOvertimeRequest.type as any, calculateOvertimeSaga);
   yield takeLatest(attendanceActions.calculateSummaryRequest.type as any, calculateSummarySaga);
-  yield takeLatest(attendanceActions.fetchEmployeeDailyRecordsRequest.type as any, fetchEmployeeDailyRecordsSaga);
   yield takeLatest(attendanceActions.deleteImportRequest.type as any, deleteImportSaga);
   yield takeLatest(attendanceActions.toggleImportActiveRequest.type as any, toggleImportActiveSaga);
 }

@@ -13,20 +13,48 @@ import { payrollRunApi, type PayrollRun, type PayrollRunItem } from '../../payro
 import { payrollPeriodApi } from '../../configuration/api/configurationApi';
 import type { PayrollPeriod } from '../../configuration/types/configuration.types';
 import { ExpandablePayrollTable } from '../../payrollProcessing/components/ExpandablePayrollTable';
+import { payslipApi } from '../api/payslipApi';
+import type { BatchPayslipStatusItem } from '../types/payslip.types';
+import { useAppSelector } from '../../../store/hooks';
+import { Pagination } from '../../../components/ui';
+
+// Must match the backend's exact definition (payslip.controllers.ts's isHrRole)
+// — these 3 roles see every employee's payslips; everyone else sees only their own.
+const HR_ROLES = ['HR Generalist', 'HR CS Manager', 'HR CS Director'];
 
 export const PeriodPayslipsPage: React.FC = () => {
   const { periodSlug } = useParams<{ periodSlug: string }>();
   const navigate = useNavigate();
+  const userRole = useAppSelector((state) => state.auth.user?.role?.name ?? null);
+  const isHrRole = userRole ? HR_ROLES.includes(userRole) : false;
 
   const [resolvedPeriodId, setResolvedPeriodId] = useState<string | null>(null);
   const [period, setPeriod] = useState<PayrollPeriod | null>(null);
   const [run, setRun] = useState<PayrollRun | null>(null);
   const [items, setItems] = useState<PayrollRunItem[]>([]);
+  const [allItems, setAllItems] = useState<PayrollRunItem[]>([]);
+  const [payslipStatus, setPayslipStatus] = useState<BatchPayslipStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination — matches PeriodEmployeesPage's default of 10 per page.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [paginationMeta, setPaginationMeta] = useState<{
+    totalItems: number;
+    totalPages: number;
+  } | null>(null);
+
+  // This page renders the unscoped all-employee table — non-HR roles (e.g.
+  // plain Employee) must never see it, so bounce them to their own payslip.
   useEffect(() => {
-    if (!periodSlug) return;
+    if (userRole && !isHrRole && periodSlug) {
+      navigate(`/payslips/${periodSlug}/employees/me`, { replace: true });
+    }
+  }, [userRole, isHrRole, periodSlug, navigate]);
+
+  useEffect(() => {
+    if (!periodSlug || !isHrRole) return;
     let cancelled = false;
 
     const fetchData = async () => {
@@ -59,9 +87,9 @@ export const PeriodPayslipsPage: React.FC = () => {
         setRun(latestRun);
 
         if (latestRun) {
-          const itemsRes = await payrollRunApi.getRunItems(latestRun.id, { page: 1, limit: 1000 });
+          const batchStatus = await payslipApi.getBatchStatus(latestRun.id).catch(() => null);
           if (!cancelled) {
-            setItems(itemsRes.data?.data ?? []);
+            setPayslipStatus(batchStatus?.items ?? []);
           }
         }
       } catch (err: any) {
@@ -75,7 +103,43 @@ export const PeriodPayslipsPage: React.FC = () => {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [periodSlug]);
+  }, [periodSlug, isHrRole]);
+
+  // Fetch the current page of items (for the table) plus the full set
+  // (for the header summary stats) whenever the run or page changes.
+  useEffect(() => {
+    if (!run) {
+      setItems([]);
+      setAllItems([]);
+      setPaginationMeta(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchItems = async () => {
+      try {
+        const [itemsRes, allRes] = await Promise.all([
+          payrollRunApi.getRunItems(run.id, { page, limit: pageSize }),
+          payrollRunApi.getRunItems(run.id, { page: 1, limit: 1000 }),
+        ]);
+        if (!cancelled) {
+          setItems(itemsRes.data?.data ?? []);
+          setPaginationMeta(itemsRes.data?.pagination ?? null);
+          setAllItems(allRes.data?.data ?? []);
+        }
+      } catch {
+        if (!cancelled) {
+          setItems([]);
+          setAllItems([]);
+          setPaginationMeta(null);
+        }
+      }
+    };
+
+    fetchItems();
+    return () => { cancelled = true; };
+  }, [run, page, pageSize]);
 
   const handleSelectItem = useCallback(
     (runId: string, itemId: string) => {
@@ -88,9 +152,20 @@ export const PeriodPayslipsPage: React.FC = () => {
     [navigate, periodSlug, items],
   );
 
-  // ── Compute summary stats ─────────────────────────────────
-  const totalEmployees = items.length;
-  const totalNetPay = items.reduce((s, i) => s + Number(i.netSalary ?? 0), 0);
+  const handlePageChange = (newPage: number) => setPage(newPage);
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
+  // ── Compute summary stats (from the full unpaginated set) ──
+  const totalEmployees = allItems.length;
+  const totalNetPay = allItems.reduce((s, i) => s + Number(i.netSalary ?? 0), 0);
+
+  // Non-HR users are redirected away above; render nothing while that happens.
+  if (userRole && !isHrRole) {
+    return null;
+  }
 
   // ── Loading ───────────────────────────────────────────────
   if (loading) {
@@ -221,7 +296,7 @@ export const PeriodPayslipsPage: React.FC = () => {
       </div>
 
       {/* Employee table */}
-      {items.length === 0 ? (
+      {allItems.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 flex flex-col items-center justify-center py-16 text-center">
           <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
             <Users className="w-8 h-8 text-slate-400" />
@@ -232,12 +307,27 @@ export const PeriodPayslipsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        <ExpandablePayrollTable
-          items={items}
-          runId={run.id}
-          loading={false}
-          onSelectItem={handleSelectItem}
-        />
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <ExpandablePayrollTable
+            items={items}
+            runId={run.id}
+            loading={false}
+            onSelectItem={handleSelectItem}
+            payslipStatus={payslipStatus}
+          />
+          {paginationMeta && paginationMeta.totalPages > 0 && (
+            <div className="border-t border-slate-100">
+              <Pagination
+                currentPage={page}
+                totalPages={paginationMeta.totalPages}
+                totalItems={paginationMeta.totalItems}
+                onPageChange={handlePageChange}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

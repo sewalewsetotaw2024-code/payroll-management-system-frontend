@@ -5,12 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { slugify } from '../../../lib/utils';
 import type { MyPeriodsResponse } from '../types/payslip.types';
 import { PeriodAccordion } from './PeriodAccordion';
+import { useAppSelector } from '../../../store/hooks';
+
+// Must match the backend's exact definition (payslip.controllers.ts's isHrRole)
+// — these 3 roles see every employee's payslips; everyone else sees only their own.
+const HR_ROLES = ['HR Generalist', 'HR CS Manager', 'HR CS Director'];
 
 export const MyPayslipsTab: React.FC = () => {
   const [periodsData, setPeriodsData] = useState<MyPeriodsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const userRole = useAppSelector((state) => state.auth.user?.role?.name ?? null);
+  const isHrRole = userRole ? HR_ROLES.includes(userRole) : false;
 
   const fetchPeriods = useCallback(async () => {
     setLoading(true);
@@ -31,8 +38,10 @@ export const MyPayslipsTab: React.FC = () => {
 
   const handleSelectPeriod = useCallback((periodId: string, periodName: string) => {
     const slug = slugify(periodName || periodId);
-    navigate(`/payslips/${slug}`);
-  }, [navigate]);
+    // HR roles drill into the all-employee batch view for this period; everyone
+    // else (Employee, Finance, etc.) sees only their own payslip detail.
+    navigate(isHrRole ? `/payslips/${slug}` : `/payslips/${slug}/employees/me`);
+  }, [navigate, isHrRole]);
 
   if (loading) {
     return (
@@ -91,7 +100,7 @@ export const MyPayslipsTab: React.FC = () => {
     (sum, fy) => sum + fy.periods.length, 0,
   );
   const readyPeriods = periodsData.fiscalYears.reduce(
-    (sum, fy) => sum + fy.periods.filter((p) => p.generationStatus === 'COMPLETED').length, 0,
+    (sum, fy) => sum + fy.periods.filter((p) => p.generationStatus === 'COMPLETED' && p.visibilityStatus === 'DONE').length, 0,
   );
 
   return (

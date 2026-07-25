@@ -5,7 +5,6 @@ import { motion } from "motion/react";
 import { cn, slugify } from "../../../lib/utils";
 import { GlassCard, StatusBadge, InitialAvatar, Button } from "../../../components/ui";
 import { attendanceApi } from "../api/attendanceApi";
-import { AttendanceHeatmap } from "../../overtime/components/AttendanceHeatmap";
 import { formatHourValue, getSummaryColor } from "../../../lib/parseBiometricWorkbook";
 import type { ImportDetail, AttendanceMonthlySummary } from "../types/attendance.types";
 
@@ -184,62 +183,50 @@ export const EmployeeAttendanceDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Two-column layout: Heatmap + Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Heatmap Card */}
-        <div className="lg:col-span-8 glass rounded-[3rem] p-10 shadow-2xl border-white bg-white/40">
-          <AttendanceHeatmap
-            employeeId={resolvedEmployeeId!}
-            importId={importId!}
-            employeeName={employeeName}
-          />
+      {/* Metrics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Work Metrics - Dark glass card */}
+        <div className="glass-dark rounded-[3.5rem] p-10 shadow-2xl text-white relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-8 border-b border-white/10 pb-4">Cycle Performance Matrix</h3>
+          <div className="space-y-6">
+            {SUMMARY_FIELDS.map((field, idx) => {
+              const modelField = SUMMARY_FIELD_MAP[field] as string;
+              const val = modelField ? (summary as any)?.[modelField] as number : 0;
+              if (val === 0 && !["Regular Hours"].includes(field)) return null;
+
+              return (
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  key={field} 
+                  className="flex items-center justify-between group/item"
+                >
+                  <span className="text-xs font-bold text-white/50 group-hover/item:text-white transition-colors">{field}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-lg font-black tracking-tight font-mono", val > 0 && field.includes("Absence") ? "text-rose-400" : "text-white")}>
+                      {formatHourValue(val)}
+                    </span>
+                    <span className="text-[10px] font-black text-white/30 uppercase">{field.includes("Minutes") ? "m" : "h"}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Right column */}
-        <div className="lg:col-span-4 flex flex-col gap-8">
-          {/* Work Metrics - Dark glass card */}
-          <div className="glass-dark rounded-[3.5rem] p-10 shadow-2xl text-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-8 border-b border-white/10 pb-4">Cycle Performance Matrix</h3>
-            <div className="space-y-6">
-              {SUMMARY_FIELDS.map((field, idx) => {
-                const modelField = SUMMARY_FIELD_MAP[field] as string;
-                const val = modelField ? (summary as any)[modelField] as number : 0;
-                if (val === 0 && !["Regular Hours"].includes(field)) return null;
-
-                return (
-                  <motion.div 
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    key={field} 
-                    className="flex items-center justify-between group/item"
-                  >
-                    <span className="text-xs font-bold text-white/50 group-hover/item:text-white transition-colors">{field}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={cn("text-lg font-black tracking-tight font-mono", val > 0 && field.includes("Absence") ? "text-rose-400" : "text-white")}>
-                        {formatHourValue(val)}
-                      </span>
-                      <span className="text-[10px] font-black text-white/30 uppercase">{field.includes("Minutes") ? "m" : "h"}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
+        {/* Summary Verdict */}
+        <div className="glass bg-brand-50 rounded-[3rem] p-8 border-white shadow-xl group">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="w-5 h-5 text-brand-primary" />
             </div>
+            <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.2em]">Compliance Verdict</h3>
           </div>
-
-          {/* Summary Verdict */}
-          <div className="glass bg-brand-50 rounded-[3rem] p-8 border-white shadow-xl group">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-5 h-5 text-brand-primary" />
-              </div>
-              <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-[0.2em]">Compliance Verdict</h3>
-            </div>
-            <p className="text-emerald-900/70 text-sm leading-relaxed font-medium">
-              Employee attendance for the current processing window indicates a <span className="font-black text-emerald-900">{(Number(summary?.regularHours || 0) / 160 * 100).toFixed(0)}%</span> adherence to assigned shifts. Biometric verification logs are within standard deviation.
-            </p>
-          </div>
+          <p className="text-emerald-900/70 text-sm leading-relaxed font-medium">
+            Employee attendance for the current processing window indicates a <span className="font-black text-emerald-900">{(Number(summary?.regularHours || 0) / 160 * 100).toFixed(0)}%</span> adherence to assigned shifts. Biometric verification logs are within standard deviation.
+          </p>
         </div>
       </div>
     </div>

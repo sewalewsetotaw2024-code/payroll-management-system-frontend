@@ -44,3 +44,10 @@ export function slugify(text: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+/** Case/whitespace-insensitive role name comparison (e.g. "HR CS Manager" matches "hr_cs_manager"). */
+export function roleNamesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "_");
+  return norm(a) === norm(b);
+}

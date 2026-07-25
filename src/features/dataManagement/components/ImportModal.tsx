@@ -212,13 +212,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       columns.forEach((col) => {
         if (col.mappedField && col.mappedField !== '_skip') {
           const val = row[col.header];
-          if (col.mappedField === 'basicSalary' || col.mappedField === 'grossSalary' || col.mappedField === 'amount') {
+          if (col.mappedField === 'basicSalary' || col.mappedField === 'grossSalary' || col.mappedField === 'amount'
+            || col.mappedField === 'transportationAllowance' || col.mappedField === 'telephoneAllowance'
+            || col.mappedField === 'housingAllowance' || col.mappedField === 'mealAllowance'
+            || col.mappedField === 'costSharingBalance') {
             mapped[col.mappedField] = val ? Number(val) : undefined;
           } else if (col.mappedField === 'isAbsent') {
             mapped[col.mappedField] = val === true || val === 'true' || val === '1' || val === 'yes';
-          } else if (col.mappedField === 'regularHours' || col.mappedField === 'lateMinutes') {
+          } else if (col.mappedField === 'regularHours') {
             mapped[col.mappedField] = val ? Number(val) : undefined;
-          } else if (col.mappedField === 'tinNumber' || col.mappedField === 'pensionNumber') {
+          } else if (col.mappedField === 'tinNumber' || col.mappedField === 'pensionNumber' || col.mappedField === 'employeeExternalId') {
             mapped[col.mappedField] = val != null ? String(val) : undefined;
           } else {
             mapped[col.mappedField] = val || undefined;

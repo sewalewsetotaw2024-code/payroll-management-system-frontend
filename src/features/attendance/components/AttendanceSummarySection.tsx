@@ -168,8 +168,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
     if (!selectedImport?.id) return;
     setSubmitting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api/v1';
-      const response = await fetch(`${apiBaseUrl}/attendance/imports/${selectedImport.id}/submit-for-approval`, {
+      const response = await fetch(`/api/v1/attendance/imports/${selectedImport.id}/submit-for-approval`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,
@@ -277,7 +276,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
       {selectedImport && (
         <div className="glass rounded-[2rem] p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-white shadow-lg bg-white/40">
           <div className="flex items-center gap-4 pl-4">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Ingest</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Import</span>
             <div className="relative group">
               <select
                 value={selectedImport.id}
@@ -301,14 +300,14 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
             {isSubmitted && selectedImport?.status !== 'REJECTED' ? (
               <div className="flex items-center gap-2 px-6 py-2 bg-brand-50 text-emerald-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 shadow-sm">
                 <CheckCircle2 className="w-4 h-4" />
-                {selectedImport?.status === 'APPROVED' ? 'Governance Approved' : 'Verified & Sent'}
+                {selectedImport?.status === 'APPROVED' ? 'Approved' : 'Pending Approval'}
               </div>
             ) : (
               <>
                 {selectedImport?.status === 'REJECTED' && (
                   <div className="flex items-center gap-2 px-6 py-2 bg-rose-50 text-rose-700 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100 shadow-sm">
                     <AlertCircle className="w-4 h-4" />
-                    Record Flagged
+                    Rejected
                   </div>
                 )}
                 <button
@@ -324,7 +323,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
                   {submitting ? (
                     <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Transmitting...</>
                   ) : (
-                    <><Send className="w-3.5 h-3.5" /> {selectedImport?.status === 'REJECTED' ? 'Resubmit Ledger' : 'Authorize Batch'}</>
+                    <><Send className="w-3.5 h-3.5" /> {selectedImport?.status === 'REJECTED' ? 'Resubmit' : 'Submit for Approval'}</>
                   )}
                 </button>
               </>
@@ -342,7 +341,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Search personnel..."
+              placeholder="Search employees..."
               className="w-full md:w-72 pl-12 pr-6 py-3 bg-white border-2 border-brand-200 focus:border-brand-400 rounded-[1.5rem] text-sm focus:bg-white focus:ring-4 focus:ring-brand-primary/10 transition-all font-bold text-slate-700 placeholder:text-slate-400 shadow-sm"
             />
           </div>
@@ -352,11 +351,11 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="appearance-none bg-white border-2 border-brand-200 focus:border-brand-400 rounded-[1.5rem] px-8 py-3 pr-12 text-xs font-bold text-slate-700 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
             >
-              <option value="">All Governance</option>
-              <option value="APPROVED">Authorized</option>
-              <option value="PENDING">Awaiting</option>
-              <option value="DRAFT">Internal Draft</option>
-              <option value="REJECTED">Flagged</option>
+              <option value="">All Statuses</option>
+              <option value="APPROVED">Approved</option>
+              <option value="PENDING">Pending</option>
+              <option value="DRAFT">Draft</option>
+              <option value="REJECTED">Rejected</option>
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-brand-primary" />
           </div>
@@ -366,13 +365,13 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
           <button
             onClick={() => setImportFlowOpen(true)}
             className="w-12 h-12 flex items-center justify-center rounded-2xl glass border-white text-brand-primary hover:bg-white transition-all shadow-lg active:scale-90"
-            title="Import Biometrics"
+            title="Import Attendance"
           >
             <Upload className="w-5 h-5" />
           </button>
           <button
             className="w-12 h-12 flex items-center justify-center rounded-2xl glass border-white text-slate-400 hover:text-brand-primary hover:bg-white transition-all shadow-lg active:scale-90"
-            title="Sync Matrix"
+            title="Refresh"
           >
             <RefreshCw className="w-5 h-5" />
           </button>
@@ -383,7 +382,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
       {detailLoading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-6 glass rounded-[3rem] border-white">
           <Loader2 className="w-10 h-10 text-brand-primary animate-spin" />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Querying Biometric Logs...</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loading attendance data...</p>
         </div>
       ) : error ? (
         <div className="py-24 text-center glass rounded-[3rem] border-rose-100 text-rose-500 font-bold">{error}</div>
@@ -393,11 +392,11 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-white/60 border-b border-slate-100">
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Engagement Window</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Personnel</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Time Utilization</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Absence Log</th>
-                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Governance</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Period</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Employee</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50">Hours Worked</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-r border-slate-200/50 text-right">Absences</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -405,7 +404,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
                   <tr>
                     <td colSpan={5} className="py-32 text-center">
                       <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No personnel records detected</p>
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No attendance records found</p>
                     </td>
                   </tr>
                 ) : (
@@ -432,7 +431,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
                               {importDetail?.payrollPeriod?.name ?? selectedImport?.periodLabel ?? 'Master Cycle'}
                             </span>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                              Ingested {new Date(selectedImport?.importedAt ?? new Date()).toLocaleDateString()}
+                              Imported {new Date(selectedImport?.importedAt ?? new Date()).toLocaleDateString()}
                             </span>
                           </div>
                         </td>
@@ -492,7 +491,7 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
           {importDetail && !detailLoading && totalPages > 0 && (
             <div className="px-8 py-6 border-t border-slate-100 flex items-center justify-between bg-white/40">
               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                Showing <span className="text-slate-900 font-mono">{paginatedSummaries.length}</span> of <span className="text-slate-900 font-mono">{filteredSummaries.length}</span> personnel
+                Showing <span className="text-slate-900 font-mono">{paginatedSummaries.length}</span> of <span className="text-slate-900 font-mono">{filteredSummaries.length}</span> records
               </span>
               <div className="flex items-center gap-2">
                 <button

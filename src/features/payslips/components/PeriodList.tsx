@@ -1,7 +1,7 @@
 import React from 'react';
 import { Eye, Shield } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import type { GenerationStatus, PayslipPeriodInfo } from '../types/payslip.types';
+import type { GenerationStatus, PayslipPeriodInfo, VisibilityStatus } from '../types/payslip.types';
 
 interface PeriodListProps {
   periods: PayslipPeriodInfo[];
@@ -9,14 +9,29 @@ interface PeriodListProps {
   onSelect: (periodId: string, periodName: string) => void;
 }
 
-const StatusBadge: React.FC<{ status: GenerationStatus }> = ({ status }) => {
-  const config: Record<GenerationStatus, { label: string; dotClass: string; bgClass: string; textClass: string; borderClass: string }> = {
+/** Combined display status — a generated payslip stays "Draft" until payment is approved. */
+type DisplayStatus = GenerationStatus | 'DRAFT';
+
+const displayStatus = (period: PayslipPeriodInfo): DisplayStatus =>
+  period.generationStatus === 'COMPLETED' && period.visibilityStatus !== 'DONE'
+    ? 'DRAFT'
+    : period.generationStatus;
+
+const StatusBadge: React.FC<{ status: DisplayStatus }> = ({ status }) => {
+  const config: Record<DisplayStatus, { label: string; dotClass: string; bgClass: string; textClass: string; borderClass: string }> = {
     COMPLETED: {
       label: 'Authorized',
       dotClass: 'bg-emerald-500',
       bgClass: 'bg-brand-50',
       textClass: 'text-emerald-700',
       borderClass: 'border-emerald-100',
+    },
+    DRAFT: {
+      label: 'Draft',
+      dotClass: 'bg-sky-500',
+      bgClass: 'bg-sky-50',
+      textClass: 'text-sky-700',
+      borderClass: 'border-sky-100',
     },
     GENERATING: {
       label: 'Processing',
@@ -103,6 +118,8 @@ export const PeriodList: React.FC<PeriodListProps> = ({
         </thead>
         <tbody>
           {periods.map((period, idx) => {
+            // Draft payslips are viewable (just labeled "Draft") — only truly
+            // ungenerated/failed/in-progress ones stay unclickable.
             const isClickable = period.generationStatus === 'COMPLETED';
 
             return (
@@ -129,7 +146,7 @@ export const PeriodList: React.FC<PeriodListProps> = ({
                   </div>
                 </td>
                 <td className="px-8 py-5 border-b border-slate-50">
-                  <StatusBadge status={period.generationStatus} />
+                  <StatusBadge status={displayStatus(period)} />
                 </td>
                 <td className="px-8 py-5 border-b border-slate-50 text-[13px] text-slate-500 font-medium tabular-nums">
                   {fmtDateRange(period.startDate, period.endDate)}

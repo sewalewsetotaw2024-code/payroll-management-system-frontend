@@ -8,6 +8,8 @@ import type { ParsedWorkbook } from "../../../lib/parseBiometricWorkbook";
 import type { FolderTreeNode } from "../types/folder.types";
 import type { AttendanceImport } from "../../attendance/types/attendance.types";
 import { AttendancePreviewPanel } from "./AttendancePreviewPanel";
+import { useHrGeneralistFallback } from "../../attendance/hooks/useHrGeneralistFallback";
+import { useRolePermissions } from "../../../hooks/useRolePermissions";
 
 interface AttendanceImportFlowProps {
   folders: FolderTreeNode[];
@@ -30,6 +32,9 @@ export const AttendanceImportFlow: React.FC<AttendanceImportFlowProps> = ({
   onComplete,
   onCancel,
 }) => {
+  const { blockedByFallback: hrManagerBlocked } = useHrGeneralistFallback();
+  const { hasPermission } = useRolePermissions();
+  const canActivateImport = hasPermission('canActivateImport');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<File | null>(null);
   const [parsed, setParsed] = useState<ParsedWorkbook | null>(null);
@@ -195,7 +200,8 @@ export const AttendanceImportFlow: React.FC<AttendanceImportFlowProps> = ({
           <div className="flex gap-3">
             <button
               onClick={handleDeactivate}
-              disabled={deactivating}
+              disabled={deactivating || hrManagerBlocked || !canActivateImport}
+              title={hrManagerBlocked ? "HR Generalist is responsible for this while active" : !canActivateImport ? "You don't have permission to activate imports" : undefined}
               className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {deactivating ? (
