@@ -275,7 +275,15 @@ export const ApprovalWorkflowPage: React.FC = () => {
           "Content-Type": "application/json",
         },
       });
-      const result = await response.json();
+      let result: any = { message: `Server returned ${response.status} ${response.statusText}` };
+      const text = await response.text();
+      if (text) {
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { message: `Server returned ${response.status} ${response.statusText}` };
+        }
+      }
       if (response.ok && result.success) {
         toast.success("Attendance submitted for approval");
         if (selectedPeriod) loadStage1(selectedPeriod.id);
