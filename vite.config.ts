@@ -22,82 +22,82 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // ── Payroll backend (port 3000) ──
         '/api/v1/configurations': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/integrations': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/data': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/folders': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/payroll': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/attendance': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/leave': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/employees': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/biometric-mapping': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/acting-allowance-rules': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/acting-assignments': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/approval': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/payment-export': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/roles': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/notifications': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/reports': {
-          target: 'https://payroll-management-system-backend-d2y9.onrender.com',
+          target: 'https://payroll-management-system-backend-j011.onrender.com',
           changeOrigin: true,
           secure: false,
         },
@@ -109,13 +109,13 @@ export default defineConfig(({ mode }) => {
         },
         // ── EMS backend (port 5000) ──
         '/api/v1/auth/login': {
-          target: 'https://adiu-okr.onrender.com',
+          target: 'https://adiu-okr-cqvq.onrender.com',
           // target: 'https://adiu-okr.onrender.com/api/v1/',
           changeOrigin: true,
           secure: false,
         },
         '/api/v1/users': {
-          target: 'https://adiu-okr.onrender.com',
+          target: 'https://adiu-okr-cqvq.onrender.com',
           // target: 'https://adiu-okr.onrender.com/api/v1/',
           changeOrigin: true,
           secure: false,

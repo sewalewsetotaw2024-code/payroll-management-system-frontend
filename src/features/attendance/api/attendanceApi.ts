@@ -13,7 +13,7 @@ import type {
  * Automatically attaches the Bearer token from tokenStorage on every request.
  */
 const attendanceAxios = axios.create({
-    baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/attendance' : (import.meta.env.VITE_API_URL || '') + '/api/v1/attendance',
+    baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/attendance' : (import.meta.env.VITE_API_URL || '') + '/api/v1/attendance',
 });
 
 attendanceAxios.interceptors.request.use((config) => {

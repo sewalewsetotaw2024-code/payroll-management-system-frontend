@@ -2,7 +2,7 @@ import axios from 'axios';
 import { tokenStorage } from '../../../lib/token';
 import type { LeaveApplication, LeaveSyncLog } from '../types/leave.types';
 
-const leaveAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/leave' : (import.meta.env.VITE_API_URL || '') + '/api/v1/leave' });
+const leaveAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/leave' : (import.meta.env.VITE_API_URL || '') + '/api/v1/leave' });
 
 leaveAxios.interceptors.request.use((config) => {
     const token = tokenStorage.getToken();

@@ -4,7 +4,7 @@ import { tokenStorage } from '../lib/token';
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && envUrl.startsWith('http')) return envUrl;
-  return import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1' : '/api/v1';
+  return import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1' : '/api/v1';
 };
 const API_BASE_URL = `${getApiBaseUrl()}/configurations`;
 

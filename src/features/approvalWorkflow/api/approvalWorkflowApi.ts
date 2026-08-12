@@ -10,10 +10,10 @@ import type {
 // Timeout ensures requests don't hang indefinitely when the backend is unavailable.
 const API_TIMEOUT = 10000; // 10 seconds
 
-const attendanceAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/attendance' : (import.meta.env.VITE_API_URL || '') + '/api/v1/attendance', timeout: API_TIMEOUT });
-const payrollAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/payroll' : (import.meta.env.VITE_API_URL || '') + '/api/v1/payroll', timeout: API_TIMEOUT });
-const approvalAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/approval' : (import.meta.env.VITE_API_URL || '') + '/api/v1/approval', timeout: API_TIMEOUT });
-const leaveAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/leave' : (import.meta.env.VITE_API_URL || '') + '/api/v1/leave', timeout: API_TIMEOUT });
+const attendanceAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/attendance' : (import.meta.env.VITE_API_URL || '') + '/api/v1/attendance', timeout: API_TIMEOUT });
+const payrollAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/payroll' : (import.meta.env.VITE_API_URL || '') + '/api/v1/payroll', timeout: API_TIMEOUT });
+const approvalAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/approval' : (import.meta.env.VITE_API_URL || '') + '/api/v1/approval', timeout: API_TIMEOUT });
+const leaveAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/leave' : (import.meta.env.VITE_API_URL || '') + '/api/v1/leave', timeout: API_TIMEOUT });
 
 [attendanceAxios, payrollAxios, approvalAxios, leaveAxios].forEach((instance) => {
   instance.interceptors.request.use((config) => {
@@ -279,7 +279,7 @@ export function computePipelineFlags(
 
 // ── Dynamic Roles API ───────────────────────────────────────────────────────
 
-const rolesAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/roles' : (import.meta.env.VITE_API_URL || '') + '/api/v1/roles', timeout: API_TIMEOUT });
+const rolesAxios = axios.create({ baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/roles' : (import.meta.env.VITE_API_URL || '') + '/api/v1/roles', timeout: API_TIMEOUT });
 rolesAxios.interceptors.request.use((config) => {
   const token = tokenStorage.getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;

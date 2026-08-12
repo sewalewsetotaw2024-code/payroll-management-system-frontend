@@ -4,7 +4,7 @@ import { tokenStorage } from '../../../lib/token';
 // Axios for employee API (from payroll backend - synced data)
 // Base: /api/v1/configurations (proxied to port 3000)
 const payrollAxios = axios.create({
-  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/configurations' : (import.meta.env.VITE_API_URL || '') + '/api/v1/configurations',
+  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/configurations' : (import.meta.env.VITE_API_URL || '') + '/api/v1/configurations',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -16,7 +16,7 @@ payrollAxios.interceptors.request.use((config) => {
 
 // Axios for integration/sync endpoints
 const integrationAxios = axios.create({
-  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-d2y9.onrender.com/api/v1/integrations' : (import.meta.env.VITE_API_URL || '') + '/api/v1/integrations',
+  baseURL: import.meta.env.PROD ? 'https://payroll-management-system-backend-j011.onrender.com/api/v1/integrations' : (import.meta.env.VITE_API_URL || '') + '/api/v1/integrations',
   headers: { 'Content-Type': 'application/json' },
 });
 
