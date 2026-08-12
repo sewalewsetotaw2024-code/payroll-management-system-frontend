@@ -168,15 +168,28 @@ export const AttendanceSummarySection: React.FC<AttendanceSummarySectionProps> =
     if (!selectedImport?.id) return;
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/v1/attendance/imports/${selectedImport.id}/submit-for-approval`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,
-          'Content-Type': 'application/json',
+      const apiHost = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || (import.meta.env.PROD ? "https://payroll-management-system-backend-j011.onrender.com" : "");
+      const normalizedHost = apiHost.replace(/\/api\/v1$/i, "");
+      const baseUrl = normalizedHost ? `${normalizedHost}/api/v1` : "/api/v1";
+      const response = await fetch(
+        `${baseUrl}/attendance/imports/${selectedImport.id}/submit-for-approval`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${(await import('../../../lib/token')).tokenStorage.getToken()}`,
+            'Content-Type': 'application/json',
+          },
         },
-      });
-      let data: any;
-      try { data = await response.json(); } catch { data = { message: `Server returned ${response.status} ${response.statusText}` }; }
+      );
+      let data: any = { message: `Server returned ${response.status} ${response.statusText}` };
+      const text = await response.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { message: `Server returned ${response.status} ${response.statusText}` };
+        }
+      }
       if (response.ok && data.success) {
         toast.success('Attendance submitted for approval successfully!');
         const detail = await attendanceApi.getImportById(selectedImport.id);

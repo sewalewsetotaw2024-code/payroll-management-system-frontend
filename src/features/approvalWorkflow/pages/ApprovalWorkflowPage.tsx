@@ -268,13 +268,19 @@ export const ApprovalWorkflowPage: React.FC = () => {
     setStage1Submitting(true);
     try {
       const { tokenStorage } = await import("../../../lib/token");
-      const response = await fetch(`/api/v1/attendance/imports/${activeImportId}/submit-for-approval`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tokenStorage.getToken()}`,
-          "Content-Type": "application/json",
+      const apiHost = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || (import.meta.env.PROD ? "https://payroll-management-system-backend-j011.onrender.com" : "");
+      const normalizedHost = apiHost.replace(/\/api\/v1$/i, "");
+      const baseUrl = normalizedHost ? `${normalizedHost}/api/v1` : "/api/v1";
+      const response = await fetch(
+        `${baseUrl}/attendance/imports/${activeImportId}/submit-for-approval`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${tokenStorage.getToken()}`,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
       let result: any = { message: `Server returned ${response.status} ${response.statusText}` };
       const text = await response.text();
       if (text) {
